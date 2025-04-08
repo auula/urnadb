@@ -1,4 +1,4 @@
-// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://wiredb.github.io
+// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://urnadb.github.io
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/auula/wiredb/clog"
+	"github.com/auula/urnadb/clog"
 	"github.com/gin-gonic/gin"
 )
 
-const version = "wiredb/1.1.2"
+const version = "urnadb/1.1.2"
 
 var (
 	root         *gin.Engine

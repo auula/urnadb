@@ -1,4 +1,4 @@
-// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://wiredb.github.io
+// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://urnadb.github.io
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,9 +35,9 @@ const (
 	DefaultConfigJSON = `
 	{
 		"port": 2668,
-		"path": "/tmp/wiredb",
+		"path": "/tmp/urnadb",
 		"debug": false,
-		"logpath": "/tmp/wiredb/out.log",
+		"logpath": "/tmp/urnadb/out.log",
 		"auth": "Are we wide open to the world?",
 		"region": {
 			"enable": true,

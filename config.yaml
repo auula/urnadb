@@ -1,8 +1,8 @@
 port: 2668                              # 服务 HTTP 协议端口
 mode: "std"                             # 默认为 std 标准库，另外可以设置 mmap 模式（本功能待完善）
-path: "/tmp/wiredb"                     # 数据库文件存储目录
+path: "/tmp/urnadb"                     # 数据库文件存储目录
 auth: "Are we wide open to the world?"  # 访问 HTTP 协议的秘密
-logpath: "/tmp/wiredb/out.log"          # WireDB 在运行时程序产生的日志存储文件
+logpath: "/tmp/urnadb/out.log"          # urnadb 在运行时程序产生的日志存储文件
 debug: false                            # 是否开启 debug 模式
 region:                                 # 数据区
     enable: true                        # 是否开启数据压缩功能

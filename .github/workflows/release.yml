@@ -27,7 +27,7 @@ jobs:
 
       - name: Define File Name
         run: |
-          APP_NAME="wiredb"
+          APP_NAME="momentdb"
           ARCH="${{ matrix.arch }}"
           OUTPUT_NAME="${APP_NAME}-linux-${ARCH}"
           echo "OUTPUT_NAME=$OUTPUT_NAME" >> $GITHUB_ENV
@@ -36,7 +36,7 @@ jobs:
         run: |
           OUTPUT="dist/${{ env.OUTPUT_NAME }}"
           mkdir -p dist
-          env GOOS=linux GOARCH=${{ matrix.arch }} go build -o "$OUTPUT" ./wiredb.go
+          env GOOS=linux GOARCH=${{ matrix.arch }} go build -o "$OUTPUT" ./momentdb.go
 
       - name: Compress Binary
         run: |

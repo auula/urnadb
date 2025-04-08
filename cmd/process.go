@@ -1,4 +1,4 @@
-// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://wiredb.github.io
+// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://urnadb.github.io
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// wiredb code logic of the main process
+// momentdb code logic of the main process
 package cmd
 
 import (
@@ -25,17 +25,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/auula/wiredb/clog"
-	"github.com/auula/wiredb/conf"
-	"github.com/auula/wiredb/server"
-	"github.com/auula/wiredb/utils"
-	"github.com/auula/wiredb/vfs"
+	"github.com/auula/urnadb/clog"
+	"github.com/auula/urnadb/conf"
+	"github.com/auula/urnadb/server"
+	"github.com/auula/urnadb/utils"
+	"github.com/auula/urnadb/vfs"
 	"github.com/gookit/color"
 )
 
 const (
 	version = "v1.1.2"
-	website = "https://wiredb.github.io"
+	website = "https://urnadb.github.io"
 )
 
 var (

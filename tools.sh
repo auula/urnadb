@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "WireDB Tools Shell Script."
+echo "UrnaDB Tools Shell Script."
 
 echo ""
 
@@ -21,17 +21,17 @@ if [ -z "$case_num" ]; then
 fi
 
 
-sudo rm -rf /tmp/wiredb
-sudo mkdir -p /tmp/wiredb
-sudo chmod -R 777 /tmp/wiredb
+sudo rm -rf /tmp/urnadb
+sudo mkdir -p /tmp/urnadb
+sudo chmod -R 777 /tmp/urnadb
 
 function test_cmd_package() {
     sudo cd cmd && go test -v
 }
 
 function test_all_packages() {
-    sudo mkdir -p /tmp/wiredb
-    sudo chmod -R 777 /tmp/wiredb
+    sudo mkdir -p /tmp/urnadb
+    sudo chmod -R 777 /tmp/urnadb
     sudo go test -vet=all -race -coverprofile=coverage.out -covermode=atomic -v ./...
 }
 
@@ -48,7 +48,7 @@ function test_vfs_packages() {
 }
 
 function build_container_images() {
-    docker build -t wiredb:beta .
+    docker build -t urnadb:latest .
 }
 
 if [ "$case_num" -eq 1 ]; then

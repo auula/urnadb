@@ -1,4 +1,4 @@
-module github.com/auula/wiredb
+module github.com/auula/urnadb
 
 go 1.20
 

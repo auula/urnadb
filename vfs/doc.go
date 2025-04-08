@@ -1,4 +1,4 @@
-// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://vasedb.github.io
+// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://urnadb.github.io
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /*
-The "vasedb" module provides the core functionality for
+The "urnadb" module provides the core functionality for
 database data persistence and storage engine within the system.
 */
 package vfs

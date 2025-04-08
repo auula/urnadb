@@ -1,5 +1,5 @@
 ignore:
-  - wiredb.go
+  - urnadb.go
   - (?s:example/[^\/]+\.go.*)\Z
   - ^doc.go.*
   - (?s:[^\/]+_test\.go.*)\Z

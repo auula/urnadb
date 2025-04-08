@@ -1,4 +1,4 @@
-// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://wiredb.github.io
+// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://urnadb.github.io
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	processName = "WIREDB"
+	processName = "UrnaDB"
 )
 
 var (
@@ -35,10 +35,10 @@ var (
 	infoColor   = color.New(color.Bold, color.FgGreen)
 	redColor    = color.New(color.Bold, color.FgRed)
 	debugColor  = color.New(color.Bold, color.FgBlue)
-	errorPrefix = redColor.Sprintf("[ERROR]\t")
-	warnPrefix  = warnColor.Sprintf("[WARN]\t")
-	infoPrefix  = infoColor.Sprintf("[INFO]\t")
-	debugPrefix = debugColor.Sprintf("[DEBUG]\t")
+	errorPrefix = redColor.Sprintf("[ERROR] ")
+	warnPrefix  = warnColor.Sprintf("[WARN] ")
+	infoPrefix  = infoColor.Sprintf("[INFO] ")
+	debugPrefix = debugColor.Sprintf("[DEBUG] ")
 
 	IsDebug = false
 )

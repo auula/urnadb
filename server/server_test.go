@@ -1,4 +1,4 @@
-// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://wiredb.github.io
+// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://urnadb.github.io
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/auula/wiredb/conf"
-	"github.com/auula/wiredb/vfs"
+	"github.com/auula/urnadb/conf"
+	"github.com/auula/urnadb/vfs"
 	"github.com/stretchr/testify/assert"
 )
 

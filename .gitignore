@@ -6,6 +6,7 @@
 *.dylib
 _temp
 coverage.out
+.DS_Store
 
 # Test binary, built with `go test -c`
 *.test
@@ -16,7 +17,7 @@ coverage.out
 .vscode
 .idea
 testdata
-wiredb
+urnadb
 
 # Dependency directories (remove the comment below to include it)
 # vendor/

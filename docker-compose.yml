@@ -1,10 +1,10 @@
 version: '3.8'
 services:
-  wiredb:
-    image: auula/wiredb:latest
-    container_name: wiredb
+  urnadb:
+    image: auula/urnadb:latest
+    container_name: urnadb
     ports:
       - "2668:2668"
     volumes:
-      - /var/wiredb:/tmp/wiredb
+      - /var/urnadb:/tmp/urnadb
     restart: unless-stopped
