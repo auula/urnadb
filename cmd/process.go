@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// momentdb code logic of the main process
+// UrnaDB code logic of the main process
 package cmd
 
 import (

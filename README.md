@@ -156,9 +156,6 @@ ok  	github.com/auula/urnadb/vfs	2.806s
 
 [![Stargazers over time](https://starchart.cc/auula/urnadb.svg?variant=adaptive)](https://starchart.cc/auula/urnadb)
 
-                    
-
-
 ---
 
 ## 👬 Contributors
