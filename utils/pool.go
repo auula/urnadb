@@ -19,6 +19,9 @@ type Reusable interface {
 }
 
 func ReleaseToPool(pools ...Reusable) {
+	if pools == nil {
+		return
+	}
 	for _, p := range pools {
 		if p == nil {
 			continue
