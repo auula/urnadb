@@ -107,7 +107,7 @@ func StartApp() {
 
 func runAsDaemon() {
 	//args := utils.SplitArgs(utils.TrimDaemon(os.Args))
-	cmd := exec.Command(os.Args[0], utils.TrimDaemon(os.Args)...)
+	cmd := exec.Command(os.Args[0], utils.TrimDaemon(os.Args[1:])...)
 	cmd.Env = os.Environ()
 
 	err := cmd.Start()
