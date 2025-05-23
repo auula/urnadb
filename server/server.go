@@ -154,9 +154,6 @@ func closeStorage() error {
 		if err != nil {
 			return err
 		}
-		// 重制为 nil 防止关闭之后重启文件系统其他功能没有正确设置
-		// 例如 Checkpoint CompactRegion 等功能
-		storage = nil
 	}
 	return nil
 }
