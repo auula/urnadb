@@ -243,6 +243,17 @@ func (lfs *LogStructuredFS) KeysCount() int {
 	return keys
 }
 
+// KeysCount iterate over each index in lfs.indexs.
+// func (lfs *LogStructuredFS) KeysCount() int {
+// 	total := 0
+// 	for _, imap := range lfs.indexs {
+// 		imap.mu.Lock()
+// 		total += len(imap.index)
+// 		imap.mu.Unlock()
+// 	}
+// 	return total - lfs.cleanExpiredValues()
+// }
+
 func InodeNum(key string) uint64 {
 	return murmur3.Sum64([]byte(key))
 }
@@ -707,6 +718,22 @@ func (lfs *LogStructuredFS) CloseFS() error {
 	// otherwise, perform a global scan.
 	return lfs.ExportSnapshotIndex()
 }
+
+// func (lfs *LogStructuredFS) cleanExpiredValues() int {
+// 	keys := 0
+// 	for _, imap := range lfs.indexs {
+// 		imap.mu.Lock()
+// 		for key, inode := range imap.index {
+// 			// Clean expired inode
+// 			if inode.ExpiredAt <= uint64(time.Now().UnixNano()) && inode.ExpiredAt != 0 {
+// 				delete(imap.index, key)
+// 				keys++
+// 			}
+// 		}
+// 		imap.mu.Unlock()
+// 	}
+// 	return keys
+// }
 
 func (lfs *LogStructuredFS) GetDirectory() string {
 	return lfs.directory
