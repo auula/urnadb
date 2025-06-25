@@ -225,9 +225,9 @@ func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
 	return atomic.LoadUint64(&inode.mvcc), segment, nil
 }
 
-// KeysCount iterate over each index in lfs.indexs.
-func (lfs *LogStructuredFS) KeysCount() int {
-	keys := 0
+// CountValidInodes iterate over each index in lfs.indexs.
+func (lfs *LogStructuredFS) CountValidInodes() int {
+	inodes := 0
 	for _, imap := range lfs.indexs {
 		imap.mu.Lock()
 		for key, inode := range imap.index {
@@ -235,12 +235,12 @@ func (lfs *LogStructuredFS) KeysCount() int {
 			if inode.ExpiredAt <= uint64(time.Now().UnixNano()) && inode.ExpiredAt != 0 {
 				delete(imap.index, key)
 			} else {
-				keys += 1
+				inodes += 1
 			}
 		}
 		imap.mu.Unlock()
 	}
-	return keys
+	return inodes
 }
 
 // KeysCount iterate over each index in lfs.indexs.

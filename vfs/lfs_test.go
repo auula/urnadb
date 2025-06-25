@@ -505,7 +505,7 @@ func TestVFSOpertions(t *testing.T) {
 	err = fss.PutSegment("key-01", seg)
 	assert.NoError(t, err)
 
-	assert.Equal(t, fss.KeysCount(), 1)
+	assert.Equal(t, fss.CountValidInodes(), 1)
 
 	err = fss.DeleteSegment("key-01")
 	assert.NoError(t, err)
