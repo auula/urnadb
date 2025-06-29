@@ -41,7 +41,7 @@ const (
 		"auth": "Are we wide open to the world?",
 		"region": {
 			"enable": true,
-			"cron": "0 0 3 * * *",
+			"cron": "0 0 3 * *",
 			"threshold": 2
 		},
 		"encryptor": {
