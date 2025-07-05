@@ -71,7 +71,7 @@ root@2c2m:~# docker logs 66ae91bc73a6
 [UrnaDB:C] 2023/06/04 18:35:15 [INFO] HTTP server started at http://192.168.31.221:2668 🚀
 ```
 
-如果计划将 UrnaDB 作为长期运行的服务，推荐直接使用主流 Linux 发行版来运行而非容器技术。采用裸机 Linux 部署 UrnaDB 服务，可手动优化存储引擎参数，以获得更稳定的性能和更高的资源利用率，具体参数配置建议查看[官方文档](https://docs.urnadb.org)。
+如果计划将 UrnaDB 作为长期运行的服务，推荐直接使用主流 Linux 发行版来运行而非容器技术。采用裸机 Linux 部署 UrnaDB 服务，可手动优化存储引擎参数，以获得更稳定的性能和更高的资源利用率，具体参数配置建议查看[官方文档](https://urnadb.github.io)。
 
 ---
 
