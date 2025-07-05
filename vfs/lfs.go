@@ -229,18 +229,34 @@ func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
 func (lfs *LogStructuredFS) CountValidInodes() int {
 	inodes := 0
 	for _, imap := range lfs.indexs {
-		imap.mu.Lock()
 		for key, inode := range imap.index {
 			// Clean expired inode
+			imap.mu.Lock()
 			if inode.ExpiredAt <= uint64(time.Now().UnixNano()) && inode.ExpiredAt != 0 {
 				delete(imap.index, key)
 			} else {
 				inodes += 1
 			}
+			imap.mu.Unlock()
 		}
-		imap.mu.Unlock()
 	}
 	return inodes
+}
+
+func expireLoop(indexs []*indexMap, interval_second int) {
+	for {
+		now := uint64(time.Now().UnixNano())
+		for _, imap := range indexs {
+			imap.mu.Lock()
+			for key, inode := range imap.index {
+				if inode.ExpiredAt != 0 && inode.ExpiredAt <= now {
+					delete(imap.index, key)
+				}
+			}
+			imap.mu.Unlock()
+		}
+		time.Sleep(time.Second * time.Duration(interval_second))
+	}
 }
 
 // KeysCount iterate over each index in lfs.indexs.
@@ -692,6 +708,8 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover regions index: %w", err)
 	}
+
+	go expireLoop(instance.indexs, 120)
 
 	// Singleton pattern, but other packages can still create an instance with new(LogStructuredFS), which makes this ineffective
 	return instance, nil
