@@ -1343,8 +1343,10 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 						lfs.mu.Unlock()
 
 						readOffset += uint64(segment.Size())
+
 					} else {
 						// next segment
+						readOffset += uint64(segment.Size())
 						continue
 					}
 
