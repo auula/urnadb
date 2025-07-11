@@ -1371,13 +1371,14 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 					}
 				}
 
-				// Delete dirty region file
-				lfs.mu.Lock()
-				err = os.Remove(filepath.Join(lfs.directory, fd.Name()))
-				lfs.mu.Unlock()
-				if err != nil {
-					return fmt.Errorf("failed to remove dirty region: %w", err)
-				}
+			}
+
+			// Delete dirty region file
+			lfs.mu.Lock()
+			err = os.Remove(filepath.Join(lfs.directory, fd.Name()))
+			lfs.mu.Unlock()
+			if err != nil {
+				return fmt.Errorf("failed to remove dirty region: %w", err)
 			}
 
 		}
