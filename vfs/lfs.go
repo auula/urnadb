@@ -98,6 +98,7 @@ type LogStructuredFS struct {
 	compactTask      *cron.Cron
 	dirtyRegions     []*os.File
 	checkpointWorker *time.Ticker
+	expireLoopWorker *time.Ticker
 }
 
 // PutSegment inserts a Segment record into the LogStructuredFS virtual file system.
@@ -243,8 +244,17 @@ func (lfs *LogStructuredFS) CountValidInodes() int {
 	return inodes
 }
 
-func expireLoop(indexs []*indexMap, interval_second int) {
-	for {
+func (lfs *LogStructuredFS) StopExpireLoop() {
+	lfs.mu.Lock()
+	defer lfs.mu.Unlock()
+
+	if lfs.expireLoopWorker != nil {
+		lfs.expireLoopWorker.Stop()
+	}
+}
+
+func expireLoop(indexs []*indexMap, ticker *time.Ticker) {
+	for range ticker.C {
 		now := uint64(time.Now().UnixNano())
 		for _, imap := range indexs {
 			imap.mu.Lock()
@@ -255,7 +265,6 @@ func expireLoop(indexs []*indexMap, interval_second int) {
 			}
 			imap.mu.Unlock()
 		}
-		time.Sleep(time.Second * time.Duration(interval_second))
 	}
 }
 
@@ -689,6 +698,7 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 		gcstate:          GC_INIT,
 		compactTask:      nil,
 		checkpointWorker: nil,
+		expireLoopWorker: time.NewTicker(time.Duration(120) * time.Second),
 	}
 
 	for i := 0; i < shard; i++ {
@@ -709,7 +719,7 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 		return nil, fmt.Errorf("failed to recover regions index: %w", err)
 	}
 
-	go expireLoop(instance.indexs, 120)
+	go expireLoop(instance.indexs, instance.expireLoopWorker)
 
 	// Singleton pattern, but other packages can still create an instance with new(LogStructuredFS), which makes this ineffective
 	return instance, nil
