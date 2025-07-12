@@ -455,7 +455,7 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 //  2. Unlike bitcask, where hint files are generated during the compressor process,
 //     in bitcask, hint files are created during compression but do not represent
 //     the full state of the in-memory index.
-//  3. wiredkv adopts a completely different design. If the system was closed normally,
+//  3. UrnaDB adopts a completely different design. If the system was closed normally,
 //     an index file is generated upon closure.
 //  4. If the data file has an associated index file, the index is restored directly
 //     from the index file.

@@ -19,9 +19,17 @@ import (
 )
 
 // mockReusable 用于测试正常对象场景
-type mockReusable struct{}
+type mockReusable struct {
+	t *testing.T
+}
 
-func (m *mockReusable) ReleaseToPool() {}
+func (m *mockReusable) ReleaseToPool() {
+	// 防止直接 new(mockReusable)
+	// 直接 new 会导致 m.t 为 nil
+	if m.t != nil {
+		m.t.Logf("mock reusable released to pool")
+	}
+}
 
 func TestReleaseToPool(t *testing.T) {
 	cases := []struct {
@@ -31,7 +39,9 @@ func TestReleaseToPool(t *testing.T) {
 		{"nil slice", nil},
 		{"empty slice", []Reusable{}},
 		{"slice with nils", []Reusable{nil, nil}},
-		{"normal slice", []Reusable{new(mockReusable), &mockReusable{}}},
+		{"normal slice", []Reusable{new(mockReusable), &mockReusable{
+			t: t,
+		}}},
 	}
 
 	for _, c := range cases {
