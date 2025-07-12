@@ -18,6 +18,9 @@ type Reusable interface {
 	ReleaseToPool()
 }
 
+// ReleaseToPool releases one or more Reusable objects back to their respective pools.
+// It accepts a variadic parameter of Reusable objects and returns them to the pool for reuse,
+// helping to reduce memory allocations and improve performance.
 func ReleaseToPool(pools ...Reusable) {
 	if pools == nil {
 		return

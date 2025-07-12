@@ -24,7 +24,6 @@ type mockReusable struct {
 }
 
 func (m *mockReusable) ReleaseToPool() {
-	// 防止直接 new(mockReusable)
 	// 直接 new 会导致 m.t 为 nil
 	if m.t != nil {
 		m.t.Logf("mock reusable released to pool")
