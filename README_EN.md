@@ -126,7 +126,7 @@ curl -X DELETE http://localhost:2668/table/key-01 -v \
 -H "Auth-Token: QGVkh8niwL2TSkj72icaKBC9B" 
 ```
 
-More complex query and update operations will be supported in future version updates. For code examples of other data structure type operations, please check the [official documentation](https://docs.urnadb.org).
+More complex query and update operations will be supported in future version updates. For code examples of other data structure type operations, please check the [official documentation](https://urnadb.github.io).
 
 ---
 

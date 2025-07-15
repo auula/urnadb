@@ -128,7 +128,7 @@ curl -X DELETE http://localhost:2668/table/key-01 -v \
 -H "Auth-Token: QGVkh8niwL2TSkj72icaKBC9B" 
 ```
 
-更为复杂的查询和复杂更新操作，将在后续的版本更新中添加支持。其他数据结构类型操作代码示例请查看[官方文档](https://docs.urnadb.org)。
+更为复杂的查询和复杂更新操作，将在后续的版本更新中添加支持。其他数据结构类型操作代码示例请查看[官方文档](https://urnadb.github.io)。
 
 
 ---
