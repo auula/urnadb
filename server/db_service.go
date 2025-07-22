@@ -93,6 +93,7 @@ func DeleteCollectionController(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
+		return
 	}
 
 	ctx.JSON(http.StatusNoContent, gin.H{
@@ -165,6 +166,7 @@ func DeleteTableController(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
+		return
 	}
 
 	ctx.JSON(http.StatusNoContent, gin.H{
@@ -237,6 +239,7 @@ func DeleteZsetController(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
+		return
 	}
 
 	ctx.JSON(http.StatusNoContent, gin.H{
@@ -309,6 +312,7 @@ func DeleteTextController(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
+		return
 	}
 
 	ctx.JSON(http.StatusNoContent, gin.H{
@@ -381,6 +385,7 @@ func DeleteNumberController(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
+		return
 	}
 
 	ctx.JSON(http.StatusNoContent, gin.H{
@@ -453,6 +458,7 @@ func DeleteSetController(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
+		return
 	}
 
 	ctx.JSON(http.StatusNoContent, gin.H{
@@ -484,6 +490,7 @@ func GetHealthController(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
+		return
 	}
 
 	ctx.IndentedJSON(http.StatusOK, SystemInfo{
