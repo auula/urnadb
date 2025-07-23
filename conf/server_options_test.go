@@ -95,7 +95,7 @@ func TestSavedAsConfig(t *testing.T) {
 		Password: "password@123",
 		Region: Region{
 			Enable:    true,
-			Schedule:  "0 0 3 * * *",
+			Schedule:  "0 0 3 * *",
 			Threshold: 3,
 		},
 		Encryptor: Encryptor{
@@ -138,7 +138,7 @@ func TestSavedConfig(t *testing.T) {
 		Password: "password@123",
 		Region: Region{
 			Enable:    true,
-			Schedule:  "0 0 3 * * *",
+			Schedule:  "0 0 3 * *",
 			Threshold: 3,
 		},
 		Encryptor: Encryptor{
@@ -264,7 +264,7 @@ func TestServerOptions_ToString(t *testing.T) {
 		Password: "password@123",
 		Region: Region{
 			Enable:    true,
-			Schedule:  "0 0 3 * * *",
+			Schedule:  "0 0 3 * *",
 			Threshold: 3,
 		},
 		Encryptor: Encryptor{
@@ -307,7 +307,7 @@ func TestVaildated(t *testing.T) {
 		Password: "securepassword",
 		Region: Region{
 			Enable:    true,
-			Schedule:  "0 0 3 * * *",
+			Schedule:  "0 0 3 * *",
 			Threshold: 3,
 		},
 		Encryptor: Encryptor{
@@ -327,7 +327,7 @@ func TestVaildated(t *testing.T) {
 		Password: "securepassword",
 		Region: Region{
 			Enable:    true,
-			Schedule:  "0 0 3 * * *",
+			Schedule:  "0 0 3 * *",
 			Threshold: 3,
 		},
 		Encryptor: Encryptor{
@@ -351,7 +351,7 @@ func TestVaildated(t *testing.T) {
 		Password: "securepassword",
 		Region: Region{
 			Enable:    true,
-			Schedule:  "0 0 3 * * *",
+			Schedule:  "0 0 3 * *",
 			Threshold: 3,
 		},
 		Encryptor: Encryptor{
@@ -374,7 +374,7 @@ func TestVaildated(t *testing.T) {
 		Password: "",
 		Region: Region{
 			Enable:    true,
-			Schedule:  "0 0 3 * * *",
+			Schedule:  "0 0 3 * *",
 			Threshold: 3,
 		},
 		Encryptor: Encryptor{
@@ -396,7 +396,7 @@ func TestVaildated(t *testing.T) {
 		Password: "securepassword",
 		Region: Region{
 			Enable:    true,
-			Schedule:  "0 0 3 * * *",
+			Schedule:  "0 0 3 * *",
 			Threshold: 3,
 		},
 		Encryptor: Encryptor{
@@ -420,7 +420,7 @@ func TestVaildated(t *testing.T) {
 		Password: "securepassword",
 		Region: Region{
 			Enable:    true,
-			Schedule:  "0 0 3 * * *",
+			Schedule:  "0 0 3 * *",
 			Threshold: 3,
 		},
 		Encryptor: Encryptor{
@@ -507,7 +507,7 @@ func TestServerOptionsMethods(t *testing.T) {
 	opt := &ServerOptions{
 		Compressor: Compressor{Enable: true},
 		Encryptor:  Encryptor{Enable: true, Secret: "secure-key-12345678"},
-		Region:     Region{Enable: true, Schedule: "0 0 3 * * *"},
+		Region:     Region{Enable: true, Schedule: "0 0 3 * *"},
 	}
 
 	// 1. 测试 IsCompressionEnabled 方法
@@ -527,7 +527,7 @@ func TestServerOptionsMethods(t *testing.T) {
 
 	// 4. 测试 CompactRegionInterval 方法
 	t.Run("Test CompactRegionInterval", func(t *testing.T) {
-		assert.Equal(t, "0 0 3 * * *", opt.CompactRegionInterval())
+		assert.Equal(t, "0 0 3 * *", opt.CompactRegionInterval())
 	})
 
 	// 5. 测试 Secret 方法
