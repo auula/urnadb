@@ -22,12 +22,11 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '1.20'
-          cache: true
-          cache-dependency-path: go.sum
+         
 
       - name: Define File Name
         run: |
-          APP_NAME="momentdb"
+          APP_NAME="urnadb"
           ARCH="${{ matrix.arch }}"
           OUTPUT_NAME="${APP_NAME}-linux-${ARCH}"
           echo "OUTPUT_NAME=$OUTPUT_NAME" >> $GITHUB_ENV
@@ -36,7 +35,7 @@ jobs:
         run: |
           OUTPUT="dist/${{ env.OUTPUT_NAME }}"
           mkdir -p dist
-          env GOOS=linux GOARCH=${{ matrix.arch }} go build -o "$OUTPUT" ./momentdb.go
+          env GOOS=linux GOARCH=${{ matrix.arch }} go build -o "$OUTPUT" ./urnadb.go
 
       - name: Compress Binary
         run: |
@@ -74,3 +73,4 @@ jobs:
           body_path: CHANGELOG.md 
           draft: false
           prerelease: false
+          

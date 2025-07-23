@@ -1,4 +1,4 @@
-// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://momentdb.github.io
+// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://urnadb.github.io
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -91,7 +91,7 @@ func TestSavedAsConfig(t *testing.T) {
 		Port:     8080,
 		Path:     tmpDir,
 		Debug:    true,
-		LogPath:  "/tmp/wiredb/out.log",
+		LogPath:  "/tmp/urna/out.log",
 		Password: "password@123",
 		Region: Region{
 			Enable:    true,
@@ -134,7 +134,7 @@ func TestSavedConfig(t *testing.T) {
 		Port:     8080,
 		Path:     tmpDir,
 		Debug:    true,
-		LogPath:  "/tmp/wiredb/out.log",
+		LogPath:  "/tmp/urnadb/out.log",
 		Password: "password@123",
 		Region: Region{
 			Enable:    true,
@@ -260,7 +260,7 @@ func TestServerOptions_ToString(t *testing.T) {
 		Port:     8080,
 		Path:     "",
 		Debug:    true,
-		LogPath:  "/tmp/wiredb/out.log",
+		LogPath:  "/tmp/urnadb/out.log",
 		Password: "password@123",
 		Region: Region{
 			Enable:    true,
@@ -303,7 +303,7 @@ func TestVaildated(t *testing.T) {
 	// Should pass validation
 	err := Vaildated(&ServerOptions{
 		Port:     2668,
-		Path:     "/tmp/wiredb",
+		Path:     "/tmp/urnadb",
 		Password: "securepassword",
 		Region: Region{
 			Enable:    true,
@@ -323,7 +323,7 @@ func TestVaildated(t *testing.T) {
 	// Invalid configuration: port out of range
 	invalidConfig := &ServerOptions{
 		Port:     2668,
-		Path:     "/tmp/wiredb",
+		Path:     "/tmp/urnadb",
 		Password: "securepassword",
 		Region: Region{
 			Enable:    true,
@@ -347,7 +347,7 @@ func TestVaildated(t *testing.T) {
 	// Invalid configuration: empty path
 	invalidConfig = &ServerOptions{
 		Port:     2668,
-		Path:     "/tmp/wiredb",
+		Path:     "/tmp/urnadb",
 		Password: "securepassword",
 		Region: Region{
 			Enable:    true,
@@ -370,7 +370,7 @@ func TestVaildated(t *testing.T) {
 
 	invalidConfig = &ServerOptions{
 		Port:     2668,
-		Path:     "/tmp/wiredb",
+		Path:     "/tmp/urnadb",
 		Password: "",
 		Region: Region{
 			Enable:    true,
@@ -392,7 +392,7 @@ func TestVaildated(t *testing.T) {
 	// Invalid configuration: invalid secret key length
 	invalidConfig = &ServerOptions{
 		Port:     2668,
-		Path:     "/tmp/wiredb",
+		Path:     "/tmp/urnadb",
 		Password: "securepassword",
 		Region: Region{
 			Enable:    true,
@@ -416,7 +416,7 @@ func TestVaildated(t *testing.T) {
 	// // Invalid configuration: encryptor disable
 	invalidConfig = &ServerOptions{
 		Port:     2668,
-		Path:     "/tmp/wiredb",
+		Path:     "/tmp/urnadb",
 		Password: "securepassword",
 		Region: Region{
 			Enable:    true,
