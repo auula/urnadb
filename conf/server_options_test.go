@@ -91,7 +91,7 @@ func TestSavedAsConfig(t *testing.T) {
 		Port:     8080,
 		Path:     tmpDir,
 		Debug:    true,
-		LogPath:  "/tmp/urna/out.log",
+		LogPath:  "/tmp/urnadb/out.log",
 		Password: "password@123",
 		Region: Region{
 			Enable:    true,
