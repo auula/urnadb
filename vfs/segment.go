@@ -24,32 +24,32 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-type Kind int8
+type kind int8
 
 const (
-	Set Kind = iota
-	ZSet
-	Text
-	Table
-	Number
-	Unknown
-	Collection
+	set kind = iota
+	zset
+	text
+	table
+	number
+	unknown
+	collection
 )
 
-var KindToString = map[Kind]string{
-	Set:        "set",
-	ZSet:       "zset",
-	Text:       "text",
-	Table:      "table",
-	Number:     "number",
-	Unknown:    "unknown",
-	Collection: "collection",
+var kindToString = map[kind]string{
+	set:        "set",
+	zset:       "zset",
+	text:       "text",
+	table:      "table",
+	number:     "number",
+	unknown:    "unknown",
+	collection: "collection",
 }
 
 // | DEL 1 | KIND 1 | EAT 8 | CAT 8 | KLEN 4 | VLEN 4 | KEY ? | VALUE ? | CRC32 4 |
 type Segment struct {
 	Tombstone int8
-	Type      Kind
+	Type      kind
 	ExpiredAt uint64
 	CreatedAt uint64
 	KeySize   uint32
@@ -159,7 +159,7 @@ func NewSegment(key string, data Serializable, ttl uint64) (*Segment, error) {
 func NewTombstoneSegment(key string) *Segment {
 	timestamp, expiredAt := uint64(time.Now().UnixNano()), uint64(0)
 	return &Segment{
-		Type:      Unknown,
+		Type:      unknown,
 		Tombstone: 1,
 		CreatedAt: timestamp,
 		ExpiredAt: expiredAt,
@@ -175,7 +175,7 @@ func (s *Segment) IsTombstone() bool {
 }
 
 func (s *Segment) GetTypeString() string {
-	return KindToString[s.Type]
+	return kindToString[s.Type]
 }
 
 func (s *Segment) GetKeyString() string {
@@ -184,11 +184,11 @@ func (s *Segment) GetKeyString() string {
 
 func (s *Segment) Size() uint32 {
 	// 计算一整块记录的大小，+4 CRC 校验码占用 4 个字节
-	return SEGMENT_PADDING + s.KeySize + s.ValueSize + 4
+	return _SEGMENT_PADDING + s.KeySize + s.ValueSize + 4
 }
 
 func (s *Segment) ToSet() (*types.Set, error) {
-	if s.Type != Set {
+	if s.Type != set {
 		return nil, fmt.Errorf("not support conversion to set type")
 	}
 	set := types.AcquireSet()
@@ -201,7 +201,7 @@ func (s *Segment) ToSet() (*types.Set, error) {
 }
 
 func (s *Segment) ToZSet() (*types.ZSet, error) {
-	if s.Type != ZSet {
+	if s.Type != zset {
 		return nil, fmt.Errorf("not support conversion to zset type")
 	}
 	zset := types.AcquireZSet()
@@ -214,7 +214,7 @@ func (s *Segment) ToZSet() (*types.ZSet, error) {
 }
 
 func (s *Segment) ToText() (*types.Text, error) {
-	if s.Type != Text {
+	if s.Type != text {
 		return nil, fmt.Errorf("not support conversion to text type")
 	}
 	text := types.AcquireText()
@@ -227,7 +227,7 @@ func (s *Segment) ToText() (*types.Text, error) {
 }
 
 func (s *Segment) ToCollection() (*types.Collection, error) {
-	if s.Type != Collection {
+	if s.Type != collection {
 		return nil, fmt.Errorf("not support conversion to collection type")
 	}
 	collection := types.AcquireCollection()
@@ -240,7 +240,7 @@ func (s *Segment) ToCollection() (*types.Collection, error) {
 }
 
 func (s *Segment) ToTable() (*types.Table, error) {
-	if s.Type != Table {
+	if s.Type != table {
 		return nil, fmt.Errorf("not support conversion to table type")
 	}
 	table := types.AcquireTable()
@@ -253,7 +253,7 @@ func (s *Segment) ToTable() (*types.Table, error) {
 }
 
 func (s *Segment) ToNumber() (*types.Number, error) {
-	if s.Type != Number {
+	if s.Type != number {
 		return nil, fmt.Errorf("not support conversion to number type")
 	}
 	number := types.AcquireNumber()
@@ -273,23 +273,23 @@ func (s *Segment) TTL() int64 {
 	return -1
 }
 
-// 将类型映射为 Kind 的辅助函数
-func toKind(data Serializable) Kind {
+// 将类型映射为 kind 的辅助函数
+func toKind(data Serializable) kind {
 	switch data.(type) {
 	case *types.Set:
-		return Set
+		return set
 	case *types.ZSet:
-		return ZSet
+		return zset
 	case *types.Text:
-		return Text
+		return text
 	case *types.Table:
-		return Table
+		return table
 	case *types.Number:
-		return Number
+		return number
 	case *types.Collection:
-		return Collection
+		return collection
 	}
-	return Unknown
+	return unknown
 }
 
 func (s *Segment) ToBytes() []byte {
@@ -298,37 +298,37 @@ func (s *Segment) ToBytes() []byte {
 
 func (s *Segment) ToJSON() ([]byte, error) {
 	switch s.Type {
-	case Set:
+	case set:
 		set, err := s.ToSet()
 		if err != nil {
 			return nil, err
 		}
 		return set.ToJSON()
-	case ZSet:
+	case zset:
 		zset, err := s.ToZSet()
 		if err != nil {
 			return nil, err
 		}
 		return zset.ToJSON()
-	case Text:
+	case text:
 		text, err := s.ToText()
 		if err != nil {
 			return nil, err
 		}
 		return text.ToJSON()
-	case Number:
+	case number:
 		num, err := s.ToNumber()
 		if err != nil {
 			return nil, err
 		}
 		return num.ToJSON()
-	case Table:
+	case table:
 		tab, err := s.ToTable()
 		if err != nil {
 			return nil, err
 		}
 		return tab.ToJSON()
-	case Collection:
+	case collection:
 		collection, err := s.ToCollection()
 		if err != nil {
 			return nil, err

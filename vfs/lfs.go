@@ -39,19 +39,19 @@ import (
 
 const (
 	_             = 1 << (10 * iota) // skip iota = 0
-	KB                               // 2^10 = 1024
-	MB                               // 2^20 = 1048576
-	GB                               // 2^30 = 1073741824
+	kb                               // 2^10 = 1024
+	mb                               // 2^20 = 1048576
+	gb                               // 2^30 = 1073741824
 	appendOnlyLog = os.O_RDWR | os.O_CREATE | os.O_APPEND
 )
 
 type GC_STATE = int8 // Region garbage collection state
 
 const (
-	GC_INIT GC_STATE = iota // gc 第一次执行就是这个状态
-	GC_ACTIVE
-	GC_INACTIVE
-	SEGMENT_PADDING = 26
+	_GC_INIT GC_STATE = iota // gc 第一次执行就是这个状态
+	_GC_ACTIVE
+	_GC_INACTIVE
+	_SEGMENT_PADDING = 26
 )
 
 var (
@@ -60,7 +60,7 @@ var (
 	transformer      = NewTransformer()
 	fileExtension    = ".db"
 	indexFileName    = "index.db"
-	regionThreshold  = int64(1 * GB) // 1GB
+	regionThreshold  = int64(1 * gb) // 1GB
 	dataFileMetadata = []byte{0xDB, 0x00, 0x01, 0x01}
 )
 
@@ -70,19 +70,19 @@ type Options struct {
 	Threshold uint8
 }
 
-// Inode represents a file system node with metadata.
-type Inode struct {
+// inode represents a file system node with metadata.
+type inode struct {
 	RegionID  uint64 // Unique identifier for the region
 	Position  uint64 // Position within the file
 	Length    uint32 // Data record length
-	ExpiredAt uint64 // Expiration time of the Inode (UNIX timestamp in nano seconds)
-	CreatedAt uint64 // Creation time of the Inode (UNIX timestamp in nano seconds)
+	ExpiredAt uint64 // Expiration time of the inode (UNIX timestamp in nano seconds)
+	CreatedAt uint64 // Creation time of the inode (UNIX timestamp in nano seconds)
 	mvcc      uint64 // Multi-version concurrency ID
 }
 
 type indexMap struct {
 	mu    sync.RWMutex
-	index map[uint64]*Inode
+	index map[uint64]*inode
 }
 
 // LogStructuredFS represents the virtual file storage system.
@@ -103,7 +103,7 @@ type LogStructuredFS struct {
 
 // PutSegment inserts a Segment record into the LogStructuredFS virtual file system.
 func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
-	inum := InodeNum(key)
+	inum := inodeNum(key)
 
 	bytes, err := serializedSegment(seg)
 	if err != nil {
@@ -123,8 +123,8 @@ func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
 	// To avoid locking the entire index, only the relevant shard is locked.
 	imap := lfs.indexs[inum%uint64(shard)]
 	imap.mu.Lock()
-	// Update the Inode metadata within a critical section.
-	imap.index[inum] = &Inode{
+	// Update the inode metadata within a critical section.
+	imap.index[inum] = &inode{
 		RegionID:  lfs.regionID,
 		Position:  lfs.offset,
 		Length:    seg.Size(),
@@ -177,7 +177,7 @@ func (lfs *LogStructuredFS) DeleteSegment(key string) error {
 	lfs.offset += uint64(seg.Size())
 	lfs.mu.Unlock()
 
-	inum := InodeNum(key)
+	inum := inodeNum(key)
 	imap := lfs.indexs[inum%uint64(shard)]
 	if imap == nil {
 		return fmt.Errorf("inode index shard for %d not found", inum)
@@ -191,7 +191,7 @@ func (lfs *LogStructuredFS) DeleteSegment(key string) error {
 }
 
 func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
-	inum := InodeNum(key)
+	inum := inodeNum(key)
 	imap := lfs.indexs[inum%uint64(shard)]
 	if imap == nil {
 		return 0, nil, fmt.Errorf("inode index shard for %d not found", inum)
@@ -217,7 +217,7 @@ func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
 		return 0, nil, fmt.Errorf("data region with ID %d not found", inode.RegionID)
 	}
 
-	_, segment, err := readSegment(fd, atomic.LoadUint64(&inode.Position), SEGMENT_PADDING)
+	_, segment, err := readSegment(fd, atomic.LoadUint64(&inode.Position), _SEGMENT_PADDING)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to read segment: %w", err)
 	}
@@ -279,19 +279,19 @@ func expireLoop(indexs []*indexMap, ticker *time.Ticker) {
 // 	return total - lfs.cleanExpiredValues()
 // }
 
-func InodeNum(key string) uint64 {
+func inodeNum(key string) uint64 {
 	return murmur3.Sum64([]byte(key))
 }
 
 // UpdateSegmentWithCAS 通过类似于 MVCC 来实现更新操作数据一致性
 func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, newseg *Segment) error {
-	inum := InodeNum(key)
+	inum := inodeNum(key)
 	imap := lfs.indexs[inum%uint64(shard)]
 	if imap == nil {
 		return fmt.Errorf("inode index shard for %d not found", inum)
 	}
 
-	// 读取 Inode 信息，使用写锁保证 inode 的稳定性
+	// 读取 inode 信息，使用写锁保证 inode 的稳定性
 	imap.mu.Lock()
 	inode, ok := imap.index[inum]
 	if !ok {
@@ -322,7 +322,7 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 		return fmt.Errorf("failed to update data: %w", err)
 	}
 
-	// 一次性原子更新 Inode 指针
+	// 一次性原子更新 inode 指针
 	atomic.StoreUint64(&inode.CreatedAt, newseg.CreatedAt)
 	atomic.StoreUint64(&inode.ExpiredAt, newseg.ExpiredAt)
 	atomic.StoreUint64(&inode.RegionID, lfs.regionID)
@@ -635,7 +635,7 @@ func (lfs *LogStructuredFS) RunCompactRegion(schedule string) error {
 	// 添加定时任务
 	_, err := lfs.compactTask.AddFunc(schedule, func() {
 		lfs.mu.Lock()
-		lfs.gcstate = GC_ACTIVE
+		lfs.gcstate = _GC_ACTIVE
 		lfs.mu.Unlock()
 
 		err := lfs.cleanupDirtyRegions()
@@ -644,7 +644,7 @@ func (lfs *LogStructuredFS) RunCompactRegion(schedule string) error {
 		}
 
 		lfs.mu.Lock()
-		lfs.gcstate = GC_INACTIVE
+		lfs.gcstate = _GC_INACTIVE
 		lfs.mu.Unlock()
 	})
 
@@ -665,7 +665,7 @@ func (lfs *LogStructuredFS) StopCompactRegion() {
 	if lfs.compactTask != nil {
 		lfs.compactTask.Stop()
 		lfs.compactTask = nil
-		lfs.gcstate = GC_INIT
+		lfs.gcstate = _GC_INIT
 	}
 }
 
@@ -680,7 +680,7 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 		return nil, fmt.Errorf("single region threshold size limit is too small")
 	}
 	// Single region max size = 255GB
-	regionThreshold = int64(opt.Threshold) * GB
+	regionThreshold = int64(opt.Threshold) * gb
 
 	err := checkFileSystem(opt.Path)
 	if err != nil {
@@ -695,7 +695,7 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 		offset:           uint64(len(dataFileMetadata)),
 		regionID:         0,
 		directory:        opt.Path,
-		gcstate:          GC_INIT,
+		gcstate:          _GC_INIT,
 		compactTask:      nil,
 		checkpointWorker: nil,
 		expireLoopWorker: time.NewTicker(time.Duration(120) * time.Second),
@@ -704,7 +704,7 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 	for i := 0; i < shard; i++ {
 		instance.indexs[i] = &indexMap{
 			mu:    sync.RWMutex{},
-			index: make(map[uint64]*Inode, 1e6),
+			index: make(map[uint64]*inode, 1e6),
 		}
 	}
 
@@ -824,7 +824,7 @@ func recoveryIndex(fd *os.File, indexs []*indexMap) error {
 
 	type index struct {
 		inum  uint64
-		Inode *Inode
+		inode *inode
 	}
 
 	nqueue := make(chan index, (finfo.Size()-offset)/48)
@@ -857,7 +857,7 @@ func recoveryIndex(fd *os.File, indexs []*indexMap) error {
 				continue
 			}
 
-			nqueue <- index{inum: inum, Inode: inode}
+			nqueue <- index{inum: inum, inode: inode}
 		}
 	}()
 
@@ -867,7 +867,7 @@ func recoveryIndex(fd *os.File, indexs []*indexMap) error {
 		for node := range nqueue {
 			imap := indexs[node.inum%uint64(shard)]
 			if imap != nil {
-				imap.index[node.inum] = node.Inode
+				imap.index[node.inum] = node.inode
 			} else {
 				// This corresponds to the condition len(queue) == 0 in the for loop.
 				// It prevents a situation where the consumer goroutine has encountered an error and stopped,
@@ -925,7 +925,7 @@ func crashRecoveryAllIndex(regions map[uint64]*os.File, indexs []*indexMap) erro
 		offset := uint64(len(dataFileMetadata))
 
 		for offset < uint64(finfo.Size()) {
-			inum, segment, err := readSegment(fd, offset, SEGMENT_PADDING)
+			inum, segment, err := readSegment(fd, offset, _SEGMENT_PADDING)
 			if err != nil {
 				return fmt.Errorf("failed to parse data file segment: %w", err)
 			}
@@ -943,7 +943,7 @@ func crashRecoveryAllIndex(regions map[uint64]*os.File, indexs []*indexMap) erro
 					continue
 				}
 
-				imap.index[inum] = &Inode{
+				imap.index[inum] = &inode{
 					RegionID:  regionId,
 					Position:  offset,
 					Length:    segment.Size(),
@@ -1045,7 +1045,7 @@ func readSegment(fd *os.File, offset uint64, bufsize int64) (uint64, *Segment, e
 	readOffset++
 
 	// Parse Type (1 byte)
-	seg.Type = Kind(buf[readOffset])
+	seg.Type = kind(buf[readOffset])
 	readOffset++
 
 	// Parse ExpiredAt (8 bytes)
@@ -1108,7 +1108,7 @@ func readSegment(fd *os.File, offset uint64, bufsize int64) (uint64, *Segment, e
 	seg.Key = keybuf
 	seg.Value = decodedData
 
-	return InodeNum(string(keybuf)), &seg, nil
+	return inodeNum(string(keybuf)), &seg, nil
 }
 
 func generateFileName(regionID uint64) (string, error) {
@@ -1148,7 +1148,7 @@ func checkpointFileName(regionID uint64) string {
 
 // serializedIndex serializes the index to a recoverable file snapshot record format:
 // | INUM 8 | RID 8  | POS 8 | LEN 4 | EAT 8 | CAT 8 | CRC32 4 |
-func serializedIndex(inum uint64, inode *Inode) ([]byte, error) {
+func serializedIndex(inum uint64, inode *inode) ([]byte, error) {
 	// Create a byte buffer
 	buf := new(bytes.Buffer)
 
@@ -1172,7 +1172,7 @@ func serializedIndex(inum uint64, inode *Inode) ([]byte, error) {
 
 // deserializedIndex restores the index file snapshot to an in-memory struct:
 // | INUM 8 | RID 8  | OFS 8 | LEN 4 | EAT 8 | CAT 8 | CRC32 4 |
-func deserializedIndex(data []byte) (uint64, *Inode, error) {
+func deserializedIndex(data []byte) (uint64, *inode, error) {
 	buf := bytes.NewReader(data)
 	var inum uint64
 	err := binary.Read(buf, binary.LittleEndian, &inum)
@@ -1180,8 +1180,8 @@ func deserializedIndex(data []byte) (uint64, *Inode, error) {
 		return 0, nil, err
 	}
 
-	// Deserialize each field of Inode
-	var inode Inode
+	// Deserialize each field of inode
+	var inode inode
 	err = binary.Read(buf, binary.LittleEndian, &inode.RegionID)
 	if err != nil {
 		return 0, nil, err
@@ -1315,7 +1315,7 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 			readOffset := uint64(len(dataFileMetadata))
 
 			for readOffset < uint64(finfo.Size()) {
-				inum, segment, err := readSegment(fd, uint64(readOffset), SEGMENT_PADDING)
+				inum, segment, err := readSegment(fd, uint64(readOffset), _SEGMENT_PADDING)
 				if err != nil {
 					return err
 				}
@@ -1389,7 +1389,7 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 	return nil
 }
 
-func isValid(seg *Segment, inode *Inode) bool {
+func isValid(seg *Segment, inode *inode) bool {
 	return !seg.IsTombstone() &&
 		seg.CreatedAt == inode.CreatedAt &&
 		(seg.ExpiredAt == 0 || uint64(time.Now().Unix()) < seg.ExpiredAt)
@@ -1505,7 +1505,7 @@ func scanAndRecoverCheckpoint(files []string, regions map[uint64]*os.File, index
 		offset := uint64(len(dataFileMetadata))
 
 		for offset < uint64(finfo.Size()) {
-			inum, segment, err := readSegment(fd, offset, SEGMENT_PADDING)
+			inum, segment, err := readSegment(fd, offset, _SEGMENT_PADDING)
 			if err != nil {
 				return fmt.Errorf("failed to parse data file segment: %w", err)
 			}
@@ -1523,7 +1523,7 @@ func scanAndRecoverCheckpoint(files []string, regions map[uint64]*os.File, index
 					continue
 				}
 
-				imap.index[inum] = &Inode{
+				imap.index[inum] = &inode{
 					RegionID:  regionId,
 					Position:  offset,
 					Length:    segment.Size(),

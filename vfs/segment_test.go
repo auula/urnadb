@@ -45,7 +45,7 @@ func TestNewTombstoneSegment(t *testing.T) {
 	segment := NewTombstoneSegment("mock-key")
 
 	// Ensure the segment is of Tombstone type and has expected fields
-	assert.Equal(t, Unknown, segment.Type)                    // Tombstone should have Unknown type
+	assert.Equal(t, unknown, segment.Type)                    // Tombstone should have Unknown type
 	assert.Equal(t, int8(1), segment.Tombstone)               // Tombstone should be marked as 1
 	assert.Equal(t, "mock-key", string(segment.Key))          // Ensure the key is set correctly
 	assert.Equal(t, uint32(len("mock-key")), segment.KeySize) // Ensure the key size is correct
