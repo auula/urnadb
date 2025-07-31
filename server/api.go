@@ -98,7 +98,7 @@ func init() {
 type SystemInfo struct {
 	KeyCount    int    `json:"key_count"`
 	Version     string `json:"version"`
-	GCState     int8   `json:"gc_state"`
+	GCState     uint8  `json:"gc_state"`
 	DiskFree    string `json:"disk_free"`
 	DiskUsed    string `json:"disk_used"`
 	DiskTotal   string `json:"disk_total"`
