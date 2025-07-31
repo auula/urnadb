@@ -30,7 +30,7 @@ func TestNewHttpServer(t *testing.T) {
 	server, err := New(opt)
 	assert.NoError(t, err)
 	assert.NotNil(t, server)
-	assert.Equal(t, 8080, server.Port())
+	assert.Equal(t, uint16(8080), server.Port())
 
 	// 测试端口非法情况
 	opt = &Options{Port: 80} // 端口小于 1024
@@ -48,7 +48,7 @@ func TestHttpServer_IPv4(t *testing.T) {
 // 测试 HttpServer 的 Port 方法
 func TestHttpServer_Port(t *testing.T) {
 	server, _ := New(&Options{Port: 8080})
-	assert.Equal(t, 8080, server.Port())
+	assert.Equal(t, uint16(8080), server.Port())
 }
 
 // 测试 Startup 方法（非阻塞）

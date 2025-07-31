@@ -33,8 +33,8 @@ var (
 )
 
 const (
-	minPort = 1024
-	maxPort = 1 << 16
+	minPort = uint16(1024)
+	maxPort = uint16(1<<16 - 1)
 	timeout = time.Second * 3
 )
 
@@ -64,11 +64,11 @@ func init() {
 
 type HttpServer struct {
 	serv *http.Server
-	port int
+	port uint16
 }
 
 type Options struct {
-	Port int
+	Port uint16
 	Auth string
 	// CertMagic *tls.Config
 }
@@ -86,7 +86,7 @@ func New(opt *Options) (*HttpServer, error) {
 	hs := HttpServer{
 		serv: &http.Server{
 			Handler:      root,
-			Addr:         net.JoinHostPort("0.0.0.0", strconv.Itoa(opt.Port)),
+			Addr:         net.JoinHostPort("0.0.0.0", strconv.Itoa(int(opt.Port))),
 			WriteTimeout: timeout,
 			ReadTimeout:  timeout,
 		},
@@ -107,7 +107,7 @@ func (hs *HttpServer) SetAllowIP(allowd []string) {
 	allowIpList = allowd
 }
 
-func (hs *HttpServer) Port() int {
+func (hs *HttpServer) Port() uint16 {
 	return hs.port
 }
 

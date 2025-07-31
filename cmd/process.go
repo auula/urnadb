@@ -80,8 +80,8 @@ func init() {
 		conf.Settings.Path = fl.path
 	}
 
-	if fl.port != conf.Default.Port {
-		conf.Settings.Port = fl.port
+	if uint16(fl.port) != conf.Default.Port {
+		conf.Settings.Port = uint16(fl.port)
 	}
 
 	clog.Debug(conf.Settings)
@@ -208,7 +208,7 @@ func parseFlags() (fl *flags) {
 	flag.StringVar(&fl.path, "path", conf.Default.Path, "--path the data storage directory.")
 	flag.BoolVar(&fl.debug, "debug", conf.Default.Debug, "--debug enable debug mode.")
 	flag.StringVar(&fl.config, "config", "", "--config the configuration file path.")
-	flag.IntVar(&fl.port, "port", conf.Default.Port, "--port the HTTP server port.")
+	flag.IntVar(&fl.port, "port", int(conf.Default.Port), "--port the HTTP server port.")
 	flag.BoolVar(&daemon, "daemon", false, "--daemon run with a daemon.")
 	flag.Parse()
 	return

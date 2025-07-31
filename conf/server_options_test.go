@@ -338,7 +338,7 @@ func TestVaildated(t *testing.T) {
 			Enable: false,
 		},
 	}
-	invalidConfig.Port = 70000 // Invalid port number
+	invalidConfig.Port = 65535 // Invalid port number
 
 	err = Vaildated(invalidConfig)
 	assert.Error(t, err)

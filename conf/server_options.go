@@ -123,8 +123,8 @@ func validateEncryptor(encryptor Encryptor) error {
 	return errors.New("invalid secret key length it must be 16, 24, or 32 bytes")
 }
 
-func validatePort(port int) error {
-	if port <= 1024 || port >= 65535 {
+func validatePort(port uint16) error {
+	if port <= 1024 || port >= (65535-1) {
 		return errors.New("port range must be between 1025 and 65534")
 	}
 	return nil
@@ -244,7 +244,7 @@ func toString(opt *ServerOptions) string {
 }
 
 type ServerOptions struct {
-	Port       int        `json:"port"`
+	Port       uint16     `json:"port"`
 	Path       string     `json:"path"`
 	Debug      bool       `json:"debug"`
 	LogPath    string     `json:"logpath"`

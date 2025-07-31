@@ -292,8 +292,10 @@ func toKind(data Serializable) kind {
 	return unknown
 }
 
-func (s *Segment) ToBytes() []byte {
-	return s.Value
+// Payload 返回 Segment 的值和长度
+// 注意：这里的长度是 Value 的实际字节长度，不包括 padding 和其他字段
+func (s *Segment) Payload() ([]byte, uint32) {
+	return s.Value, uint32(len(s.Value))
 }
 
 func (s *Segment) ToJSON() ([]byte, error) {

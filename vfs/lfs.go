@@ -45,13 +45,14 @@ const (
 	appendOnlyLog = os.O_RDWR | os.O_CREATE | os.O_APPEND
 )
 
-type GC_STATE = int8 // Region garbage collection state
+type _GC_STATE = uint8 // Region garbage collection state
 
 const (
-	_GC_INIT GC_STATE = iota // gc 第一次执行就是这个状态
+	_GC_INIT _GC_STATE = iota // gc 第一次执行就是这个状态
 	_GC_ACTIVE
 	_GC_INACTIVE
-	_SEGMENT_PADDING = 26
+	_SEGMENT_PADDING    = 26
+	_INDEX_SEGMENT_SIZE = 48
 )
 
 var (
@@ -94,7 +95,7 @@ type LogStructuredFS struct {
 	indexs           []*indexMap
 	active           *os.File
 	regions          map[uint64]*os.File
-	gcstate          GC_STATE
+	gcstate          _GC_STATE
 	compactTask      *cron.Cron
 	dirtyRegions     []*os.File
 	checkpointWorker *time.Ticker
@@ -668,8 +669,8 @@ func (lfs *LogStructuredFS) StopCompactRegion() {
 
 // GCState returns the current garbage collection (GC) state
 // of the LogStructuredFS regions compressor worker.
-func (lfs *LogStructuredFS) GCState() GC_STATE {
-	return lfs.gcstate
+func (lfs *LogStructuredFS) GCState() uint8 {
+	return uint8(lfs.gcstate)
 }
 
 func OpenFS(opt *Options) (*LogStructuredFS, error) {
@@ -824,7 +825,7 @@ func recoveryIndex(fd *os.File, indexs []*indexMap) error {
 		inode *inode
 	}
 
-	nqueue := make(chan index, (finfo.Size()-offset)/48)
+	nqueue := make(chan index, (finfo.Size()-offset)/_INDEX_SEGMENT_SIZE)
 	equeue := make(chan error, 1)
 
 	var wg sync.WaitGroup
@@ -834,7 +835,7 @@ func recoveryIndex(fd *os.File, indexs []*indexMap) error {
 		defer wg.Done()
 		defer close(nqueue)
 
-		buf := make([]byte, 48)
+		buf := make([]byte, _INDEX_SEGMENT_SIZE)
 		for offset < finfo.Size() && len(equeue) == 0 {
 			_, err := fd.ReadAt(buf, offset)
 			if err != nil {
@@ -842,7 +843,7 @@ func recoveryIndex(fd *os.File, indexs []*indexMap) error {
 				return
 			}
 
-			offset += 48
+			offset += _INDEX_SEGMENT_SIZE
 
 			inum, inode, err := deserializedIndex(buf)
 			if err != nil {
