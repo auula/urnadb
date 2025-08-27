@@ -138,10 +138,7 @@ func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
 	lfs.offset += uint64(seg.Size())
 
 	if lfs.offset >= uint64(regionThreshold) {
-		err := lfs.createActiveRegion()
-		if err != nil {
-			return err
-		}
+		return lfs.createActiveRegion()
 	}
 
 	return nil
