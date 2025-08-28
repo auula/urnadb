@@ -391,7 +391,7 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 	for _, file := range files {
 		if !file.IsDir() && strings.HasSuffix(file.Name(), fileExtension) {
 			if strings.HasPrefix(file.Name(), "0") {
-				regions, err := os.OpenFile(filepath.Join(lfs.directory, file.Name()), os.O_RDWR, fsPerm)
+				fd, err := os.OpenFile(filepath.Join(lfs.directory, file.Name()), os.O_RDWR, fsPerm)
 				if err != nil {
 					return fmt.Errorf("failed to open data file: %w", err)
 				}
@@ -400,7 +400,7 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 				if err != nil {
 					return fmt.Errorf("failed to get region id: %w", err)
 				}
-				lfs.regions[regionID] = regions
+				lfs.regions[regionID] = fd
 			}
 		}
 	}
