@@ -496,7 +496,7 @@ func GetHealthController(ctx *gin.Context) {
 	ctx.IndentedJSON(http.StatusOK, SystemInfo{
 		Version:     version,
 		GCState:     storage.GCState(),
-		KeyCount:    storage.CountValidInodes(),
+		KeyCount:    storage.RefreshInodeCount(),
 		DiskFree:    fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetFreeDisk())),
 		DiskUsed:    fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetUsedDisk())),
 		DiskTotal:   fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetTotalDisk())),

@@ -224,8 +224,8 @@ func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
 	return atomic.LoadUint64(&inode.mvcc), segment, nil
 }
 
-// CountValidInodes iterate over each index in lfs.indexs.
-func (lfs *LogStructuredFS) CountValidInodes() int {
+// RefreshInodeCount iterate over each index in lfs.indexs.
+func (lfs *LogStructuredFS) RefreshInodeCount() int {
 	inodes := 0
 	for _, imap := range lfs.indexs {
 		for key, inode := range imap.index {
