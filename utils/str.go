@@ -45,12 +45,8 @@ func SplitArgs(args []string) []string {
 	for i := 1; i < len(args); i++ {
 		// Split elements in args by "=" to ensure proper command-line parsing
 		if strings.Contains(args[i], "=") && strings.Count(args[i], "=") == 1 {
-			// skip: =value
-			if strings.HasPrefix(args[i], "=") {
-				continue
-			}
-			// skip: -=value
-			if strings.HasPrefix(args[i], "-=") {
+			// skip: =value -=value
+			if strings.HasPrefix(args[i], "=") || strings.HasPrefix(args[i], "-=") {
 				continue
 			}
 			newArgs = append(newArgs, strings.Split(args[i], "=")...)
