@@ -38,7 +38,7 @@ func TestSplitArgs(t *testing.T) {
 			expected: []string{"arg1", "arg2", "arg3"},
 		},
 		{
-			input:    []string{"./cmd", "=value", "--token=abc=def=ghi", "run"},
+			input:    []string{"./cmd", "=value", "-=value", "--token=abc=def=ghi", "run"},
 			expected: []string{"run"},
 		},
 	}

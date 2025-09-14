@@ -49,6 +49,10 @@ func SplitArgs(args []string) []string {
 			if strings.HasPrefix(args[i], "=") {
 				continue
 			}
+			// skip: -=value
+			if strings.HasPrefix(args[i], "-=") {
+				continue
+			}
 			newArgs = append(newArgs, strings.Split(args[i], "=")...)
 		} else {
 			// Skip elements with multiple "=" as they are invalid
