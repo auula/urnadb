@@ -45,9 +45,16 @@ func SplitArgs(args []string) []string {
 	for i := 1; i < len(args); i++ {
 		// Split elements in args by "=" to ensure proper command-line parsing
 		if strings.Contains(args[i], "=") && strings.Count(args[i], "=") == 1 {
-			newArgs = append(newArgs, strings.Split(args[i], "=")...)
+			// skip: =value
+			if strings.HasPrefix(args[i], "=") {
+				continue
+			}
+			// --port=2468 -> --port 2468
+			// --port==2468 -> --port =2468
+			newArgs = append(newArgs, strings.SplitN(args[i], "=", 2)...)
 		} else {
 			// Skip elements with multiple "=" as they are invalid
+			// skip: --token=abc=def=ghi
 			if strings.Count(args[i], "=") > 1 {
 				continue
 			}
