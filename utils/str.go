@@ -49,12 +49,10 @@ func SplitArgs(args []string) []string {
 			if strings.HasPrefix(args[i], "=") {
 				continue
 			}
-			// --port=2468 -> --port 2468
-			// --port==2468 -> --port =2468
-			newArgs = append(newArgs, strings.SplitN(args[i], "=", 2)...)
+			newArgs = append(newArgs, strings.Split(args[i], "=")...)
 		} else {
 			// Skip elements with multiple "=" as they are invalid
-			// skip: --token=abc=def=ghi
+			// skip: --token=abc=def=ghi --port==8080 --port===8080
 			if strings.Count(args[i], "=") > 1 {
 				continue
 			}
