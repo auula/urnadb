@@ -326,8 +326,8 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 	atomic.StoreUint32(&inode.Length, newseg.Size())
 	atomic.StoreUint64(&inode.Position, lfs.offset)
 
-	// 成功写入后递增 offset
-	lfs.offset += uint64(newseg.Size())
+	// 确保 offset 只在成功写入后递增
+	atomic.AddUint64(&lfs.offset, uint64(newseg.Size()))
 
 	return nil
 }
