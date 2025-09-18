@@ -289,48 +289,46 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 		return fmt.Errorf("inode index shard for %d not found", inum)
 	}
 
-	// 读取 inode 信息，使用写锁保证 inode 的稳定性
-	imap.mu.Lock()
-	inode, ok := imap.index[inum]
-	if !ok {
-		imap.mu.Unlock()
-		return fmt.Errorf("inode index for %d not found", inum)
-	}
-
-	// 先进行 MVCC 检查，避免无效的写入
-	if !atomic.CompareAndSwapUint64(&inode.mvcc, expected, expected+1) {
-		imap.mu.Unlock()
-		return errors.New("failed to update data due to version conflict")
-	}
-
-	// 生成新的数据
+	// 先序列化新数据（可以锁外做）
 	bytes, err := serializedSegment(newseg)
 	if err != nil {
-		imap.mu.Unlock()
 		return err
 	}
 
-	// 更新数据时使用全局锁
+	// 加 inode 写锁，保护 mvcc 检查 + inode 更新的一致性
+	imap.mu.Lock()
+	defer imap.mu.Unlock()
+
+	inode, ok := imap.index[inum]
+	if !ok {
+		return fmt.Errorf("inode index for %d not found", inum)
+	}
+
+	// MVCC 检查
+	if !atomic.CompareAndSwapUint64(&inode.mvcc, expected, expected+1) {
+		return errors.New("failed to update data due to version conflict")
+	}
+
+	// 写 active region 时用全局锁，写前就锁，防止 offset 不一致
 	lfs.mu.Lock()
 	defer lfs.mu.Unlock()
 
-	err = appendToActiveRegion(lfs.active, bytes)
-	if err != nil {
-		imap.mu.Unlock()
-		return fmt.Errorf("failed to update data: %w", err)
+	if err := appendToActiveRegion(lfs.active, bytes); err != nil {
+		// 如果写失败，可以把 mvcc 回滚或直接返回错误，回滚 mvcc
+		atomic.StoreUint64(&inode.mvcc, expected)
+		return fmt.Errorf("failed to update active region data: %w", err)
 	}
 
-	// 一次性原子更新 inode 指针
+	// 更新 inode 指针（仍在 imap.mu 持有状态下）
 	atomic.StoreUint64(&inode.CreatedAt, newseg.CreatedAt)
 	atomic.StoreUint64(&inode.ExpiredAt, newseg.ExpiredAt)
 	atomic.StoreUint64(&inode.RegionID, lfs.regionID)
 	atomic.StoreUint32(&inode.Length, newseg.Size())
 	atomic.StoreUint64(&inode.Position, lfs.offset)
 
-	// 确保 offset 只在成功写入后递增
-	atomic.AddUint64(&lfs.offset, uint64(newseg.Size()))
+	// 成功写入后递增 offset
+	lfs.offset += uint64(newseg.Size())
 
-	imap.mu.Unlock()
 	return nil
 }
 
