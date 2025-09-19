@@ -328,7 +328,7 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 
 	// 确保 offset 只在成功写入后递增，并且更新 mvcc 的 cas id 版本号
 	atomic.AddUint64(&lfs.offset, uint64(newseg.Size()))
-	atomic.AddUint64(&inode.mvcc, 1)
+	atomic.AddUint64(&inode.mvcc, expected+1)
 
 	return nil
 }
