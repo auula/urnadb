@@ -313,10 +313,9 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 	lfs.mu.Lock()
 	defer lfs.mu.Unlock()
 
-	if err := appendToActiveRegion(lfs.active, bytes); err != nil {
-		// 如果写失败，可以把 mvcc 回滚或直接返回错误，回滚 mvcc 老的 cas id 版本号
-		atomic.StoreUint64(&inode.mvcc, expected)
-		return fmt.Errorf("failed to update active region data: %w", err)
+	err = appendToActiveRegion(lfs.active, bytes)
+	if err != nil {
+		return fmt.Errorf("failed to update cas region data: %w", err)
 	}
 
 	// 更新 inode 指针，仍在 imap.mu 持有状态下进行
