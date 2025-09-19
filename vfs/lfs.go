@@ -303,15 +303,15 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 		return errors.New("failed to update data due to version conflict")
 	}
 
-	// 写 active region 时用全局锁，写前就锁防止 offset 不一致
-	lfs.mu.Lock()
-	defer lfs.mu.Unlock()
-
-	// 先序列化新数据（可以锁外做）
+	// 先序列化新数据
 	bytes, err := serializedSegment(newseg)
 	if err != nil {
 		return err
 	}
+
+	// 写 active region 时用全局锁，写前就锁防止 offset 不一致
+	lfs.mu.Lock()
+	defer lfs.mu.Unlock()
 
 	if err := appendToActiveRegion(lfs.active, bytes); err != nil {
 		// 如果写失败，可以把 mvcc 回滚或直接返回错误，回滚 mvcc 老的 cas id 版本号
