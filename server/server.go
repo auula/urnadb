@@ -73,15 +73,26 @@ type Options struct {
 	// CertMagic *tls.Config
 }
 
-// New 创建一个新的 HTTP 服务器
-func New(opt *Options) (*HttpServer, error) {
+func (opt *Options) Validated() error {
 	if opt.Port < minPort || opt.Port > maxPort {
-		return nil, errors.New("HTTP server port illegal")
+		return errors.New("HTTP server port illegal")
 	}
 
-	if opt.Auth != "" {
-		authPassword = opt.Auth
+	if len(opt.Auth) == 0 || len(opt.Auth) < 16 {
+		return errors.New("HTTP server auth password illegal")
 	}
+	return nil
+}
+
+// New 创建一个新的 HTTP 服务器
+func New(opt *Options) (*HttpServer, error) {
+	// Validated 独立出来验证，尽量避免使用反射
+	err := opt.Validated()
+	if err != nil {
+		return nil, err
+	}
+
+	authPassword = opt.Auth
 
 	hs := HttpServer{
 		serv: &http.Server{

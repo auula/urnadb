@@ -26,7 +26,7 @@ import (
 
 // 测试 New 方法
 func TestNewHttpServer(t *testing.T) {
-	opt := &Options{Port: 8080, Auth: "secret"}
+	opt := &Options{Port: 8080, Auth: "secret1234567890"}
 	server, err := New(opt)
 	assert.NoError(t, err)
 	assert.NotNil(t, server)
