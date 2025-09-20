@@ -41,20 +41,22 @@ func TestNewHttpServer(t *testing.T) {
 
 // 测试 HttpServer 的 IPv4 方法
 func TestHttpServer_IPv4(t *testing.T) {
-	server, _ := New(&Options{Port: 8080})
+	server, err := New(&Options{Port: 8080, Auth: "secret1234567890"})
+	assert.NoError(t, err)
 	assert.NotEmpty(t, server.IPv4())
 }
 
 // 测试 HttpServer 的 Port 方法
 func TestHttpServer_Port(t *testing.T) {
-	server, _ := New(&Options{Port: 8080})
+	server, err := New(&Options{Port: 8080, Auth: "secret1234567890"})
+	assert.NoError(t, err)
 	assert.Equal(t, uint16(8080), server.Port())
 }
 
 // 测试 Startup 方法（非阻塞）
 func TestHttpServer_Startup(t *testing.T) {
 	conf.Settings.Path = "./_temp/"
-	server, err := New(&Options{Port: 8081})
+	server, err := New(&Options{Port: 8081, Auth: "secret1234567890"})
 	assert.NoError(t, err)
 
 	// 启动服务器（在 goroutine 中运行）
@@ -84,7 +86,7 @@ func TestHttpServer_Startup(t *testing.T) {
 func TestHttpServer_SetupFS(t *testing.T) {
 	hts, err := New(&Options{
 		Port: 6379,
-		Auth: "secret",
+		Auth: "secret1234567890",
 	})
 	if err != nil {
 		assert.NoError(t, err)
@@ -114,7 +116,7 @@ func TestHttpServer_SetupFS(t *testing.T) {
 func TestHttpServer_Shutdown(t *testing.T) {
 	hts, err := New(&Options{
 		Port: 6379,
-		Auth: "secret",
+		Auth: "secret1234567890",
 	})
 	if err != nil {
 		assert.NoError(t, err)
