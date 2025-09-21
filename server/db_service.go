@@ -494,15 +494,16 @@ func GetHealthController(ctx *gin.Context) {
 	}
 
 	ctx.IndentedJSON(http.StatusOK, SystemInfo{
-		Version:     version,
-		GCState:     storage.GCState(),
-		KeyCount:    storage.RefreshInodeCount(),
-		DiskFree:    fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetFreeDisk())),
-		DiskUsed:    fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetUsedDisk())),
-		DiskTotal:   fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetTotalDisk())),
-		MemoryFree:  fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetFreeMemory())),
-		MemoryTotal: fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetTotalMemory())),
-		DiskPercent: fmt.Sprintf("%.2f%%", health.GetDiskPercent()),
+		Version:        version,
+		GCState:        storage.GCState(),
+		KeyCount:       storage.RefreshInodeCount(),
+		DiskFree:       fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetFreeDisk())),
+		DiskUsed:       fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetUsedDisk())),
+		DiskTotal:      fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetTotalDisk())),
+		MemoryFree:     fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetFreeMemory())),
+		MemoryTotal:    fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetTotalMemory())),
+		SpaceTotalUsed: fmt.Sprintf("%.2fGB", utils.BytesToGB(storage.GetTotalSpaceUsed())),
+		DiskPercent:    fmt.Sprintf("%.2f%%", health.GetDiskPercent()),
 	})
 }
 

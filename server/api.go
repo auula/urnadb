@@ -96,15 +96,16 @@ func init() {
 }
 
 type SystemInfo struct {
-	KeyCount    int    `json:"key_count"`
-	Version     string `json:"version"`
-	GCState     uint8  `json:"gc_state"`
-	DiskFree    string `json:"disk_free"`
-	DiskUsed    string `json:"disk_used"`
-	DiskTotal   string `json:"disk_total"`
-	MemoryFree  string `json:"mem_free"`
-	MemoryTotal string `json:"mem_total"`
-	DiskPercent string `json:"disk_percent"`
+	KeyCount       int    `json:"key_count"`
+	Version        string `json:"version"`
+	GCState        uint8  `json:"gc_state"`
+	DiskFree       string `json:"disk_free"`
+	DiskUsed       string `json:"disk_used"`
+	DiskTotal      string `json:"disk_total"`
+	MemoryFree     string `json:"mem_free"`
+	MemoryTotal    string `json:"mem_total"`
+	DiskPercent    string `json:"disk_percent"`
+	SpaceTotalUsed string `json:"space_total"`
 }
 
 func authMiddleware() gin.HandlerFunc {
