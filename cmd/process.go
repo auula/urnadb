@@ -88,7 +88,7 @@ func init() {
 
 	// Validate the input parameters, even if there is a default configuration,
 	// the command line parameters are not constrained
-	err := conf.Vaildated(conf.Settings)
+	err := conf.Settings.Validated()
 	if err != nil {
 		clog.Failed(err)
 	}

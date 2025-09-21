@@ -301,7 +301,7 @@ func TestHasCustom(t *testing.T) {
 // TestVaildated tests the configuration validation
 func TestVaildated(t *testing.T) {
 	// Should pass validation
-	err := Vaildated(&ServerOptions{
+	opts := &ServerOptions{
 		Port:     2668,
 		Path:     "/tmp/urnadb",
 		Password: "securepassword",
@@ -317,7 +317,8 @@ func TestVaildated(t *testing.T) {
 		Compressor: Compressor{
 			Enable: false,
 		},
-	})
+	}
+	err := opts.Validated()
 	assert.NoError(t, err)
 
 	// Invalid configuration: port out of range
@@ -340,7 +341,7 @@ func TestVaildated(t *testing.T) {
 	}
 	invalidConfig.Port = 65535 // Invalid port number
 
-	err = Vaildated(invalidConfig)
+	err = invalidConfig.Validated()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "port range must be between 1025 and 65534")
 
@@ -364,7 +365,7 @@ func TestVaildated(t *testing.T) {
 	}
 	invalidConfig.Path = ""
 
-	err = Vaildated(invalidConfig)
+	err = invalidConfig.Validated()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "data directory path cannot be empty")
 
@@ -385,7 +386,7 @@ func TestVaildated(t *testing.T) {
 			Enable: false,
 		},
 	}
-	err = Vaildated(invalidConfig)
+	err = invalidConfig.Validated()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "auth password cannot be empty")
 
@@ -409,7 +410,7 @@ func TestVaildated(t *testing.T) {
 	}
 	invalidConfig.Encryptor.Secret = "short" // Invalid secret key length
 
-	err = Vaildated(invalidConfig)
+	err = invalidConfig.Validated()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid secret key length it must be 16, 24, or 32 bytes")
 
@@ -431,7 +432,7 @@ func TestVaildated(t *testing.T) {
 			Enable: false,
 		},
 	}
-	err = Vaildated(invalidConfig)
+	err = invalidConfig.Validated()
 
 	if err != nil {
 		assert.Error(t, err)

@@ -144,7 +144,7 @@ func validatePassword(password string) error {
 	return nil
 }
 
-func Vaildated(opt *ServerOptions) error {
+func (opt *ServerOptions) Validated() error {
 	validators := []Validator{
 		PortValidator{},
 		PathValidator{},
