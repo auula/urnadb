@@ -226,9 +226,6 @@ func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
 
 // GetTotalSpaceUsed 获取当前 NoSQL 文件存储系统使用的总空间
 func (lfs *LogStructuredFS) GetTotalSpaceUsed() uint64 {
-	lfs.mu.RLock()
-	defer lfs.mu.RUnlock()
-
 	var total uint64
 	for _, imap := range lfs.indexs {
 		imap.mu.RLock()
