@@ -279,17 +279,6 @@ func expireLoop(indexs []*indexMap, ticker *time.Ticker) {
 	}
 }
 
-// KeysCount iterate over each index in lfs.indexs.
-// func (lfs *LogStructuredFS) KeysCount() int {
-// 	total := 0
-// 	for _, imap := range lfs.indexs {
-// 		imap.mu.Lock()
-// 		total += len(imap.index)
-// 		imap.mu.Unlock()
-// 	}
-// 	return total - lfs.cleanExpiredValues()
-// }
-
 func inodeNum(key string) uint64 {
 	return murmur3.Sum64([]byte(key))
 }
@@ -306,13 +295,13 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 	imap.mu.Lock()
 	defer imap.mu.Unlock()
 
-	inode, ok := imap.index[inum]
+	oldInode, ok := imap.index[inum]
 	if !ok {
 		return fmt.Errorf("inode index for %d not found", inum)
 	}
 
 	// 快速检测 MVCC 版本号，被修改则快速失败
-	if inode.mvcc != expected {
+	if oldInode.mvcc != expected {
 		return errors.New("failed to update data due to version conflict")
 	}
 
@@ -324,25 +313,27 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 
 	// 写 active region 时用全局锁，写前就锁防止 offset 不一致
 	lfs.mu.Lock()
-	defer lfs.mu.Unlock()
-
 	err = appendToActiveRegion(lfs.active, bytes)
 	if err != nil {
+		lfs.mu.Unlock()
 		return fmt.Errorf("failed to update CAS region data: %w", err)
 	}
+	lfs.mu.Unlock()
 
-	// 更新 inode 字段（在 imap.mu 写锁保护下）
-	inode.CreatedAt = newseg.CreatedAt
-	inode.ExpiredAt = newseg.ExpiredAt
-	inode.RegionID = lfs.regionID
-	inode.Length = newseg.Size()
-	inode.Position = lfs.offset
+	// 更新 inode 字段在 imap.mu 写锁保护下进行原子操作，旧的 oldInode 会被 runtime 的垃圾回收器回收内存。
+	// 新 inode 的 CreatedAt 这个时间应该是使用原始的 inode 的 CreatedAt，理论上应该添加一个 UpdatedAt 字段来适用于 CAS 操作。
+	imap.index[inum] = &inode{
+		CreatedAt: newseg.CreatedAt,
+		ExpiredAt: newseg.ExpiredAt,
+		RegionID:  lfs.regionID,
+		Length:    newseg.Size(),
+		Position:  lfs.offset,
+		// 更新 MVCC 版本号
+		mvcc: expected + 1,
+	}
 
-	// 更新全局 offset（原子操作保证并发安全）
+	// 更新全局 offset 原子操作保证并发安全
 	atomic.AddUint64(&lfs.offset, uint64(newseg.Size()))
-
-	// 更新 MVCC 版本号
-	atomic.StoreUint64(&inode.mvcc, expected+1)
 
 	return nil
 }
