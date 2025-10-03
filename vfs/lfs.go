@@ -295,13 +295,13 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 	imap.mu.Lock()
 	defer imap.mu.Unlock()
 
-	oldInode, ok := imap.index[inum]
+	inode, ok := imap.index[inum]
 	if !ok {
 		return fmt.Errorf("inode index for %d not found", inum)
 	}
 
 	// 快速检测 MVCC 版本号，被修改则快速失败
-	if oldInode.mvcc != expected {
+	if inode.mvcc != expected {
 		return errors.New("failed to update data due to version conflict")
 	}
 
@@ -320,20 +320,20 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 	}
 	lfs.mu.Unlock()
 
-	// 更新 inode 字段在 imap.mu 写锁保护下进行原子操作，旧的 oldInode 会被 runtime 的垃圾回收器回收内存。
+	// 更新 inode 字段在 imap.mu 写锁保护下进行原子操作，不使用 &inode{...} 来替代是因为降低垃圾回收器负载。
+	// imap.index[inum] = &inde{...}
 	// 新 inode 的 CreatedAt 这个时间应该是使用原始的 inode 的 CreatedAt，理论上应该添加一个 UpdatedAt 字段来适用于 CAS 操作。
-	imap.index[inum] = &inode{
-		CreatedAt: newseg.CreatedAt,
-		ExpiredAt: newseg.ExpiredAt,
-		RegionID:  lfs.regionID,
-		Length:    newseg.Size(),
-		Position:  lfs.offset,
-		// 更新 MVCC 版本号
-		mvcc: expected + 1,
-	}
+	inode.CreatedAt = newseg.CreatedAt
+	inode.ExpiredAt = newseg.ExpiredAt
+	inode.RegionID = lfs.regionID
+	inode.Length = newseg.Size()
+	inode.Position = lfs.offset
+
+	// 更新 MVCC 版本号，如果使用的 atomic.StoreUint64 只能保证原子地写入内存，不能保证算数运算过程也是原子。
+	_ = atomic.AddUint64(&inode.mvcc, 1)
 
 	// 更新全局 offset 原子操作保证并发安全
-	atomic.AddUint64(&lfs.offset, uint64(newseg.Size()))
+	_ = atomic.AddUint64(&lfs.offset, uint64(newseg.Size()))
 
 	return nil
 }
