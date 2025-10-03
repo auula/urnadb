@@ -302,7 +302,7 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 		return fmt.Errorf("inode index shard for %d not found", inum)
 	}
 
-	// 加 inode 写锁，保护 mvcc 检查 + inode 更新的一致性
+	// 加 inode 写锁，保护 MVCC 检查 + inode 更新的一致性
 	imap.mu.Lock()
 	defer imap.mu.Unlock()
 
@@ -311,12 +311,12 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 		return fmt.Errorf("inode index for %d not found", inum)
 	}
 
-	// 更新之前快速检测 mvcc 的 cas 版本号，被修改快速失败
-	if atomic.LoadUint64(&inode.mvcc) != expected {
+	// 快速检测 MVCC 版本号，被修改则快速失败
+	if inode.mvcc != expected {
 		return errors.New("failed to update data due to version conflict")
 	}
 
-	// 先序列化新数据
+	// 序列化新数据
 	bytes, err := serializedSegment(newseg)
 	if err != nil {
 		return err
@@ -328,19 +328,21 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 
 	err = appendToActiveRegion(lfs.active, bytes)
 	if err != nil {
-		return fmt.Errorf("failed to update cas region data: %w", err)
+		return fmt.Errorf("failed to update CAS region data: %w", err)
 	}
 
-	// 更新 inode 指针，仍在 imap.mu 持有状态下进行
-	atomic.StoreUint64(&inode.CreatedAt, newseg.CreatedAt)
-	atomic.StoreUint64(&inode.ExpiredAt, newseg.ExpiredAt)
-	atomic.StoreUint64(&inode.RegionID, lfs.regionID)
-	atomic.StoreUint32(&inode.Length, newseg.Size())
-	atomic.StoreUint64(&inode.Position, lfs.offset)
+	// 更新 inode 字段（在 imap.mu 写锁保护下）
+	inode.CreatedAt = newseg.CreatedAt
+	inode.ExpiredAt = newseg.ExpiredAt
+	inode.RegionID = lfs.regionID
+	inode.Length = newseg.Size()
+	inode.Position = lfs.offset
 
-	// 确保 offset 只在成功写入后递增，并且更新 mvcc 的 cas id 版本号
+	// 更新全局 offset（原子操作保证并发安全）
 	atomic.AddUint64(&lfs.offset, uint64(newseg.Size()))
-	atomic.AddUint64(&inode.mvcc, expected+1)
+
+	// 更新 MVCC 版本号
+	atomic.StoreUint64(&inode.mvcc, expected+1)
 
 	return nil
 }
