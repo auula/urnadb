@@ -746,22 +746,6 @@ func (lfs *LogStructuredFS) CloseFS() error {
 	return lfs.ExportSnapshotIndex()
 }
 
-// func (lfs *LogStructuredFS) cleanExpiredValues() int {
-// 	keys := 0
-// 	for _, imap := range lfs.indexs {
-// 		imap.mu.Lock()
-// 		for key, inode := range imap.index {
-// 			// Clean expired inode
-// 			if inode.ExpiredAt <= uint64(time.Now().UnixNano()) && inode.ExpiredAt != 0 {
-// 				delete(imap.index, key)
-// 				keys++
-// 			}
-// 		}
-// 		imap.mu.Unlock()
-// 	}
-// 	return keys
-// }
-
 func (lfs *LogStructuredFS) GetDirectory() string {
 	return lfs.directory
 }
