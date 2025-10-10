@@ -23,6 +23,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/auula/urnadb/conf"
 	"github.com/auula/urnadb/types"
@@ -32,7 +33,7 @@ import (
 // TestSerializedIndex 测试 serializedIndex 函数
 func TestSerializedIndex(t *testing.T) {
 	// 创建一个测试的 inode
-	inode := &inode{
+	in := &inode{
 		RegionID:  1234,
 		Position:  5678,
 		Length:    100,
@@ -44,7 +45,7 @@ func TestSerializedIndex(t *testing.T) {
 	expectedLength := 48
 
 	// 调用 serializeIndex
-	result, err := serializedIndex(1001, inode)
+	result, err := serializedIndex(1001, in)
 	if err != nil {
 		t.Fatalf("serialized index failed: %v", err)
 	}
@@ -54,8 +55,12 @@ func TestSerializedIndex(t *testing.T) {
 		t.Errorf("expected result length %d, got %d", expectedLength, len(result))
 	}
 
+	if expectedLength != int(unsafe.Sizeof(inode{})) {
+		t.Errorf("expected result length %d, got %d", expectedLength, unsafe.Sizeof(inode{}))
+	}
+
 	// 验证内容字段进行反序列化并检查
-	inum, node, err := deserializedIndex(result)
+	inum, dnode, err := deserializedIndex(result)
 
 	if err != nil {
 		t.Errorf("failed to deserialized: %v", err)
@@ -65,20 +70,20 @@ func TestSerializedIndex(t *testing.T) {
 	if inum != 1001 {
 		t.Errorf("expected inum %d, got %d", 1001, inum)
 	}
-	if node.RegionID != inode.RegionID {
-		t.Errorf("expected RegionID %d, got %d", inode.RegionID, node.RegionID)
+	if dnode.RegionID != in.RegionID {
+		t.Errorf("expected RegionID %d, got %d", in.RegionID, dnode.RegionID)
 	}
-	if node.Position != inode.Position {
-		t.Errorf("expected Offset %d, got %d", inode.Position, node.RegionID)
+	if dnode.Position != in.Position {
+		t.Errorf("expected Offset %d, got %d", in.Position, dnode.RegionID)
 	}
-	if node.Length != inode.Length {
-		t.Errorf("expected Length %d, got %d", inode.Length, node.Length)
+	if dnode.Length != in.Length {
+		t.Errorf("expected Length %d, got %d", in.Length, dnode.Length)
 	}
-	if node.ExpiredAt != inode.ExpiredAt {
-		t.Errorf("expected ExpiredAt %d, got %d", inode.ExpiredAt, node.ExpiredAt)
+	if dnode.ExpiredAt != in.ExpiredAt {
+		t.Errorf("expected ExpiredAt %d, got %d", in.ExpiredAt, dnode.ExpiredAt)
 	}
-	if node.CreatedAt != inode.CreatedAt {
-		t.Errorf("expected CreatedAt %d, got %d", inode.CreatedAt, node.CreatedAt)
+	if dnode.CreatedAt != in.CreatedAt {
+		t.Errorf("expected CreatedAt %d, got %d", in.CreatedAt, dnode.CreatedAt)
 	}
 
 }

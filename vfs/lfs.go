@@ -75,10 +75,10 @@ type Options struct {
 type inode struct {
 	RegionID  uint64 // Unique identifier for the region
 	Position  uint64 // Position within the file
-	Length    uint32 // Data record length
 	ExpiredAt uint64 // Expiration time of the inode (UNIX timestamp in nano seconds)
 	CreatedAt uint64 // Creation time of the inode (UNIX timestamp in nano seconds)
 	mvcc      uint64 // Multi-version concurrency ID
+	Length    uint32 // Data record length
 }
 
 type indexMap struct {
@@ -1146,7 +1146,7 @@ func checkpointFileName(regionID uint64) string {
 }
 
 // serializedIndex serializes the index to a recoverable file snapshot record format:
-// | INUM 8 | RID 8  | POS 8 | LEN 4 | EAT 8 | CAT 8 | CRC32 4 |
+// | INUM 8 | RID 8  | POS 8 | LEN 4 | EAT 8 | CAT 8 | CRC32 4 | = len(48 bytes)
 func serializedIndex(inum uint64, inode *inode) ([]byte, error) {
 	// Create a byte buffer
 	buf := new(bytes.Buffer)
@@ -1170,7 +1170,7 @@ func serializedIndex(inum uint64, inode *inode) ([]byte, error) {
 }
 
 // deserializedIndex restores the index file snapshot to an in-memory struct:
-// | INUM 8 | RID 8  | OFS 8 | LEN 4 | EAT 8 | CAT 8 | CRC32 4 |
+// | INUM 8 | RID 8  | OFS 8 | LEN 4 | EAT 8 | CAT 8 | CRC32 4 | = len(48 bytes)
 func deserializedIndex(data []byte) (uint64, *inode, error) {
 	buf := bytes.NewReader(data)
 	var inum uint64
