@@ -104,6 +104,13 @@ type LogStructuredFS struct {
 
 // PutSegment inserts a Segment record into the LogStructuredFS virtual file system.
 func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
+
+	// 在基于已有的 updated segment 更新时，检查是否过期，
+	// 如果在更新过程中过期就直接拒绝基于原有的更新请求。
+	if _, ok := seg.ExpiresIn(); !ok {
+		return errors.New("cannot insert expired segment")
+	}
+
 	inum := inodeNum(key)
 
 	bytes, err := serializedSegment(seg)

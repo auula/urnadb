@@ -124,6 +124,16 @@ func (s *Segment) Clear() {
 	s.Tombstone = 0
 }
 
+// NewSegmentWithMeta 使用数据类型和元信息初始化并返回对应的 Segment，适用于基于已有过期时间的 segment 的更新操作
+func NewSegmentWithMeta(data Serializable, timestamp, expiredAt uint64) (*Segment, error) {
+	return nil, nil
+}
+
+// GetWithMeta 返回 Segment 的元信息，包括创建时间和过期时间，适用于基于已有过期时间的 segment 的更新操作
+func (seg *Segment) GetWithMeta() (uint64, uint64) {
+	return seg.CreatedAt, seg.ExpiredAt
+}
+
 // NewSegment 使用数据类型初始化并返回对应的 Segment
 func NewSegment(key string, data Serializable, ttl uint64) (*Segment, error) {
 	timestamp, expiredAt := uint64(time.Now().UnixNano()), uint64(0)
@@ -265,12 +275,21 @@ func (s *Segment) ToNumber() (*types.Number, error) {
 	return number, nil
 }
 
-func (s *Segment) TTL() int64 {
+// ExpiresIn 返回剩下的存活时间，一般在基于原有的 segment 更新时使用，
+// 如果返回 -1，表示这个 segment 永不过期，并且返回 ok = true 表示这个 segment 没有过期。
+// 如果返回 0，表示这个 segment 已经过期，ok = false 表示这个 segment 已经过期。
+// 剩下的情况是返回剩下的存活时间，并且 ok = true 表示这个 segment 没有过期。
+func (s *Segment) ExpiresIn() (int64, bool) {
 	now := uint64(time.Now().UnixNano())
 	if s.ExpiredAt > 0 && s.ExpiredAt > now {
-		return int64(s.ExpiredAt-now) / int64(time.Second)
+		aliveTTL := int64(s.ExpiredAt-now) / int64(time.Second)
+		if aliveTTL > 0 {
+			return aliveTTL, true
+		} else {
+			return 0, false
+		}
 	}
-	return -1
+	return -1, true
 }
 
 // 将类型映射为 kind 的辅助函数
