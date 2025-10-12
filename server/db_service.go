@@ -475,11 +475,13 @@ func QueryController(ctx *gin.Context) {
 		return
 	}
 
+	ttl, _ := seg.ExpiresIn()
+
 	ctx.IndentedJSON(http.StatusOK, gin.H{
 		"type":  seg.GetTypeString(),
 		"key":   seg.GetKeyString(),
 		"value": seg.Value,
-		"ttl":   seg.TTL(),
+		"ttl":   ttl,
 		"mvcc":  version,
 	})
 }

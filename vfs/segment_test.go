@@ -101,7 +101,7 @@ func TestTTL(t *testing.T) {
 	time.Sleep(time.Second)
 
 	// Test TTL, it should return a value close to 0
-	ttl := segment.TTL()
+	ttl, _ := segment.ExpiresIn()
 	assert.True(t, ttl <= 0) // Ensure TTL is <= 0 after expiration
 }
 
