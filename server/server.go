@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/auula/urnadb/clog"
@@ -63,8 +64,9 @@ func init() {
 }
 
 type HttpServer struct {
-	serv *http.Server
-	port uint16
+	serv   *http.Server
+	closed sync.Mutex
+	port   uint16
 }
 
 type Options struct {
@@ -143,10 +145,16 @@ func (hs *HttpServer) Startup() error {
 }
 
 func (hs *HttpServer) Shutdown() error {
+	// 这里加锁，防止多次调用 Shutdown 方法，
+	// 出现和 Startup 多次启动竞争的情况。
+	hs.closed.Lock()
+	defer hs.closed.Unlock()
+
 	// 先关闭 http 服务器停止接受数据请求
 	err := hs.serv.Shutdown(context.Background())
 	if err != nil && err != http.ErrServerClosed {
-		// 这里发生了错误，外层处理这个错误时也要关闭文件存储系统
+		// 这里发生了错误，外层处理这个错误时也要关闭文件存储系统，
+		// 理论上 hs.serv.RegisterOnShutdown 也能处理，但是 func() {} 不支持错误处理。
 		inner := closeStorage()
 		if inner != nil {
 			return fmt.Errorf("failed to shutdown the server: %w", errors.Join(err, inner))
