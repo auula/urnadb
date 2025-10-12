@@ -124,13 +124,13 @@ func (s *Segment) Clear() {
 	s.Tombstone = 0
 }
 
-// NewSegmentWithMeta 使用数据类型和元信息初始化并返回对应的 Segment，适用于基于已有过期时间的 segment 的更新操作
-func NewSegmentWithMeta(data Serializable, timestamp, expiredAt uint64) (*Segment, error) {
+// NewSegmentWithExpiry 使用数据类型和元信息初始化并返回对应的 Segment，适用于基于已有过期时间的 segment 的更新操作
+func NewSegmentWithExpiry(data Serializable, timestamp, expiredAt uint64) (*Segment, error) {
 	return nil, nil
 }
 
-// GetWithMeta 返回 Segment 的元信息，包括创建时间和过期时间，适用于基于已有过期时间的 segment 的更新操作
-func (seg *Segment) GetWithMeta() (uint64, uint64) {
+// GetExpiryMeta 返回 Segment 的元信息，包括创建时间和过期时间，适用于基于已有过期时间的 segment 的更新操作
+func (seg *Segment) GetExpiryMeta() (uint64, uint64) {
 	return seg.CreatedAt, seg.ExpiredAt
 }
 
