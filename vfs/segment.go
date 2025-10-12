@@ -125,7 +125,7 @@ func (s *Segment) Clear() {
 }
 
 // NewSegmentWithExpiry 使用数据类型和元信息初始化并返回对应的 Segment，适用于基于已有过期时间的 segment 的更新操作
-func NewSegmentWithExpiry(data Serializable, timestamp, expiredAt uint64) (*Segment, error) {
+func NewSegmentWithExpiry[T Serializable](data T, timestamp, expiredAt uint64) (*Segment, error) {
 	return nil, nil
 }
 
@@ -135,7 +135,7 @@ func (seg *Segment) GetExpiryMeta() (uint64, uint64) {
 }
 
 // NewSegment 使用数据类型初始化并返回对应的 Segment
-func NewSegment(key string, data Serializable, ttl uint64) (*Segment, error) {
+func NewSegment[T Serializable](key string, data T, ttl uint64) (*Segment, error) {
 	timestamp, expiredAt := uint64(time.Now().UnixNano()), uint64(0)
 	if ttl > 0 {
 		expiredAt = uint64(time.Now().Add(time.Second * time.Duration(ttl)).UnixNano())
