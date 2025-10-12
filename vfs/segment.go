@@ -79,7 +79,7 @@ type Serializable interface {
 
 func AcquirePoolSegment(key string, data Serializable, ttl uint64) (*Segment, error) {
 	seg := segmentPool.Get().(*Segment)
-	timestamp, expiredAt := uint64(time.Now().UnixNano()), uint64(0)
+	createdAt, expiredAt := uint64(time.Now().UnixNano()), uint64(0)
 	if ttl > 0 {
 		expiredAt = uint64(time.Now().Add(time.Second * time.Duration(ttl)).UnixNano())
 	}
@@ -99,7 +99,7 @@ func AcquirePoolSegment(key string, data Serializable, ttl uint64) (*Segment, er
 	// 只能这样初始化复用 segment 结构
 	seg.Type = toKind(data)
 	seg.Tombstone = 0
-	seg.CreatedAt = timestamp
+	seg.CreatedAt = createdAt
 	seg.ExpiredAt = expiredAt
 	seg.KeySize = uint32(len(key))
 	seg.ValueSize = uint32(len(encodedata))
@@ -125,7 +125,7 @@ func (s *Segment) Clear() {
 }
 
 // NewSegmentWithExpiry 使用数据类型和元信息初始化并返回对应的 Segment，适用于基于已有过期时间的 segment 的更新操作
-func NewSegmentWithExpiry[T Serializable](data T, timestamp, expiredAt uint64) (*Segment, error) {
+func NewSegmentWithExpiry[T Serializable](data T, createdAt, expiredAt uint64) (*Segment, error) {
 	return nil, nil
 }
 
@@ -136,7 +136,7 @@ func (seg *Segment) GetExpiryMeta() (uint64, uint64) {
 
 // NewSegment 使用数据类型初始化并返回对应的 Segment
 func NewSegment[T Serializable](key string, data T, ttl uint64) (*Segment, error) {
-	timestamp, expiredAt := uint64(time.Now().UnixNano()), uint64(0)
+	createdAt, expiredAt := uint64(time.Now().UnixNano()), uint64(0)
 	if ttl > 0 {
 		expiredAt = uint64(time.Now().Add(time.Second * time.Duration(ttl)).UnixNano())
 	}
@@ -156,7 +156,7 @@ func NewSegment[T Serializable](key string, data T, ttl uint64) (*Segment, error
 	return &Segment{
 		Type:      toKind(data),
 		Tombstone: 0,
-		CreatedAt: timestamp,
+		CreatedAt: createdAt,
 		ExpiredAt: expiredAt,
 		KeySize:   uint32(len(key)),
 		ValueSize: uint32(len(encodedata)),
@@ -167,11 +167,11 @@ func NewSegment[T Serializable](key string, data T, ttl uint64) (*Segment, error
 }
 
 func NewTombstoneSegment(key string) *Segment {
-	timestamp, expiredAt := uint64(time.Now().UnixNano()), uint64(0)
+	createdAt, expiredAt := uint64(time.Now().UnixNano()), uint64(0)
 	return &Segment{
 		Type:      unknown,
 		Tombstone: 1,
-		CreatedAt: timestamp,
+		CreatedAt: createdAt,
 		ExpiredAt: expiredAt,
 		KeySize:   uint32(len(key)),
 		ValueSize: 0,
