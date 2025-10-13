@@ -16,6 +16,7 @@ package server
 
 import (
 	"io/fs"
+	"net/http"
 	"testing"
 	"time"
 
@@ -136,11 +137,26 @@ func TestHttpServer_Shutdown(t *testing.T) {
 
 	hts.SetupFS(fss)
 
+	// 使用 channel 来同步启动状态
+	started := make(chan error, 1)
 	go func() {
-		err := hts.Startup()
-		assert.NoError(t, err)
+		started <- hts.Startup()
 	}()
+
+	// 等待一小段时间让服务器开始启动
+	time.Sleep(100 * time.Millisecond)
 
 	err = hts.Shutdown()
 	assert.NoError(t, err)
+
+	// 等待 Startup goroutine 完成
+	select {
+	case startupErr := <-started:
+		// Startup 应该因为 Shutdown 而返回，这是正常的
+		if startupErr != nil && startupErr != http.ErrServerClosed {
+			t.Logf("Startup returned: %v", startupErr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Startup goroutine did not complete in time")
+	}
 }

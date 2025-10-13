@@ -21,7 +21,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/auula/urnadb/clog"
@@ -64,9 +64,10 @@ func init() {
 }
 
 type HttpServer struct {
-	serv   *http.Server
-	closed sync.Mutex
-	port   uint16
+	serv    *http.Server
+	port    uint16
+	started atomic.Bool
+	stopped atomic.Bool
 }
 
 type Options struct {
@@ -131,6 +132,16 @@ func (hs *HttpServer) IPv4() string {
 
 // Startup blocking goroutine
 func (hs *HttpServer) Startup() error {
+	// 防止重复启动
+	if !hs.started.CompareAndSwap(false, true) {
+		return fmt.Errorf("server already started")
+	}
+
+	if hs.stopped.Load() {
+		return fmt.Errorf("server has been stopped and not reset")
+	}
+
+	// 检查文件存储系统是否已经初始化
 	if storage == nil {
 		return errors.New("file storage system is not initialized")
 	}
@@ -145,10 +156,14 @@ func (hs *HttpServer) Startup() error {
 }
 
 func (hs *HttpServer) Shutdown() error {
-	// 这里加锁，防止多次调用 Shutdown 方法，
-	// 出现和 Startup 多次启动竞争的情况。
-	hs.closed.Lock()
-	defer hs.closed.Unlock()
+	// 使用原子操作防止重复关闭
+	if hs.stopped.Load() {
+		return nil // 已经关闭，直接返回成功
+	}
+
+	if !hs.stopped.CompareAndSwap(false, true) {
+		return nil // 其他协程已经在关闭，直接返回成功
+	}
 
 	// 先关闭 http 服务器停止接受数据请求
 	err := hs.serv.Shutdown(context.Background())
@@ -161,7 +176,16 @@ func (hs *HttpServer) Shutdown() error {
 		}
 		return err
 	}
-	return closeStorage()
+
+	err = closeStorage()
+	if err != nil {
+		return err
+	}
+
+	// 重置状态，允许再次启动
+	hs.started.Store(false)
+
+	return nil
 }
 
 func closeStorage() error {
