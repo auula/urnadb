@@ -19,5 +19,8 @@ coverage.out
 testdata
 urnadb
 
+# Q session records (sync via cloud storage)
+Q_SESSION_RECAP.md
+
 # Dependency directories (remove the comment below to include it)
 # vendor/

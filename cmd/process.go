@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	version = "v1.1.2"
+	version = "v1.2.1"
 	website = "https://urnadb.github.io"
 )
 
