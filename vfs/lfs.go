@@ -338,7 +338,7 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 	inode.Position = lfs.offset
 
 	// 更新 MVCC 版本号，如果使用的 atomic.StoreUint64 只能保证原子地写入内存，不能保证算数运算过程也是原子。
-	if atomic.LoadUint64(&inode.mvcc) != math.MaxUint64 {
+	if atomic.LoadUint64(&inode.mvcc) == math.MaxUint64 {
 		return errors.New("failed to CAS number version overflow")
 	}
 
