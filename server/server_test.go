@@ -16,7 +16,6 @@ package server
 
 import (
 	"io/fs"
-	"net/http"
 	"testing"
 	"time"
 
@@ -70,8 +69,10 @@ func TestHttpServer_Startup(t *testing.T) {
 		assert.NoError(t, err)
 
 		server.SetupFS(fss)
-		err = server.Startup()
-		assert.NoError(t, err)
+
+		if err := server.Startup(); err != nil {
+			assert.NoError(t, err)
+		}
 	}()
 
 	// 等待服务器启动
@@ -79,8 +80,13 @@ func TestHttpServer_Startup(t *testing.T) {
 	assert.NoError(t, err)
 
 	// 关闭服务器
-	err = server.Shutdown()
-	assert.NoError(t, err)
+
+	if err := server.Shutdown(); err != nil {
+		assert.NoError(t, err)
+	}
+
+	// 关闭也需要时间
+	time.Sleep(500 * time.Millisecond)
 }
 
 // 测试 SetupFS 方法
@@ -115,6 +121,7 @@ func TestHttpServer_SetupFS(t *testing.T) {
 
 // 测试 Shutdown 方法
 func TestHttpServer_Shutdown(t *testing.T) {
+	// 注意 err 作用于问题，可能会覆盖掉后面的 err 导致单元测试出现数据竞争问题。
 	hts, err := New(&Options{
 		Port: 6379,
 		Auth: "secret1234567890",
@@ -137,26 +144,19 @@ func TestHttpServer_Shutdown(t *testing.T) {
 
 	hts.SetupFS(fss)
 
-	// 使用 channel 来同步启动状态
-	started := make(chan error, 1)
 	go func() {
-		started <- hts.Startup()
+		if err := hts.Startup(); err != nil {
+			assert.NoError(t, err)
+		}
 	}()
 
 	// 等待一小段时间让服务器开始启动
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 
-	err = hts.Shutdown()
-	assert.NoError(t, err)
-
-	// 等待 Startup goroutine 完成
-	select {
-	case startupErr := <-started:
-		// Startup 应该因为 Shutdown 而返回，这是正常的
-		if startupErr != nil && startupErr != http.ErrServerClosed {
-			t.Logf("Startup returned: %v", startupErr)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("Startup goroutine did not complete in time")
+	if err := hts.Shutdown(); err != nil {
+		assert.NoError(t, err)
 	}
+
+	// 关闭也需要一点时间
+	time.Sleep(500 * time.Millisecond)
 }

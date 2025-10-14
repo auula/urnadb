@@ -32,7 +32,7 @@ func TestLogging(t *testing.T) {
 
 	Warn("warn message.")
 
-	Warnf("warin %s", "message.")
+	Warnf("warn %s", "message.")
 
 	Error("error message.")
 

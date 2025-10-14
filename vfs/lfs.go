@@ -58,11 +58,9 @@ const (
 
 var (
 	shard            = 10
-	fsPerm           = fs.FileMode(0755)
 	transformer      = NewTransformer()
 	fileExtension    = ".db"
 	indexFileName    = "index.db"
-	regionThreshold  = int64(1 * gb) // 1GB
 	dataFileMetadata = []byte{0xDB, 0x00, 0x01, 0x01}
 )
 
@@ -93,12 +91,14 @@ type LogStructuredFS struct {
 	offset           uint64
 	regionID         uint64
 	directory        string
+	fsPerm           os.FileMode
 	indexs           []*indexMap
 	active           *os.File
 	regions          map[uint64]*os.File
 	gcstate          _GC_STATE
 	compactTask      *cron.Cron
 	dirtyRegions     []*os.File
+	regionThreshold  int64
 	checkpointWorker *time.Ticker
 	expireLoopWorker *time.Ticker
 }
@@ -145,7 +145,7 @@ func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
 
 	lfs.offset += uint64(seg.Size())
 
-	if lfs.offset >= uint64(regionThreshold) {
+	if lfs.offset >= uint64(lfs.regionThreshold) {
 		return lfs.createActiveRegion()
 	}
 
@@ -309,7 +309,7 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 	}
 
 	// 快速检测 MVCC 版本号，被修改则快速失败
-	if inode.mvcc != expected {
+	if atomic.LoadUint64(&inode.mvcc) != expected {
 		return errors.New("failed to update data due to version conflict")
 	}
 
@@ -328,20 +328,23 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 	}
 	lfs.mu.Unlock()
 
-	// 更新 inode 字段在 imap.mu 写锁保护下进行原子操作，不使用 &inode{...} 来替代是因为降低垃圾回收器负载。
+	// 更新 inode 字段在 imap.mu 锁 和 atomic 保护下进行原子操作，
+	// 不使用 &inode{...} 来替代是因为降低垃圾回收器负载。
 	// imap.index[inum] = &inde{...}
-	// 新 inode 的 CreatedAt 这个时间应该是使用原始的 inode 的 CreatedAt，理论上应该添加一个 UpdatedAt 字段来适用于 CAS 操作。
-	inode.CreatedAt = newseg.CreatedAt
-	inode.ExpiredAt = newseg.ExpiredAt
-	inode.RegionID = lfs.regionID
-	inode.Length = newseg.Size()
-	inode.Position = lfs.offset
+	// 新 inode 的 CreatedAt 这个时间应该是使用原始的 inode 的 CreatedAt，
+	// 理论上应该添加一个 UpdatedAt 字段来适用于 CAS 操作。
+	atomic.StoreUint64(&inode.CreatedAt, newseg.CreatedAt)
+	atomic.StoreUint64(&inode.ExpiredAt, newseg.ExpiredAt)
+	atomic.StoreUint64(&inode.RegionID, lfs.regionID)
+	atomic.StoreUint32(&inode.Length, newseg.Size())
+	atomic.StoreUint64(&inode.Position, lfs.offset)
 
-	// 更新 MVCC 版本号，如果使用的 atomic.StoreUint64 只能保证原子地写入内存，不能保证算数运算过程也是原子。
+	// 长时间运行可能会出现 MVCC 版本号溢出的问题，对溢出进行检查。
 	if atomic.LoadUint64(&inode.mvcc) == math.MaxUint64 {
 		return errors.New("failed to CAS number version overflow")
 	}
 
+	// 更新 MVCC 版本号，如果使用的 atomic.StoreUint64 只能保证原子地写入内存，不能保证算数运算过程也是原子。
 	_ = atomic.AddUint64(&inode.mvcc, 1)
 
 	// 更新全局 offset 原子操作保证并发安全
@@ -376,7 +379,7 @@ func (lfs *LogStructuredFS) createActiveRegion() error {
 		return fmt.Errorf("failed to new active region name: %w", err)
 	}
 
-	active, err := os.OpenFile(filepath.Join(lfs.directory, fileName), appendOnlyLog, fsPerm)
+	active, err := os.OpenFile(filepath.Join(lfs.directory, fileName), appendOnlyLog, lfs.fsPerm)
 	if err != nil {
 		return fmt.Errorf("failed to create active region: %w", err)
 	}
@@ -407,7 +410,7 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 	for _, file := range files {
 		if !file.IsDir() && strings.HasSuffix(file.Name(), fileExtension) {
 			if strings.HasPrefix(file.Name(), "0") {
-				fd, err := os.OpenFile(filepath.Join(lfs.directory, file.Name()), os.O_RDWR, fsPerm)
+				fd, err := os.OpenFile(filepath.Join(lfs.directory, file.Name()), os.O_RDWR, lfs.fsPerm)
 				if err != nil {
 					return fmt.Errorf("failed to open data file: %w", err)
 				}
@@ -445,7 +448,7 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 			return fmt.Errorf("failed to get region file info: %w", err)
 		}
 
-		if stat.Size() >= regionThreshold {
+		if stat.Size() >= lfs.regionThreshold {
 			return lfs.createActiveRegion()
 		} else {
 			offset, err := active.Seek(0, io.SeekEnd)
@@ -543,7 +546,7 @@ func (lfs *LogStructuredFS) RunCheckpoint(second uint32) {
 				ckpt := checkpointFileName(lfs.regionID)
 				path := filepath.Join(lfs.directory, ckpt)
 
-				fd, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, fsPerm)
+				fd, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, lfs.fsPerm)
 				if err != nil {
 					clog.Errorf("failed to generate index checkpoint file: %v", err)
 					chkptState = !chkptState
@@ -690,23 +693,23 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 	if opt.Threshold <= 0 {
 		return nil, fmt.Errorf("single region threshold size limit is too small")
 	}
-	// Single region max size = 255GB
-	regionThreshold = int64(opt.Threshold) * gb
 
-	err := checkFileSystem(opt.Path)
+	err := checkFileSystem(opt.Path, opt.FSPerm)
 	if err != nil {
 		return nil, err
 	}
 
-	fsPerm = opt.FSPerm
 	instance := &LogStructuredFS{
-		mu:               sync.RWMutex{},
-		indexs:           make([]*indexMap, shard),
-		regions:          make(map[uint64]*os.File, 10),
-		offset:           uint64(len(dataFileMetadata)),
-		regionID:         0,
-		directory:        opt.Path,
-		gcstate:          _GC_INIT,
+		mu:        sync.RWMutex{},
+		indexs:    make([]*indexMap, shard),
+		regions:   make(map[uint64]*os.File, 10),
+		offset:    uint64(len(dataFileMetadata)),
+		regionID:  0,
+		directory: opt.Path,
+		gcstate:   _GC_INIT,
+		fsPerm:    opt.FSPerm,
+		// Single region max size = 255GB
+		regionThreshold:  int64(opt.Threshold) * gb,
 		compactTask:      nil,
 		checkpointWorker: nil,
 		expireLoopWorker: time.NewTicker(time.Duration(120) * time.Second),
@@ -772,7 +775,7 @@ func (lfs *LogStructuredFS) GetDirectory() string {
 // swapping memory pages to disk.
 func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
 	filePath := filepath.Join(lfs.directory, indexFileName)
-	fd, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, fsPerm)
+	fd, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, lfs.fsPerm)
 	if err != nil {
 		return fmt.Errorf("failed to generate index snapshot file: %w", err)
 	}
@@ -975,7 +978,7 @@ func validateFileHeader(file *os.File) error {
 	return nil
 }
 
-func checkFileSystem(path string) error {
+func checkFileSystem(path string, fsPerm fs.FileMode) error {
 	if !utils.IsExist(path) {
 		err := os.MkdirAll(path, fsPerm)
 		if err != nil {
@@ -1359,7 +1362,7 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 					return fmt.Errorf("imap is nil for inum = %d", inum)
 				}
 
-				if atomic.LoadUint64(&lfs.offset) >= uint64(regionThreshold) {
+				if atomic.LoadUint64(&lfs.offset) >= uint64(lfs.regionThreshold) {
 					err := lfs.changeRegions()
 					if err != nil {
 						return fmt.Errorf("failed to close active migrate region: %w", err)

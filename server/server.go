@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 )
 
 var (
+	pkgmut = sync.Mutex{}
 	// ipv4 return local IPv4 address
 	ipv4 string = "127.0.0.1"
 )
@@ -95,7 +97,9 @@ func New(opt *Options) (*HttpServer, error) {
 		return nil, err
 	}
 
+	pkgmut.Lock()
 	authPassword = opt.Auth
+	pkgmut.Unlock()
 
 	hs := HttpServer{
 		serv: &http.Server{
@@ -114,10 +118,14 @@ func New(opt *Options) (*HttpServer, error) {
 }
 
 func (hs *HttpServer) SetupFS(fss *vfs.LogStructuredFS) {
+	pkgmut.Lock()
+	defer pkgmut.Unlock()
 	storage = fss
 }
 
 func (hs *HttpServer) SetAllowIP(allowd []string) {
+	pkgmut.Lock()
+	defer pkgmut.Unlock()
 	allowIpList = allowd
 }
 
@@ -142,7 +150,11 @@ func (hs *HttpServer) Startup() error {
 	}
 
 	// 检查文件存储系统是否已经初始化
-	if storage == nil {
+	pkgmut.Lock()
+	storageInitialized := storage != nil
+	pkgmut.Unlock()
+	
+	if !storageInitialized {
 		return errors.New("file storage system is not initialized")
 	}
 
@@ -184,11 +196,14 @@ func (hs *HttpServer) Shutdown() error {
 
 	// 重置状态，允许再次启动
 	hs.started.Store(false)
+	hs.stopped.Store(false)
 
 	return nil
 }
 
 func closeStorage() error {
+	pkgmut.Lock()
+	defer pkgmut.Unlock()
 	if storage != nil {
 		// 先停止垃圾回收线程和检查点生成线程
 		storage.StopExpireLoop()

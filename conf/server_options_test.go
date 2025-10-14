@@ -298,8 +298,8 @@ func TestHasCustom(t *testing.T) {
 	assert.False(t, HasCustom(defaultFilePath))
 }
 
-// TestVaildated tests the configuration validation
-func TestVaildated(t *testing.T) {
+// TestValidated tests the configuration validation
+func TestValidated(t *testing.T) {
 	// Should pass validation
 	opts := &ServerOptions{
 		Port:     2668,
