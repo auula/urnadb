@@ -105,13 +105,6 @@ type LogStructuredFS struct {
 
 // PutSegment inserts a Segment record into the LogStructuredFS virtual file system.
 func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
-
-	// 在基于已有的 segment 更新时，检查是否过期。
-	// 如果在更新过程中过期就直接拒绝基于原有的更新请求。
-	if _, ok := seg.ExpiresIn(); !ok {
-		return errors.New("cannot insert expired segment")
-	}
-
 	inum := inodeNum(key)
 
 	bytes, err := serializedSegment(seg)
@@ -293,6 +286,13 @@ func inodeNum(key string) uint64 {
 
 // UpdateSegmentWithCAS 通过类似于 MVCC 来实现更新操作数据一致性
 func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, newseg *Segment) error {
+
+	// 在基于已有的 segment 更新时，检查是否过期。
+	// 如果在更新过程中过期就直接拒绝基于原有的更新请求。
+	if _, ok := newseg.ExpiresIn(); !ok {
+		return errors.New("cannot insert expired segment")
+	}
+
 	inum := inodeNum(key)
 	imap := lfs.indexs[inum%uint64(shard)]
 	if imap == nil {
