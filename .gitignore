@@ -22,5 +22,8 @@ urnadb
 # Q session records (sync via cloud storage)
 Q_SESSION_RECAP.md
 
+# AI generated documentation directory
+ai-docs/
+
 # Dependency directories (remove the comment below to include it)
 # vendor/

@@ -50,10 +50,10 @@ var kindToString = map[kind]string{
 type Segment struct {
 	Tombstone int8
 	Type      kind
-	ExpiredAt uint64
-	CreatedAt uint64
-	KeySize   uint32
-	ValueSize uint32
+	ExpiredAt int64
+	CreatedAt int64
+	KeySize   int32
+	ValueSize int32
 	Key       []byte
 	Value     []byte
 }
@@ -77,11 +77,11 @@ type Serializable interface {
 	ToBytes() ([]byte, error)
 }
 
-func AcquirePoolSegment(key string, data Serializable, ttl uint64) (*Segment, error) {
+func AcquirePoolSegment(key string, data Serializable, ttl int64) (*Segment, error) {
 	seg := segmentPool.Get().(*Segment)
-	createdAt, expiredAt := uint64(time.Now().UnixNano()), uint64(0)
+	createdAt, expiredAt := int64(time.Now().UnixNano()), int64(0)
 	if ttl > 0 {
-		expiredAt = uint64(time.Now().Add(time.Second * time.Duration(ttl)).UnixNano())
+		expiredAt = time.Now().Add(time.Second * time.Duration(ttl)).UnixNano()
 	}
 
 	bytes, err := data.ToBytes()
@@ -101,8 +101,8 @@ func AcquirePoolSegment(key string, data Serializable, ttl uint64) (*Segment, er
 	seg.Tombstone = 0
 	seg.CreatedAt = createdAt
 	seg.ExpiredAt = expiredAt
-	seg.KeySize = uint32(len(key))
-	seg.ValueSize = uint32(len(encodedata))
+	seg.KeySize = int32(len(key))
+	seg.ValueSize = int32(len(encodedata))
 	seg.Key = []byte(key)
 	seg.Value = encodedata
 
@@ -125,20 +125,20 @@ func (s *Segment) Clear() {
 }
 
 // NewSegmentWithExpiry 使用数据类型和元信息初始化并返回对应的 Segment，适用于基于已有过期时间的 segment 的更新操作
-func NewSegmentWithExpiry[T Serializable](data T, createdAt, expiredAt uint64) (*Segment, error) {
+func NewSegmentWithExpiry[T Serializable](data T, createdAt, expiredAt int64) (*Segment, error) {
 	return nil, nil
 }
 
 // GetExpiryMeta 返回 Segment 的元信息，包括创建时间和过期时间，适用于基于已有过期时间的 segment 的更新操作
-func (seg *Segment) GetExpiryMeta() (uint64, uint64) {
+func (seg *Segment) GetExpiryMeta() (int64, int64) {
 	return seg.CreatedAt, seg.ExpiredAt
 }
 
 // NewSegment 使用数据类型初始化并返回对应的 Segment
-func NewSegment[T Serializable](key string, data T, ttl uint64) (*Segment, error) {
-	createdAt, expiredAt := uint64(time.Now().UnixNano()), uint64(0)
+func NewSegment[T Serializable](key string, data T, ttl int64) (*Segment, error) {
+	createdAt, expiredAt := int64(time.Now().UnixNano()), int64(0)
 	if ttl > 0 {
-		expiredAt = uint64(time.Now().Add(time.Second * time.Duration(ttl)).UnixNano())
+		expiredAt = time.Now().Add(time.Second * time.Duration(ttl)).UnixNano()
 	}
 
 	bytes, err := data.ToBytes()
@@ -158,8 +158,8 @@ func NewSegment[T Serializable](key string, data T, ttl uint64) (*Segment, error
 		Tombstone: 0,
 		CreatedAt: createdAt,
 		ExpiredAt: expiredAt,
-		KeySize:   uint32(len(key)),
-		ValueSize: uint32(len(encodedata)),
+		KeySize:   int32(len(key)),
+		ValueSize: int32(len(encodedata)),
 		Key:       []byte(key),
 		Value:     encodedata,
 	}, nil
@@ -167,13 +167,13 @@ func NewSegment[T Serializable](key string, data T, ttl uint64) (*Segment, error
 }
 
 func NewTombstoneSegment(key string) *Segment {
-	createdAt, expiredAt := uint64(time.Now().UnixNano()), uint64(0)
+	createdAt, expiredAt := int64(time.Now().UnixNano()), int64(0)
 	return &Segment{
 		Type:      unknown,
 		Tombstone: 1,
 		CreatedAt: createdAt,
 		ExpiredAt: expiredAt,
-		KeySize:   uint32(len(key)),
+		KeySize:   int32(len(key)),
 		ValueSize: 0,
 		Key:       []byte(key),
 		Value:     []byte{},
@@ -192,7 +192,7 @@ func (s *Segment) GetKeyString() string {
 	return string(s.Key)
 }
 
-func (s *Segment) Size() uint32 {
+func (s *Segment) Size() int32 {
 	// 计算一整块记录的大小，+4 CRC 校验码占用 4 个字节
 	return _SEGMENT_PADDING + s.KeySize + s.ValueSize + 4
 }
@@ -280,7 +280,7 @@ func (s *Segment) ToNumber() (*types.Number, error) {
 // 如果返回 0，表示这个 segment 已经过期，ok = false 表示这个 segment 已经过期。
 // 剩下的情况是返回剩下的存活时间，并且 ok = true 表示这个 segment 没有过期。
 func (s *Segment) ExpiresIn() (int64, bool) {
-	now := uint64(time.Now().UnixNano())
+	now := time.Now().UnixNano()
 	if s.ExpiredAt > 0 && s.ExpiredAt > now {
 		aliveTTL := int64(s.ExpiredAt-now) / int64(time.Second)
 		if aliveTTL > 0 {

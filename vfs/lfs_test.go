@@ -122,7 +122,7 @@ func TestReadSegment(t *testing.T) {
 	}
 
 	// 使用 readSegment 读取并测试数据
-	offset := uint64(0)
+	offset := int64(0)
 	inum, segment, err := readSegment(tmpFile, offset, 26)
 	if err != nil {
 		t.Fatalf("expected no error, but got: %v", err)

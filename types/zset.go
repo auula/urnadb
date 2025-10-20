@@ -25,7 +25,7 @@ import (
 // ZSet 是一个实现有序集合的结构
 type ZSet struct {
 	ZSet         map[string]float64 `json:"zset" msgpack:"zset" binding:"required"`
-	TTL          uint64             `json:"ttl,omitempty"`
+	TTL          int64              `json:"ttl,omitempty"`
 	sortedScores []string
 }
 

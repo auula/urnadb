@@ -23,7 +23,7 @@ import (
 
 type Table struct {
 	Table map[string]any `json:"table" msgpack:"table" binding:"required"`
-	TTL   uint64         `json:"ttl,omitempty"`
+	TTL   int64          `json:"ttl,omitempty"`
 }
 
 var tablePools = sync.Pool{

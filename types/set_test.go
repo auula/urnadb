@@ -75,9 +75,9 @@ func TestSet_Clear(t *testing.T) {
 	set.Add("b")
 	set.TTL = 100
 
-	set.Clear()                         // 清空
-	assert.Equal(t, 0, set.Size())      // Set 应为空
-	assert.Equal(t, uint64(0), set.TTL) // TTL 应重置为 0
+	set.Clear()                        // 清空
+	assert.Equal(t, 0, set.Size())     // Set 应为空
+	assert.Equal(t, int64(0), set.TTL) // TTL 应重置为 0
 }
 
 func TestSet_ToBytes(t *testing.T) {

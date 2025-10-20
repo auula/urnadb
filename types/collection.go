@@ -23,8 +23,8 @@ import (
 )
 
 type Collection struct {
-	Collection []any  `json:"collection" msgpack:"collection" binding:"required"`
-	TTL        uint64 `json:"ttl,omitempty"`
+	Collection []any `json:"collection" msgpack:"collection" binding:"required"`
+	TTL        int64 `json:"ttl,omitempty"`
 }
 
 // 创建一个对象池

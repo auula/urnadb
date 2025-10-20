@@ -116,7 +116,7 @@ func TestZSet_Clear(t *testing.T) {
 
 	// Test clear functionality
 	assert.Equal(t, 0, zset.Size())
-	assert.Equal(t, uint64(0), zset.TTL)
+	assert.Equal(t, int64(0), zset.TTL)
 	assert.Empty(t, zset.ZSet)
 }
 

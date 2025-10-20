@@ -36,7 +36,7 @@ func TestTextOperations(t *testing.T) {
 
 	text.Clear()
 	assert.Equal(t, "", text.Content)
-	assert.Equal(t, uint64(0), text.TTL)
+	assert.Equal(t, int64(0), text.TTL)
 
 	data, err := text.ToBytes()
 	assert.NoError(t, err)

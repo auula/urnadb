@@ -106,7 +106,7 @@ func TestCollection_Clear(t *testing.T) {
 
 	// Test clear functionality
 	assert.Equal(t, 0, cle.Size())
-	assert.Equal(t, uint64(0), cle.TTL)
+	assert.Equal(t, int64(0), cle.TTL)
 }
 
 func TestCollection_ToBytes(t *testing.T) {

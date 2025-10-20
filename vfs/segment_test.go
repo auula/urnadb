@@ -33,11 +33,11 @@ func TestNewSegment(t *testing.T) {
 
 	// Create a new segment for the Set type
 	segment, err := NewSegment("mock-key", &set, 1000)
-	assert.NoError(t, err)                                    // Ensure no error
-	assert.NotNil(t, segment)                                 // Ensure segment is created
-	assert.Equal(t, "mock-key", string(segment.Key))          // Ensure the key is set correctly
-	assert.Equal(t, uint32(len("mock-key")), segment.KeySize) // Ensure the key size is correct
-	assert.Equal(t, uint32(15), segment.ValueSize)            // Ensure the value size is correct
+	assert.NoError(t, err)                                   // Ensure no error
+	assert.NotNil(t, segment)                                // Ensure segment is created
+	assert.Equal(t, "mock-key", string(segment.Key))         // Ensure the key is set correctly
+	assert.Equal(t, int32(len("mock-key")), segment.KeySize) // Ensure the key size is correct
+	assert.Equal(t, int32(15), segment.ValueSize)            // Ensure the value size is correct
 }
 
 func TestNewTombstoneSegment(t *testing.T) {
@@ -45,10 +45,10 @@ func TestNewTombstoneSegment(t *testing.T) {
 	segment := NewTombstoneSegment("mock-key")
 
 	// Ensure the segment is of Tombstone type and has expected fields
-	assert.Equal(t, unknown, segment.Type)                    // Tombstone should have Unknown type
-	assert.Equal(t, int8(1), segment.Tombstone)               // Tombstone should be marked as 1
-	assert.Equal(t, "mock-key", string(segment.Key))          // Ensure the key is set correctly
-	assert.Equal(t, uint32(len("mock-key")), segment.KeySize) // Ensure the key size is correct
+	assert.Equal(t, unknown, segment.Type)                   // Tombstone should have Unknown type
+	assert.Equal(t, int8(1), segment.Tombstone)              // Tombstone should be marked as 1
+	assert.Equal(t, "mock-key", string(segment.Key))         // Ensure the key is set correctly
+	assert.Equal(t, int32(len("mock-key")), segment.KeySize) // Ensure the key size is correct
 }
 
 func TestSegmentSize(t *testing.T) {
@@ -65,7 +65,7 @@ func TestSegmentSize(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Ensure the size is calculated correctly
-	assert.Equal(t, uint32(53), segment.Size())
+	assert.Equal(t, int32(53), segment.Size())
 }
 
 func TestToSet(t *testing.T) {
@@ -75,7 +75,7 @@ func TestToSet(t *testing.T) {
 			"item1": true,
 			"item2": true,
 		},
-		TTL: uint64(0),
+		TTL: int64(0),
 	}
 	segment, err := NewSegment("mock-key", &setData, 1000)
 	assert.NoError(t, err)

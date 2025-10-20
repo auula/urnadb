@@ -23,7 +23,7 @@ import (
 
 type Set struct {
 	Set map[string]bool `json:"set" msgpack:"set" binding:"required"`
-	TTL uint64          `json:"ttl,omitempty"`
+	TTL int64           `json:"ttl,omitempty"`
 }
 
 var setPools = sync.Pool{

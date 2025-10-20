@@ -24,8 +24,8 @@ import (
 
 // Number 结构体，表示带有数值的类型，支持原子操作
 type Number struct {
-	Value int64  `json:"number" msgpack:"number" binding:"required"`
-	TTL   uint64 `json:"ttl,omitempty"`
+	Value int64 `json:"number" msgpack:"number" binding:"required"`
+	TTL   int64 `json:"ttl,omitempty"`
 }
 
 // 创建一个对象池

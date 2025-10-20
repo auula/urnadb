@@ -24,7 +24,7 @@ import (
 
 type Text struct {
 	Content string `json:"content" msgpack:"content" binding:"required"`
-	TTL     uint64 `json:"ttl,omitempty"`
+	TTL     int64  `json:"ttl,omitempty"`
 }
 
 var textPools = sync.Pool{

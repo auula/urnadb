@@ -72,12 +72,12 @@ type Options struct {
 
 // inode represents a file system node with metadata.
 type inode struct {
-	RegionID  uint64 // Unique identifier for the region
-	Position  uint64 // Position within the file
-	ExpiredAt uint64 // Expiration time of the inode (UNIX timestamp in nano seconds)
-	CreatedAt uint64 // Creation time of the inode (UNIX timestamp in nano seconds)
+	RegionID  int64  // Unique identifier for the region
+	Position  int64  // Position within the file
+	ExpiredAt int64  // Expiration time of the inode (UNIX timestamp in nano seconds)
+	CreatedAt int64  // Creation time of the inode (UNIX timestamp in nano seconds)
 	mvcc      uint64 // Multi-version concurrency ID
-	Length    uint32 // Data record length
+	Length    int32  // Data record length
 }
 
 type indexMap struct {
@@ -88,13 +88,13 @@ type indexMap struct {
 // LogStructuredFS represents the virtual file storage system.
 type LogStructuredFS struct {
 	mu               sync.RWMutex
-	offset           uint64
-	regionID         uint64
+	offset           int64
+	regionID         int64
 	directory        string
 	fsPerm           os.FileMode
 	indexs           []*indexMap
 	active           *os.File
-	regions          map[uint64]*os.File
+	regions          map[int64]*os.File
 	gcstate          _GC_STATE
 	compactTask      *cron.Cron
 	dirtyRegions     []*os.File
@@ -136,9 +136,9 @@ func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
 	}
 	imap.mu.Unlock()
 
-	lfs.offset += uint64(seg.Size())
+	lfs.offset += int64(seg.Size()) // uint32 to uint64 is always safe
 
-	if lfs.offset >= uint64(lfs.regionThreshold) {
+	if lfs.offset >= lfs.regionThreshold {
 		return lfs.createActiveRegion()
 	}
 
@@ -173,7 +173,7 @@ func (lfs *LogStructuredFS) DeleteSegment(key string) error {
 		return err
 	}
 
-	lfs.offset += uint64(seg.Size())
+	lfs.offset += int64(seg.Size())
 	lfs.mu.Unlock()
 
 	inum := inodeNum(key)
@@ -203,20 +203,20 @@ func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
 		return 0, nil, fmt.Errorf("inode index for %d not found", inum)
 	}
 
-	if atomic.LoadUint64(&inode.ExpiredAt) <= uint64(time.Now().UnixNano()) &&
-		atomic.LoadUint64(&inode.ExpiredAt) != 0 {
+	if atomic.LoadInt64(&inode.ExpiredAt) <= time.Now().UnixNano() &&
+		atomic.LoadInt64(&inode.ExpiredAt) != 0 {
 		imap.mu.Lock()
 		delete(imap.index, inum)
 		imap.mu.Unlock()
 		return 0, nil, fmt.Errorf("inode index for %d has expired", inum)
 	}
 
-	fd, ok := lfs.regions[atomic.LoadUint64(&inode.RegionID)]
+	fd, ok := lfs.regions[atomic.LoadInt64(&inode.RegionID)]
 	if !ok {
 		return 0, nil, fmt.Errorf("data region with ID %d not found", inode.RegionID)
 	}
 
-	_, segment, err := readSegment(fd, atomic.LoadUint64(&inode.Position), _SEGMENT_PADDING)
+	_, segment, err := readSegment(fd, atomic.LoadInt64(&inode.Position), _SEGMENT_PADDING)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to read segment: %w", err)
 	}
@@ -245,7 +245,7 @@ func (lfs *LogStructuredFS) RefreshInodeCount() int {
 		for key, inode := range imap.index {
 			// Clean expired inode
 			imap.mu.Lock()
-			if inode.ExpiredAt <= uint64(time.Now().UnixNano()) && inode.ExpiredAt != 0 {
+			if inode.ExpiredAt <= time.Now().UnixNano() && inode.ExpiredAt != 0 {
 				delete(imap.index, key)
 			} else {
 				inodes += 1
@@ -267,11 +267,10 @@ func (lfs *LogStructuredFS) StopExpireLoop() {
 
 func expireLoop(indexs []*indexMap, ticker *time.Ticker) {
 	for range ticker.C {
-		now := uint64(time.Now().UnixNano())
 		for _, imap := range indexs {
 			imap.mu.Lock()
 			for key, inode := range imap.index {
-				if inode.ExpiredAt != 0 && inode.ExpiredAt <= now {
+				if inode.ExpiredAt != 0 && inode.ExpiredAt <= time.Now().UnixNano() {
 					delete(imap.index, key)
 				}
 			}
@@ -333,11 +332,11 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 	// imap.index[inum] = &inde{...}
 	// 新 inode 的 CreatedAt 这个时间应该是使用原始的 inode 的 CreatedAt，
 	// 理论上应该添加一个 UpdatedAt 字段来适用于 CAS 操作。
-	atomic.StoreUint64(&inode.CreatedAt, newseg.CreatedAt)
-	atomic.StoreUint64(&inode.ExpiredAt, newseg.ExpiredAt)
-	atomic.StoreUint64(&inode.RegionID, lfs.regionID)
-	atomic.StoreUint32(&inode.Length, newseg.Size())
-	atomic.StoreUint64(&inode.Position, lfs.offset)
+	atomic.StoreInt64(&inode.CreatedAt, newseg.CreatedAt)
+	atomic.StoreInt64(&inode.ExpiredAt, newseg.ExpiredAt)
+	atomic.StoreInt64(&inode.RegionID, lfs.regionID)
+	atomic.StoreInt32(&inode.Length, newseg.Size())
+	atomic.StoreInt64(&inode.Position, lfs.offset)
 
 	// 长时间运行可能会出现 MVCC 版本号溢出的问题，对溢出进行检查。
 	if atomic.LoadUint64(&inode.mvcc) == math.MaxUint64 {
@@ -348,7 +347,7 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 	_ = atomic.AddUint64(&inode.mvcc, 1)
 
 	// 更新全局 offset 原子操作保证并发安全
-	_ = atomic.AddUint64(&lfs.offset, uint64(newseg.Size()))
+	_ = atomic.AddInt64(&lfs.offset, int64(newseg.Size()))
 
 	return nil
 }
@@ -394,7 +393,7 @@ func (lfs *LogStructuredFS) createActiveRegion() error {
 	}
 
 	lfs.active = active
-	lfs.offset = uint64(len(dataFileMetadata))
+	lfs.offset = int64(len(dataFileMetadata))
 	lfs.regions[lfs.regionID] = lfs.active
 
 	return nil
@@ -426,7 +425,7 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 
 	// Only find the largest file if there are more than one data files
 	if len(lfs.regions) > 0 {
-		var regionIds []uint64
+		var regionIds []int64
 		for v := range lfs.regions {
 			regionIds = append(regionIds, v)
 		}
@@ -456,7 +455,7 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 				return fmt.Errorf("failed to get region file offset: %w", err)
 			}
 			lfs.active = active
-			lfs.offset = uint64(offset)
+			lfs.offset = offset
 		}
 	} else {
 		// If it is an empty directory, create a writable data file
@@ -702,8 +701,8 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 	instance := &LogStructuredFS{
 		mu:        sync.RWMutex{},
 		indexs:    make([]*indexMap, shard),
-		regions:   make(map[uint64]*os.File, 10),
-		offset:    uint64(len(dataFileMetadata)),
+		regions:   make(map[int64]*os.File, 10),
+		offset:    int64(len(dataFileMetadata)),
 		regionID:  0,
 		directory: opt.Path,
 		gcstate:   _GC_INIT,
@@ -851,7 +850,7 @@ func recoveryIndex(fd *os.File, indexs []*indexMap) error {
 				return
 			}
 
-			if inode.ExpiredAt <= uint64(time.Now().UnixNano()) && inode.ExpiredAt != 0 {
+			if inode.ExpiredAt <= time.Now().UnixNano() && inode.ExpiredAt != 0 {
 				continue
 			}
 
@@ -899,8 +898,8 @@ func recoveryIndex(fd *os.File, indexs []*indexMap) error {
 // 4. If DEL is 1, the corresponding entry is deleted from the in-memory index.
 // 5. Otherwise, the disk metadata is reconstructed into the index.
 // | DEL 1 | KIND 1 | EAT 8 | CAT 8 | KLEN 4 | VLEN 4 | KEY ? | VALUE ? | CRC32 4 |
-func crashRecoveryAllIndex(regions map[uint64]*os.File, indexs []*indexMap) error {
-	var regionIds []uint64
+func crashRecoveryAllIndex(regions map[int64]*os.File, indexs []*indexMap) error {
+	var regionIds []int64
 	for v := range regions {
 		regionIds = append(regionIds, v)
 	}
@@ -910,7 +909,7 @@ func crashRecoveryAllIndex(regions map[uint64]*os.File, indexs []*indexMap) erro
 	})
 
 	for _, regionId := range regionIds {
-		fd, ok := regions[uint64(regionId)]
+		fd, ok := regions[regionId]
 		if !ok {
 			return fmt.Errorf("data file does not exist regions id: %d", regionId)
 		}
@@ -920,9 +919,9 @@ func crashRecoveryAllIndex(regions map[uint64]*os.File, indexs []*indexMap) erro
 			return err
 		}
 
-		offset := uint64(len(dataFileMetadata))
+		offset := int64(len(dataFileMetadata))
 
-		for offset < uint64(finfo.Size()) {
+		for offset < finfo.Size() {
 			inum, segment, err := readSegment(fd, offset, _SEGMENT_PADDING)
 			if err != nil {
 				return fmt.Errorf("failed to parse data file segment: %w", err)
@@ -932,12 +931,12 @@ func crashRecoveryAllIndex(regions map[uint64]*os.File, indexs []*indexMap) erro
 			if imap != nil {
 				if segment.IsTombstone() {
 					delete(imap.index, inum)
-					offset += uint64(segment.Size())
+					offset += int64(segment.Size())
 					continue
 				}
 
-				if segment.ExpiredAt <= uint64(time.Now().UnixNano()) && segment.ExpiredAt != 0 {
-					offset += uint64(segment.Size())
+				if segment.ExpiredAt <= time.Now().UnixNano() && segment.ExpiredAt != 0 {
+					offset += int64(segment.Size())
 					continue
 				}
 
@@ -950,7 +949,7 @@ func crashRecoveryAllIndex(regions map[uint64]*os.File, indexs []*indexMap) erro
 					mvcc:      0,
 				}
 
-				offset += uint64(segment.Size())
+				offset += int64(segment.Size())
 			} else {
 				return errors.New("no corresponding index shard")
 			}
@@ -1027,10 +1026,10 @@ func checkFileSystem(path string, fsPerm fs.FileMode) error {
 }
 
 // | DEL 1 | KIND 1 | EAT 8 | CAT 8 | KLEN 4 | VLEN 4 | KEY ? | VALUE ? | CRC32 4 |
-func readSegment(fd *os.File, offset uint64, bufsize int64) (uint64, *Segment, error) {
+func readSegment(fd *os.File, offset int64, bufsize int64) (uint64, *Segment, error) {
 	buf := make([]byte, bufsize)
 
-	_, err := fd.ReadAt(buf, int64(offset))
+	_, err := fd.ReadAt(buf, offset)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -1047,19 +1046,19 @@ func readSegment(fd *os.File, offset uint64, bufsize int64) (uint64, *Segment, e
 	readOffset++
 
 	// Parse ExpiredAt (8 bytes)
-	seg.ExpiredAt = binary.LittleEndian.Uint64(buf[readOffset : readOffset+8])
+	seg.ExpiredAt = int64(binary.LittleEndian.Uint64(buf[readOffset : readOffset+8]))
 	readOffset += 8
 
 	// Parse CreatedAt (8 bytes)
-	seg.CreatedAt = binary.LittleEndian.Uint64(buf[readOffset : readOffset+8])
+	seg.CreatedAt = int64(binary.LittleEndian.Uint64(buf[readOffset : readOffset+8]))
 	readOffset += 8
 
 	// Parse KeySize (4 bytes)
-	seg.KeySize = binary.LittleEndian.Uint32(buf[readOffset : readOffset+4])
+	seg.KeySize = int32(binary.LittleEndian.Uint32(buf[readOffset : readOffset+4]))
 	readOffset += 4
 
 	// Parse ValueSize (4 bytes)
-	seg.ValueSize = binary.LittleEndian.Uint32(buf[readOffset : readOffset+4])
+	seg.ValueSize = int32(binary.LittleEndian.Uint32(buf[readOffset : readOffset+4]))
 	readOffset += 4
 
 	// End of Header 26 bytes
@@ -1109,7 +1108,7 @@ func readSegment(fd *os.File, offset uint64, bufsize int64) (uint64, *Segment, e
 	return inodeNum(string(keybuf)), &seg, nil
 }
 
-func generateFileName(regionID uint64) (string, error) {
+func generateFileName(regionID int64) (string, error) {
 	fileName := formatDataFileName(regionID)
 	// Verify if regionID starts with 0 (valid only for 8 digits)
 	if strings.HasPrefix(fileName, "0") {
@@ -1120,7 +1119,7 @@ func generateFileName(regionID uint64) (string, error) {
 }
 
 // parseDataFileName converts the numeric part of the file name (e.g., 0000001.wdb) to uint64
-func parseDataFileName(fileName string) (uint64, error) {
+func parseDataFileName(fileName string) (int64, error) {
 	parts := strings.Split(fileName, ".")
 	if len(parts) != 2 {
 		return 0, fmt.Errorf("invalid file name format: %s", fileName)
@@ -1132,15 +1131,15 @@ func parseDataFileName(fileName string) (uint64, error) {
 		return 0, fmt.Errorf("failed to parse number from file name: %w", err)
 	}
 
-	return uint64(number), nil
+	return int64(number), nil
 }
 
 // formatDataFileName converts uint64 to file name format (e.g., 1 to 0000001.wdb)
-func formatDataFileName(number uint64) string {
+func formatDataFileName(number int64) string {
 	return fmt.Sprintf("%010d%s", number, fileExtension)
 }
 
-func checkpointFileName(regionID uint64) string {
+func checkpointFileName(regionID int64) string {
 	return fmt.Sprintf("ckpt.%d.%d.tmp", time.Now().Unix(), regionID)
 }
 
@@ -1286,7 +1285,7 @@ func serializedSegment(seg *Segment) ([]byte, error) {
 // 9. This is because records in the in-memory index may be distributed across multiple data files on disk.
 func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 	if len(lfs.regions) >= 5 {
-		var regionIds []uint64
+		var regionIds []int64
 		for v := range lfs.regions {
 			regionIds = append(regionIds, v)
 		}
@@ -1310,10 +1309,10 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 				return err
 			}
 
-			readOffset := uint64(len(dataFileMetadata))
+			readOffset := int64(len(dataFileMetadata))
 
-			for readOffset < uint64(finfo.Size()) {
-				inum, segment, err := readSegment(fd, uint64(readOffset), _SEGMENT_PADDING)
+			for readOffset < finfo.Size() {
+				inum, segment, err := readSegment(fd, readOffset, _SEGMENT_PADDING)
 				if err != nil {
 					return err
 				}
@@ -1347,14 +1346,14 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 						inode.Position = lfs.offset
 						inode.RegionID = lfs.regionID
 
-						lfs.offset += uint64(segment.Size())
+						lfs.offset += int64(segment.Size())
 						lfs.mu.Unlock()
 
-						readOffset += uint64(segment.Size())
+						readOffset += int64(segment.Size())
 
 					} else {
 						// next segment
-						readOffset += uint64(segment.Size())
+						readOffset += int64(segment.Size())
 						continue
 					}
 
@@ -1362,8 +1361,8 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 					return fmt.Errorf("imap is nil for inum = %d", inum)
 				}
 
-				if atomic.LoadUint64(&lfs.offset) >= uint64(lfs.regionThreshold) {
-					err := lfs.changeRegions()
+				if atomic.LoadInt64(&lfs.offset) >= lfs.regionThreshold {
+					err = lfs.changeRegions()
 					if err != nil {
 						return fmt.Errorf("failed to close active migrate region: %w", err)
 					}
@@ -1390,7 +1389,7 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 func isValid(seg *Segment, inode *inode) bool {
 	return !seg.IsTombstone() &&
 		seg.CreatedAt == inode.CreatedAt &&
-		(seg.ExpiredAt == 0 || uint64(time.Now().Unix()) < seg.ExpiredAt)
+		(seg.ExpiredAt == 0 || time.Now().Unix() < seg.ExpiredAt)
 }
 
 // Start serializing little-endian data, needs to compress seg before writing.
@@ -1439,7 +1438,7 @@ func cleanupDirtyCheckpoint(directory, newCheckpoint string) error {
 	return nil
 }
 
-func scanAndRecoverCheckpoint(files []string, regions map[uint64]*os.File, indexs []*indexMap) error {
+func scanAndRecoverCheckpoint(files []string, regions map[int64]*os.File, indexs []*indexMap) error {
 	var (
 		ckpt    int
 		path    string
@@ -1474,13 +1473,13 @@ func scanAndRecoverCheckpoint(files []string, regions map[uint64]*os.File, index
 	}
 
 	// 由于检查点不是实时的索引快照，再从检查点之后数据文件进行恢复完整数据
-	var regionIds []uint64
+	var regionIds []int64
 	for id := range regions {
 		pid, err := strconv.Atoi(pauseID)
 		if err != nil {
 			return err
 		}
-		if id >= uint64(pid) {
+		if id >= int64(pid) {
 			regionIds = append(regionIds, id)
 		}
 	}
@@ -1490,7 +1489,7 @@ func scanAndRecoverCheckpoint(files []string, regions map[uint64]*os.File, index
 	})
 
 	for _, regionId := range regionIds {
-		fd, ok := regions[uint64(regionId)]
+		fd, ok := regions[regionId]
 		if !ok {
 			return fmt.Errorf("data file does not exist regions id: %d", regionId)
 		}
@@ -1500,9 +1499,9 @@ func scanAndRecoverCheckpoint(files []string, regions map[uint64]*os.File, index
 			return err
 		}
 
-		offset := uint64(len(dataFileMetadata))
+		offset := int64(len(dataFileMetadata))
 
-		for offset < uint64(finfo.Size()) {
+		for offset < finfo.Size() {
 			inum, segment, err := readSegment(fd, offset, _SEGMENT_PADDING)
 			if err != nil {
 				return fmt.Errorf("failed to parse data file segment: %w", err)
@@ -1512,12 +1511,12 @@ func scanAndRecoverCheckpoint(files []string, regions map[uint64]*os.File, index
 			if imap != nil {
 				if segment.IsTombstone() {
 					delete(imap.index, inum)
-					offset += uint64(segment.Size())
+					offset += int64(segment.Size())
 					continue
 				}
 
-				if segment.ExpiredAt <= uint64(time.Now().UnixNano()) && segment.ExpiredAt != 0 {
-					offset += uint64(segment.Size())
+				if segment.ExpiredAt <= time.Now().UnixNano() && segment.ExpiredAt != 0 {
+					offset += int64(segment.Size())
 					continue
 				}
 
@@ -1530,7 +1529,7 @@ func scanAndRecoverCheckpoint(files []string, regions map[uint64]*os.File, index
 					mvcc:      0,
 				}
 
-				offset += uint64(segment.Size())
+				offset += int64(segment.Size())
 			} else {
 				return errors.New("no corresponding index shard")
 			}

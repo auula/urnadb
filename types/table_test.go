@@ -100,8 +100,8 @@ func TestTables_Clear(t *testing.T) {
 	tables.TTL = 100
 
 	tables.Clear()
-	assert.Equal(t, 0, tables.Size())      // 确保清空后大小为 0
-	assert.Equal(t, uint64(0), tables.TTL) // 确保 TTL 也被重置
+	assert.Equal(t, 0, tables.Size())     // 确保清空后大小为 0
+	assert.Equal(t, int64(0), tables.TTL) // 确保 TTL 也被重置
 }
 
 func TestTables_ToBytes(t *testing.T) {
