@@ -15,6 +15,7 @@
 package vfs
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -44,8 +45,10 @@ func TestSerializedIndex(t *testing.T) {
 	// 计算预期的字节切片
 	expectedLength := 48
 
+	buf := new(bytes.Buffer)
+
 	// 调用 serializeIndex
-	result, err := serializedIndex(1001, in)
+	result, err := serializedIndex(buf, 1001, in)
 	if err != nil {
 		t.Fatalf("serialized index failed: %v", err)
 	}

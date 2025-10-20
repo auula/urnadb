@@ -568,12 +568,15 @@ func (lfs *LogStructuredFS) RunCheckpoint(second uint32) {
 					continue
 				}
 
+				// 创建一个 buf 缓冲区方便服用内存
+				buf := new(bytes.Buffer)
+
 				// 遍历 indexs 确保锁的粒度更小
 				for _, imap := range lfs.indexs {
 					imap.mu.RLock()
 					// 遍历复制的数据，进行序列化写入
 					for inum, inode := range imap.index {
-						bytes, err := serializedIndex(inum, inode)
+						bytes, err := serializedIndex(buf, inum, inode)
 						if err != nil {
 							clog.Warnf("failed to serialize index (inum: %d): %v", inum, err)
 							continue
@@ -790,6 +793,9 @@ func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
 		return errors.New("index file metadata write incomplete")
 	}
 
+	// 创建一个 buf 缓冲区方便服用内存
+	buf := new(bytes.Buffer)
+
 	// 这里后面的版本可以优化为并行任务导出
 	// 索引序列化不需要考虑有序的
 	// 但是存在并发写一个文件的竞争的问题，最后还是放弃并发方案
@@ -798,7 +804,7 @@ func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
 		imap.mu.RLock()
 		defer imap.mu.RUnlock()
 		for inum, inode := range imap.index {
-			bytes, err := serializedIndex(inum, inode)
+			bytes, err := serializedIndex(buf, inum, inode)
 			if err != nil {
 				return fmt.Errorf("failed to serialized index (inum: %d): %w", inum, err)
 			}
@@ -1146,9 +1152,9 @@ func checkpointFileName(regionID int64) string {
 
 // serializedIndex serializes the index to a recoverable file snapshot record format:
 // | INUM 8 | RID 8  | POS 8 | LEN 4 | EAT 8 | CAT 8 | CRC32 4 | = len(48 bytes)
-func serializedIndex(inum uint64, inode *inode) ([]byte, error) {
-	// Create a byte buffer
-	buf := new(bytes.Buffer)
+func serializedIndex(buf *bytes.Buffer, inum uint64, inode *inode) ([]byte, error) {
+	// reset a byte buffer
+	buf.Reset()
 
 	// Write each field in order
 	binary.Write(buf, binary.LittleEndian, inum)
