@@ -338,6 +338,7 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 	atomic.StoreInt32(&inode.Length, newseg.Size())
 	atomic.StoreInt64(&inode.Position, lfs.offset)
 
+	// 我的设计是没有问题的，问题是很多客户端不支持 long 或者 uint64 类型的版本号。
 	// 长时间运行可能会出现 MVCC 版本号溢出的问题，对溢出进行检查。
 	if atomic.LoadUint64(&inode.mvcc) == math.MaxUint64 {
 		return errors.New("failed to CAS number version overflow")
