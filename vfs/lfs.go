@@ -801,7 +801,7 @@ func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
 	// 但是存在并发写一个文件的竞争的问题，最后还是放弃并发方案
 	// 可以考虑多开几个文件并行导出，解决了单一文件写入的问题
 	for _, imap := range lfs.indexs {
-		err := func(imap *indexMap) error {
+		err := func() error {
 			imap.mu.RLock()
 			defer imap.mu.RUnlock()
 			for inum, inode := range imap.index {
@@ -815,7 +815,7 @@ func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
 				}
 			}
 			return nil
-		}(imap)
+		}()
 		if err != nil {
 			return err
 		}
