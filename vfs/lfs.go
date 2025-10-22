@@ -801,17 +801,23 @@ func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
 	// 但是存在并发写一个文件的竞争的问题，最后还是放弃并发方案
 	// 可以考虑多开几个文件并行导出，解决了单一文件写入的问题
 	for _, imap := range lfs.indexs {
-		imap.mu.RLock()
-		defer imap.mu.RUnlock()
-		for inum, inode := range imap.index {
-			bytes, err := serializedIndex(buf, inum, inode)
-			if err != nil {
-				return fmt.Errorf("failed to serialized index (inum: %d): %w", inum, err)
+		err := func(imap *indexMap) error {
+			imap.mu.RLock()
+			defer imap.mu.RUnlock()
+			for inum, inode := range imap.index {
+				bytes, err := serializedIndex(buf, inum, inode)
+				if err != nil {
+					return fmt.Errorf("failed to serialized index (inum: %d): %w", inum, err)
+				}
+				_, err = fd.Write(bytes)
+				if err != nil {
+					return fmt.Errorf("failed to write serialized index (inum: %d): %w", inum, err)
+				}
 			}
-			_, err = fd.Write(bytes)
-			if err != nil {
-				return fmt.Errorf("failed to write serialized index (inum: %d): %w", inum, err)
-			}
+			return nil
+		}(imap)
+		if err != nil {
+			return err
 		}
 	}
 
