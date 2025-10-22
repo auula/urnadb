@@ -1402,7 +1402,7 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 func isValid(seg *Segment, inode *inode) bool {
 	return !seg.IsTombstone() &&
 		seg.CreatedAt == inode.CreatedAt &&
-		(seg.ExpiredAt == 0 || time.Now().Unix() < seg.ExpiredAt)
+		(seg.ExpiredAt == 0 || time.Now().UnixNano() < seg.ExpiredAt)
 }
 
 // Start serializing little-endian data, needs to compress seg before writing.
