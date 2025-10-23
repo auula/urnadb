@@ -203,7 +203,7 @@ func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
 		return 0, nil, fmt.Errorf("inode index for %d not found", inum)
 	}
 
-	if atomic.LoadInt64(&inode.ExpiredAt) <= time.Now().UnixNano() &&
+	if atomic.LoadInt64(&inode.ExpiredAt) <= time.Now().UnixMicro() &&
 		atomic.LoadInt64(&inode.ExpiredAt) != 0 {
 		imap.mu.Lock()
 		delete(imap.index, inum)
@@ -245,7 +245,7 @@ func (lfs *LogStructuredFS) RefreshInodeCount() int {
 		for key, inode := range imap.index {
 			// Clean expired inode
 			imap.mu.Lock()
-			if inode.ExpiredAt <= time.Now().UnixNano() && inode.ExpiredAt != 0 {
+			if inode.ExpiredAt <= time.Now().UnixMicro() && inode.ExpiredAt != 0 {
 				delete(imap.index, key)
 			} else {
 				inodes += 1
@@ -270,7 +270,7 @@ func expireLoop(indexs []*indexMap, ticker *time.Ticker) {
 		for _, imap := range indexs {
 			imap.mu.Lock()
 			for key, inode := range imap.index {
-				if inode.ExpiredAt != 0 && inode.ExpiredAt <= time.Now().UnixNano() {
+				if inode.ExpiredAt != 0 && inode.ExpiredAt <= time.Now().UnixMicro() {
 					delete(imap.index, key)
 				}
 			}
@@ -862,7 +862,7 @@ func recoveryIndex(fd *os.File, indexs []*indexMap) error {
 				return
 			}
 
-			if inode.ExpiredAt <= time.Now().UnixNano() && inode.ExpiredAt != 0 {
+			if inode.ExpiredAt <= time.Now().UnixMicro() && inode.ExpiredAt != 0 {
 				continue
 			}
 
@@ -947,7 +947,7 @@ func crashRecoveryAllIndex(regions map[int64]*os.File, indexs []*indexMap) error
 					continue
 				}
 
-				if segment.ExpiredAt <= time.Now().UnixNano() && segment.ExpiredAt != 0 {
+				if segment.ExpiredAt <= time.Now().UnixMicro() && segment.ExpiredAt != 0 {
 					offset += int64(segment.Size())
 					continue
 				}
@@ -1401,7 +1401,7 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 func isValid(seg *Segment, inode *inode) bool {
 	return !seg.IsTombstone() &&
 		seg.CreatedAt == inode.CreatedAt &&
-		(seg.ExpiredAt == 0 || time.Now().UnixNano() < seg.ExpiredAt)
+		(seg.ExpiredAt == 0 || time.Now().UnixMicro() < seg.ExpiredAt)
 }
 
 // Start serializing little-endian data, needs to compress seg before writing.
@@ -1527,7 +1527,7 @@ func scanAndRecoverCheckpoint(files []string, regions map[int64]*os.File, indexs
 					continue
 				}
 
-				if segment.ExpiredAt <= time.Now().UnixNano() && segment.ExpiredAt != 0 {
+				if segment.ExpiredAt <= time.Now().UnixMicro() && segment.ExpiredAt != 0 {
 					offset += int64(segment.Size())
 					continue
 				}

@@ -79,9 +79,9 @@ type Serializable interface {
 
 func AcquirePoolSegment(key string, data Serializable, ttl int64) (*Segment, error) {
 	seg := segmentPool.Get().(*Segment)
-	createdAt, expiredAt := int64(time.Now().UnixNano()), int64(0)
+	createdAt, expiredAt := int64(time.Now().UnixMicro()), int64(0)
 	if ttl > 0 {
-		expiredAt = time.Now().Add(time.Second * time.Duration(ttl)).UnixNano()
+		expiredAt = time.Now().Add(time.Second * time.Duration(ttl)).UnixMicro()
 	}
 
 	bytes, err := data.ToBytes()
@@ -136,9 +136,9 @@ func (seg *Segment) GetExpiryMeta() (int64, int64) {
 
 // NewSegment 使用数据类型初始化并返回对应的 Segment
 func NewSegment[T Serializable](key string, data T, ttl int64) (*Segment, error) {
-	createdAt, expiredAt := int64(time.Now().UnixNano()), int64(0)
+	createdAt, expiredAt := int64(time.Now().UnixMicro()), int64(0)
 	if ttl > 0 {
-		expiredAt = time.Now().Add(time.Second * time.Duration(ttl)).UnixNano()
+		expiredAt = time.Now().Add(time.Second * time.Duration(ttl)).UnixMicro()
 	}
 
 	bytes, err := data.ToBytes()
@@ -167,7 +167,7 @@ func NewSegment[T Serializable](key string, data T, ttl int64) (*Segment, error)
 }
 
 func NewTombstoneSegment(key string) *Segment {
-	createdAt, expiredAt := int64(time.Now().UnixNano()), int64(0)
+	createdAt, expiredAt := int64(time.Now().UnixMicro()), int64(0)
 	return &Segment{
 		Type:      unknown,
 		Tombstone: 1,
@@ -280,7 +280,7 @@ func (s *Segment) ToNumber() (*types.Number, error) {
 // 如果返回 0，表示这个 segment 已经过期，ok = false 表示这个 segment 已经过期。
 // 剩下的情况是返回剩下的存活时间，并且 ok = true 表示这个 segment 没有过期。
 func (s *Segment) ExpiresIn() (int64, bool) {
-	now := time.Now().UnixNano()
+	now := time.Now().UnixMicro()
 	if s.ExpiredAt > 0 && s.ExpiredAt > now {
 		aliveTTL := int64(s.ExpiredAt-now) / int64(time.Second)
 		if aliveTTL > 0 {
