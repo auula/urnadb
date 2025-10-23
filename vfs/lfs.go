@@ -1485,12 +1485,13 @@ func scanAndRecoverCheckpoint(files []string, regions map[int64]*os.File, indexs
 	}
 
 	// 由于检查点不是实时的索引快照，再从检查点之后数据文件进行恢复完整数据
+	pid, err := strconv.Atoi(pauseID)
+	if err != nil {
+		return err
+	}
+
 	var regionIds []int64
 	for id := range regions {
-		pid, err := strconv.Atoi(pauseID)
-		if err != nil {
-			return err
-		}
 		if id >= int64(pid) {
 			regionIds = append(regionIds, id)
 		}
