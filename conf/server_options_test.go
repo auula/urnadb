@@ -46,7 +46,7 @@ func TestConfigLoad(t *testing.T) {
 
 	// 调用 Load 函数
 	loadedConfig := new(ServerOptions)
-	err = Load(configFile, loadedConfig)
+	err = loadedConfig.Load(configFile)
 	if err != nil {
 		t.Fatalf("Error loading config: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestConfigLoad_Error(t *testing.T) {
 
 	// 调用 Load 函数
 	loadedConfig := new(ServerOptions)
-	err := Load(configFile, loadedConfig)
+	err := loadedConfig.Load(configFile)
 	if err != nil {
 		t.Log(err)
 	}
@@ -189,7 +189,7 @@ func TestIsDefault(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := HasCustom(tt.flag); got != tt.want {
+			if got := Settings.HasCustom(tt.flag); got != tt.want {
 				t.Errorf("IsDefault() = %v, want %v", got, tt.want)
 			}
 		})
@@ -294,8 +294,8 @@ func TestServerOptions_ToString(t *testing.T) {
 
 // TestHasCustom tests HasCustom method to check if custom config is provided
 func TestHasCustom(t *testing.T) {
-	assert.True(t, HasCustom("/path/to/custom/config.yaml"))
-	assert.False(t, HasCustom(defaultFilePath))
+	assert.True(t, Settings.HasCustom("/path/to/custom/config.yaml"))
+	assert.False(t, Settings.HasCustom(defaultFilePath))
 }
 
 // TestValidated tests the configuration validation
@@ -459,7 +459,7 @@ func TestSaved(t *testing.T) {
 
 	// Check if the file contains valid data
 	var loadedOpt ServerOptions
-	err = Load(tempFile, &loadedOpt)
+	err = loadedOpt.Load(tempFile)
 	require.NoError(t, err)
 
 	// Ensure the saved config matches the original

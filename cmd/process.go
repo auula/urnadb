@@ -53,8 +53,8 @@ func init() {
 	color.RGB(255, 123, 34).Println(banner)
 	fl := parseFlags()
 
-	if conf.HasCustom(fl.config) {
-		err := conf.Load(fl.config, conf.Settings)
+	if conf.Settings.HasCustom(fl.config) {
+		err := conf.Settings.Load(fl.config)
 		if err != nil {
 			clog.Failed(err)
 		}

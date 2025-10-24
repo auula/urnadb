@@ -80,11 +80,6 @@ func init() {
 	_ = Settings.Unmarshal([]byte(DefaultConfigJSON))
 }
 
-// HasCustom checked enable custom config
-func HasCustom(path string) bool {
-	return path != defaultFilePath
-}
-
 type Validator interface {
 	Validate(*ServerOptions) error
 }
@@ -163,7 +158,7 @@ func (opt *ServerOptions) Validated() error {
 }
 
 // Load through a configuration file
-func Load(file string, opt *ServerOptions) error {
+func (opt *ServerOptions) Load(file string) error {
 	_, err := os.Stat(file)
 	if err != nil {
 		return err
@@ -236,6 +231,11 @@ func (opt *ServerOptions) IsCheckpointEnabled() bool {
 
 func (opt *ServerOptions) CheckpointInterval() uint32 {
 	return opt.Checkpoint.Interval
+}
+
+// HasCustom checked enable custom config
+func (opt *ServerOptions) HasCustom(path string) bool {
+	return path != defaultFilePath
 }
 
 func toString(opt *ServerOptions) string {
