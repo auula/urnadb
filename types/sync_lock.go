@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	nullString      = ""
-	length     int8 = 65
+	nullString = ""
+	length     = 65
 )
 
 // 创建一个对象池
@@ -34,19 +34,26 @@ type SyncLock struct {
 // NewSyncLock 创建一个新的 SyncLock 实例带有唯一的 LockID
 func NewSyncLock() *SyncLock {
 	return &SyncLock{
-		LockID: utils.RandomString(int(length)),
+		LockID: utils.RandomString(length),
 	}
 }
 
 // 从对象池获取一个 SyncLock ，内存被复用但是锁 ID 不会被复用
 func AcquireSyncLock() *SyncLock {
 	sl := syncLockPools.Get().(*SyncLock)
-	sl.LockID = utils.RandomString(int(length))
+	sl.LockID = utils.RandomString(length)
 	return sl
 }
 
 // 放回对象池，清理数据
 func (sl *SyncLock) Clear() {
 	sl.LockID = nullString
+	syncLockPools.Put(sl)
+}
+
+// 其实这样里方便的是 utils.ReleaseToPool 可以直接调用，
+// 如果是 Java8 那种完全就没必要实现这个，直接在接口中提供默认的实现。
+func (sl *SyncLock) ReleaseToPool() {
+	sl.Clear()
 	syncLockPools.Put(sl)
 }
