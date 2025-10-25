@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	nullString = ""
-	lenght     = 65
+	nullString      = ""
+	length     int8 = 65
 )
 
 // 创建一个对象池
@@ -34,14 +34,14 @@ type SyncLock struct {
 // NewSyncLock 创建一个新的 SyncLock 实例带有唯一的 LockID
 func NewSyncLock() *SyncLock {
 	return &SyncLock{
-		LockID: utils.RandomString(lenght),
+		LockID: utils.RandomString(int(length)),
 	}
 }
 
 // 从对象池获取一个 SyncLock ，内存被复用但是锁 ID 不会被复用
 func AcquireSyncLock() *SyncLock {
 	sl := syncLockPools.Get().(*SyncLock)
-	sl.LockID = utils.RandomString(lenght)
+	sl.LockID = utils.RandomString(int(length))
 	return sl
 }
 
