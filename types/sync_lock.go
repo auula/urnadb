@@ -6,6 +6,8 @@ import (
 	"github.com/auula/urnadb/utils"
 )
 
+const nullString = ""
+
 // 创建一个对象池
 var syncLockPools = sync.Pool{
 	New: func() any {
@@ -42,6 +44,6 @@ func AcquireSyncLock() *SyncLock {
 
 // 放回对象池，清理数据
 func (sl *SyncLock) Clear() {
-	sl.LockID = ""
+	sl.LockID = nullString
 	syncLockPools.Put(sl)
 }
