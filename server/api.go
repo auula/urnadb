@@ -93,6 +93,14 @@ func init() {
 		collection.PUT("/:key", PutCollectionController)
 		collection.DELETE("/:key", DeleteCollectionController)
 	}
+
+	leaseLock := root.Group("/locks")
+	{
+		leaseLock.PUT("/:name", nil)    // 创建一把分布式租期锁
+		leaseLock.GET("/:name", nil)    // 获取锁的状态
+		leaseLock.PATCH("/:name", nil)  // 续约锁 Lock Upgrade
+		leaseLock.DELETE("/:name", nil) // 释放锁
+	}
 }
 
 type SystemInfo struct {
