@@ -66,7 +66,7 @@ func init() {
 	}
 
 	// Command line password has the highest priority
-	if fl.auth != conf.Default.Password {
+	if fl.auth != conf.Defaults.Password {
 		conf.Settings.Password = fl.auth
 	} else {
 		// If no password is passed from the command line,
@@ -76,11 +76,11 @@ func init() {
 		clog.Warnf("The default password is: %s", auth)
 	}
 
-	if fl.path != conf.Default.Path {
+	if fl.path != conf.Defaults.Path {
 		conf.Settings.Path = fl.path
 	}
 
-	if uint16(fl.port) != conf.Default.Port {
+	if uint16(fl.port) != conf.Defaults.Port {
 		conf.Settings.Port = uint16(fl.port)
 	}
 
@@ -204,11 +204,11 @@ type flags struct {
 
 func parseFlags() (fl *flags) {
 	fl = new(flags)
-	flag.StringVar(&fl.auth, "auth", conf.Default.Password, "--auth the server authentication password.")
-	flag.StringVar(&fl.path, "path", conf.Default.Path, "--path the data storage directory.")
-	flag.BoolVar(&fl.debug, "debug", conf.Default.Debug, "--debug enable debug mode.")
+	flag.StringVar(&fl.auth, "auth", conf.Defaults.Password, "--auth the server authentication password.")
+	flag.StringVar(&fl.path, "path", conf.Defaults.Path, "--path the data storage directory.")
+	flag.BoolVar(&fl.debug, "debug", conf.Defaults.Debug, "--debug enable debug mode.")
 	flag.StringVar(&fl.config, "config", "", "--config the configuration file path.")
-	flag.IntVar(&fl.port, "port", int(conf.Default.Port), "--port the HTTP server port.")
+	flag.IntVar(&fl.port, "port", int(conf.Defaults.Port), "--port the HTTP server port.")
 	flag.BoolVar(&daemon, "daemon", false, "--daemon run with a daemon.")
 	flag.Parse()
 	return

@@ -63,8 +63,8 @@ const (
 var (
 	// Settings global configure options
 	Settings *ServerOptions = new(ServerOptions)
-	// Default is the default configuration
-	Default *ServerOptions = new(ServerOptions)
+	// Defaults is the default configuration
+	Defaults *ServerOptions = new(ServerOptions)
 	// Define the valid AES key lengths in bytes (128-bit, 192-bit, and 256-bit)
 	valid = map[int]bool{
 		16: true,
@@ -75,7 +75,7 @@ var (
 
 func init() {
 	// 先读内置默认配置，设置为全局的配置
-	_ = Default.Unmarshal([]byte(DefaultConfigJSON))
+	_ = Defaults.Unmarshal([]byte(DefaultConfigJSON))
 	// 当初始化完成之后应该使用此 Settings 配置
 	_ = Settings.Unmarshal([]byte(DefaultConfigJSON))
 }

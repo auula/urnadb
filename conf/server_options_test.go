@@ -198,7 +198,7 @@ func TestIsDefault(t *testing.T) {
 
 func TestInit(t *testing.T) {
 	t.Run("Test DefaultConfig Unmarshal", func(t *testing.T) {
-		err := Default.Unmarshal([]byte(DefaultConfigJSON))
+		err := Defaults.Unmarshal([]byte(DefaultConfigJSON))
 		if err != nil {
 			t.Log(err)
 		}
@@ -226,11 +226,11 @@ func TestServerOptions_Marshal(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err := Default.Unmarshal(bytes); err != nil {
+	if err := Defaults.Unmarshal(bytes); err != nil {
 		t.Error(err)
 	}
 
-	if !reflect.DeepEqual(Settings, Default) {
+	if !reflect.DeepEqual(Settings, Defaults) {
 		t.Errorf("ServerOptions.Marshal() = %v, want %v", string(bytes), DefaultConfigJSON)
 	}
 
@@ -238,9 +238,9 @@ func TestServerOptions_Marshal(t *testing.T) {
 
 func TestDefaultConfigInitialization(t *testing.T) {
 
-	// 检查 DefaultConfig 是否被正确初始化
-	if Default.Port != 2668 {
-		t.Errorf("Expected DefaultConfig.Port to be 2668, but got %d", Default.Port)
+	// 检查 Defaults 是否被正确初始化
+	if Defaults.Port != 2668 {
+		t.Errorf("Expected Defaults.Port to be 2668, but got %d", Defaults.Port)
 	}
 
 	// 检查 Settings 是否被正确初始化
