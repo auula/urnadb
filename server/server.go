@@ -35,10 +35,16 @@ var (
 	ipv4 string = "127.0.0.1"
 )
 
+type serverState int32
+
 const (
 	minPort = uint16(1024)
 	maxPort = uint16(1<<16 - 1)
 	timeout = time.Second * 3
+
+	stateIdle serverState = iota
+	stateRunning
+	stateStopping
 )
 
 func init() {
@@ -66,10 +72,9 @@ func init() {
 }
 
 type HttpServer struct {
-	serv    *http.Server
-	port    uint16
-	started atomic.Bool
-	stopped atomic.Bool
+	serv  *http.Server
+	port  uint16
+	state atomic.Int32
 }
 
 type Options struct {
@@ -111,6 +116,8 @@ func New(opt *Options) (*HttpServer, error) {
 		port: opt.Port,
 	}
 
+	hs.state.Store(int32(stateIdle))
+
 	// 开启 HTTP Keep-Alive 长连接
 	hs.serv.SetKeepAlivesEnabled(true)
 
@@ -141,19 +148,15 @@ func (hs *HttpServer) IPv4() string {
 // Startup blocking goroutine
 func (hs *HttpServer) Startup() error {
 	// 防止重复启动
-	if !hs.started.CompareAndSwap(false, true) {
-		return fmt.Errorf("server already started")
-	}
-
-	if hs.stopped.Load() {
-		return fmt.Errorf("server has been stopped and not reset")
+	if !hs.state.CompareAndSwap(int32(stateIdle), int32(stateRunning)) {
+		return fmt.Errorf("server already started and running")
 	}
 
 	// 检查文件存储系统是否已经初始化
 	pkgmut.Lock()
 	storageInitialized := storage != nil
 	pkgmut.Unlock()
-	
+
 	if !storageInitialized {
 		return errors.New("file storage system is not initialized")
 	}
@@ -168,14 +171,13 @@ func (hs *HttpServer) Startup() error {
 }
 
 func (hs *HttpServer) Shutdown() error {
-	// 使用原子操作防止重复关闭
-	if hs.stopped.Load() {
-		return nil // 已经关闭，直接返回成功
+	// 使用原子操作防止重复关闭，已经停止或者正在停止
+	if !hs.state.CompareAndSwap(int32(stateRunning), int32(stateStopping)) {
+		return nil
 	}
 
-	if !hs.stopped.CompareAndSwap(false, true) {
-		return nil // 其他协程已经在关闭，直接返回成功
-	}
+	// 确保最后状态被重置
+	defer hs.state.Store(int32(stateIdle))
 
 	// 先关闭 http 服务器停止接受数据请求
 	err := hs.serv.Shutdown(context.Background())
@@ -189,16 +191,7 @@ func (hs *HttpServer) Shutdown() error {
 		return err
 	}
 
-	err = closeStorage()
-	if err != nil {
-		return err
-	}
-
-	// 重置状态，允许再次启动
-	hs.started.Store(false)
-	hs.stopped.Store(false)
-
-	return nil
+	return closeStorage()
 }
 
 func closeStorage() error {
