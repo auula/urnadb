@@ -12,27 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package types
+package utils
 
 import (
-	"testing"
+	"crypto/rand"
+	"sync"
+	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/oklog/ulid/v2"
 )
 
-func TestNewLeaseLock(t *testing.T) {
-	// Create new lease lock
-	ll := NewLeaseLock()
+var (
+	mu      sync.Mutex
+	entropy = ulid.Monotonic(rand.Reader, 0)
+)
 
-	// Check if lease lock is not nil
-	assert.NotNil(t, ll)
-
-	// Check if Token is not empty
-	assert.NotEmpty(t, ll.Token)
-
-	// Check if Token length is 26 characters
-	assert.Equal(t, 26, len(ll.Token))
-
-	// Create another lock to verify unique IDs
-	assert.NotEqual(t, ll.Token, NewLeaseLock().Token)
+func NewULID() string {
+	mu.Lock()
+	defer mu.Unlock()
+	return ulid.MustNew(ulid.Timestamp(time.Now()), entropy).String()
 }

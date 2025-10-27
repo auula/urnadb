@@ -1,3 +1,17 @@
+// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://urnadb.github.io
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package types
 
 import (
@@ -10,7 +24,6 @@ import (
 
 const (
 	nullString = ""
-	length     = 65
 )
 
 // 创建一个对象池
@@ -36,14 +49,14 @@ type LeaseLock struct {
 // NewLeaseLock 创建一个新的 LeaseLock 实例带有唯一的 LockID
 func NewLeaseLock() *LeaseLock {
 	return &LeaseLock{
-		Token: utils.RandomString(length),
+		Token: utils.NewULID(),
 	}
 }
 
 // 从对象池获取一个 LeaseLock ，内存被复用但是锁 ID 不会被复用
 func AcquireLeaseLock() *LeaseLock {
 	ll := leaseLockPools.Get().(*LeaseLock)
-	ll.Token = utils.RandomString(length)
+	ll.Token = utils.NewULID()
 	return ll
 }
 
