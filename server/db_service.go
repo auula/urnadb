@@ -499,7 +499,7 @@ func NewLeaseController(ctx *gin.Context) {
 	lock := types.AcquireLeaseLock()
 
 	// 把锁对象转换为 segment 方便后面序列化
-	seg, err := vfs.AcquirePoolSegment(key, lock, 0)
+	seg, err := vfs.AcquirePoolSegment(key, lock, vfs.ImmortalTTL)
 	if err != nil {
 		utils.ReleaseToPool(lock)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
