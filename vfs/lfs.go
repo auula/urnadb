@@ -879,7 +879,7 @@ func recoveryIndex(fd *os.File, indexs []*indexMap) error {
 				return
 			}
 
-			if inode.ExpiredAt != ImmortalTTL && inode.ExpiredAt <= time.Now().UnixMicro() {
+			if inode.ExpiredAt > 0 && inode.ExpiredAt <= time.Now().UnixMicro() {
 				continue
 			}
 
@@ -964,7 +964,7 @@ func crashRecoveryAllIndex(regions map[int64]*os.File, indexs []*indexMap) error
 					continue
 				}
 
-				if segment.ExpiredAt != ImmortalTTL && segment.ExpiredAt <= time.Now().UnixMicro() {
+				if segment.ExpiredAt > 0 && segment.ExpiredAt <= time.Now().UnixMicro() {
 					offset += int64(segment.Size())
 					continue
 				}
