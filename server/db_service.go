@@ -496,7 +496,6 @@ func NewLeaseController(ctx *gin.Context) {
 
 	// 获取对应 key 的锁，颗粒度较细的锁
 	slock := acquireLeaseLock(key)
-
 	slock.Lock()
 	defer slock.Unlock()
 
