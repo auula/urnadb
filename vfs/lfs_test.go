@@ -24,7 +24,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/auula/urnadb/conf"
 	"github.com/auula/urnadb/types"
@@ -40,10 +39,8 @@ func TestSerializedIndex(t *testing.T) {
 		Length:    100,
 		ExpiredAt: 1617181723,
 		CreatedAt: 1617181623,
+		Type:      table,
 	}
-
-	// 计算预期的字节切片
-	expectedLength := 48
 
 	buf := new(bytes.Buffer)
 
@@ -54,17 +51,10 @@ func TestSerializedIndex(t *testing.T) {
 	}
 
 	// 检查返回的字节切片长度
-	if len(result) != expectedLength {
-		t.Errorf("expected result length %d, got %d", expectedLength, len(result))
-	}
-
-	if expectedLength != int(unsafe.Sizeof(inode{})) {
-		t.Errorf("expected result length %d, got %d", expectedLength, unsafe.Sizeof(inode{}))
-	}
+	assert.Equal(t, len(result), 49)
 
 	// 验证内容字段进行反序列化并检查
 	inum, dnode, err := deserializedIndex(result)
-
 	if err != nil {
 		t.Errorf("failed to deserialized: %v", err)
 	}
@@ -87,6 +77,9 @@ func TestSerializedIndex(t *testing.T) {
 	}
 	if dnode.CreatedAt != in.CreatedAt {
 		t.Errorf("expected CreatedAt %d, got %d", in.CreatedAt, dnode.CreatedAt)
+	}
+	if dnode.Type != in.Type {
+		t.Errorf("expected Type %d, got %d", in.Type, dnode.Type)
 	}
 
 }
@@ -513,7 +506,7 @@ func TestVFSOpertions(t *testing.T) {
 	err = fss.PutSegment("key-01", seg)
 	assert.NoError(t, err)
 
-	assert.Equal(t, fss.RefreshInodeCount(), 1)
+	assert.Equal(t, fss.RefreshInodeCount(), uint64(1))
 
 	err = fss.DeleteSegment("key-01")
 	assert.NoError(t, err)

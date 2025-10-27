@@ -78,6 +78,7 @@ type inode struct {
 	CreatedAt int64  // Creation time of the inode (UNIX timestamp in nano seconds)
 	mvcc      uint64 // Multi-version concurrency ID
 	Length    int32  // Data record length
+	Type      kind   // Data record type
 }
 
 type indexMap struct {
@@ -133,6 +134,7 @@ func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
 		CreatedAt: seg.CreatedAt,
 		ExpiredAt: seg.ExpiredAt,
 		mvcc:      0,
+		Type:      seg.Type,
 	}
 	imap.mu.Unlock()
 
@@ -256,8 +258,8 @@ func (lfs *LogStructuredFS) GetTotalSpaceUsed() uint64 {
 }
 
 // RefreshInodeCount iterate over each index in lfs.indexs.
-func (lfs *LogStructuredFS) RefreshInodeCount() int {
-	inodes := 0
+func (lfs *LogStructuredFS) RefreshInodeCount() uint64 {
+	inodes := uint64(0)
 	for _, imap := range lfs.indexs {
 		for key, inode := range imap.index {
 			// Clean expired inode
@@ -1173,7 +1175,7 @@ func checkpointFileName(regionID int64) string {
 }
 
 // serializedIndex serializes the index to a recoverable file snapshot record format:
-// | INUM 8 | RID 8  | POS 8 | LEN 4 | EAT 8 | CAT 8 | CRC32 4 | = len(48 bytes)
+// | INUM 8 | RID 8  | POS 8 | LEN 4 | EAT 8 | CAT 8 | T 1 | CRC32 4 | = len(48 bytes)
 func serializedIndex(buf *bytes.Buffer, inum uint64, inode *inode) ([]byte, error) {
 	// reset a byte buffer
 	buf.Reset()
@@ -1185,6 +1187,7 @@ func serializedIndex(buf *bytes.Buffer, inum uint64, inode *inode) ([]byte, erro
 	binary.Write(buf, binary.LittleEndian, inode.Length)
 	binary.Write(buf, binary.LittleEndian, inode.ExpiredAt)
 	binary.Write(buf, binary.LittleEndian, inode.CreatedAt)
+	binary.Write(buf, binary.LittleEndian, inode.Type)
 
 	// Calculate CRC32 checksum
 	checksum := crc32.ChecksumIEEE(buf.Bytes())
@@ -1229,6 +1232,11 @@ func deserializedIndex(data []byte) (uint64, *inode, error) {
 	}
 
 	err = binary.Read(buf, binary.LittleEndian, &inode.CreatedAt)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	err = binary.Read(buf, binary.LittleEndian, &inode.Type)
 	if err != nil {
 		return 0, nil, err
 	}
