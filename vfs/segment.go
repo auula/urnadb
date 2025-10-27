@@ -83,8 +83,8 @@ type Serializable interface {
 
 func AcquirePoolSegment(key string, data Serializable, ttl int64) (*Segment, error) {
 	seg := segmentPool.Get().(*Segment)
-	createdAt, expiredAt := int64(time.Now().UnixMicro()), int64(0)
-	if ttl > 0 && ttl != ImmortalTTL {
+	createdAt, expiredAt := int64(time.Now().UnixMicro()), int64(ImmortalTTL)
+	if ttl > 0  {
 		expiredAt = time.Now().Add(time.Second * time.Duration(ttl)).UnixMicro()
 	}
 

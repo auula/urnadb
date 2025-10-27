@@ -221,7 +221,7 @@ func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
 	}
 
 	if atomic.LoadInt64(&inode.ExpiredAt) <= time.Now().UnixMicro() &&
-		atomic.LoadInt64(&inode.ExpiredAt) != 0 {
+		atomic.LoadInt64(&inode.ExpiredAt) > 0 {
 		imap.mu.Lock()
 		delete(imap.index, inum)
 		imap.mu.Unlock()
@@ -262,7 +262,7 @@ func (lfs *LogStructuredFS) RefreshInodeCount() int {
 		for key, inode := range imap.index {
 			// Clean expired inode
 			imap.mu.Lock()
-			if inode.ExpiredAt <= time.Now().UnixMicro() && inode.ExpiredAt != 0 {
+			if inode.ExpiredAt <= time.Now().UnixMicro() && inode.ExpiredAt > 0 {
 				delete(imap.index, key)
 			} else {
 				inodes += 1
@@ -287,7 +287,7 @@ func expireLoop(indexs []*indexMap, ticker *time.Ticker) {
 		for _, imap := range indexs {
 			imap.mu.Lock()
 			for key, inode := range imap.index {
-				if inode.ExpiredAt != 0 && inode.ExpiredAt <= time.Now().UnixMicro() {
+				if inode.ExpiredAt > 0 && inode.ExpiredAt <= time.Now().UnixMicro() {
 					delete(imap.index, key)
 				}
 			}
