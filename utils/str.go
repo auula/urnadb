@@ -82,5 +82,5 @@ func RandomString(length int) string {
 }
 
 func NotNullString(s string) bool {
-	return !(s != "" && len(s) > 0)
+	return s != "" && len(s) > 0
 }
