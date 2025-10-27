@@ -503,15 +503,14 @@ func NewLeaseController(ctx *gin.Context) {
 	key := ctx.Param("key")
 	if utils.NotNullString(key) {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "invalid key parmameter.",
+			"message": "missing or empty 'key' parameter",
 		})
 		return
 	}
 
 	// 没有错误和存在则表示 key 锁已经存在，意味着同一把锁还没有过期，
 	// 并且这些检查操作是一个原子操作防止其他协程插入相同的锁。
-	exists := storage.HasSegment(key)
-	if exists {
+	if storage.HasSegment(key) {
 		_, seg, err := storage.FetchSegment(key)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
@@ -523,7 +522,7 @@ func NewLeaseController(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 			return
 		}
-		ctx.JSON(http.StatusOK, gin.H{
+		ctx.JSON(http.StatusLocked, gin.H{
 			"lock_token": lock.Token,
 		})
 		return
@@ -548,8 +547,8 @@ func NewLeaseController(ctx *gin.Context) {
 	}
 
 	// 返回锁消息
-	ctx.JSON(http.StatusCreated, gin.H{
-		"message": lock,
+	ctx.IndentedJSON(http.StatusCreated, gin.H{
+		"lock_token": lock.Token,
 	})
 
 	utils.ReleaseToPool(lock, seg)
