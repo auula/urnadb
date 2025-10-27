@@ -140,8 +140,8 @@ func (seg *Segment) GetExpiryMeta() (int64, int64) {
 
 // NewSegment 使用数据类型初始化并返回对应的 Segment
 func NewSegment[T Serializable](key string, data T, ttl int64) (*Segment, error) {
-	createdAt, expiredAt := int64(time.Now().UnixMicro()), int64(0)
-	if ttl > 0 && ttl != ImmortalTTL {
+	createdAt, expiredAt := int64(time.Now().UnixMicro()), int64(ImmortalTTL)
+	if ttl > 0 {
 		expiredAt = time.Now().Add(time.Second * time.Duration(ttl)).UnixMicro()
 	}
 
