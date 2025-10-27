@@ -45,7 +45,6 @@ func Error404Handler(ctx *gin.Context) {
 
 func GetCollectionController(ctx *gin.Context) {
 	_, seg, err := storage.FetchSegment(ctx.Param("key"))
-	defer utils.ReleaseToPool(seg)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{
 			"message": "key data not found.",
@@ -54,8 +53,8 @@ func GetCollectionController(ctx *gin.Context) {
 	}
 
 	collection, err := seg.ToCollection()
-	defer utils.ReleaseToPool(collection)
 	if err != nil {
+		utils.ReleaseToPool(seg)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
@@ -65,26 +64,29 @@ func GetCollectionController(ctx *gin.Context) {
 	ctx.IndentedJSON(http.StatusOK, gin.H{
 		"collection": collection.Collection,
 	})
+
+	utils.ReleaseToPool(seg, collection)
 }
 
 func PutCollectionController(ctx *gin.Context) {
 	key := ctx.Param("key")
 
 	collection := types.AcquireCollection()
-	defer utils.ReleaseToPool(collection)
 	err := ctx.ShouldBindJSON(collection)
 	if err != nil {
+		utils.ReleaseToPool(collection)
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
 
 	seg, err := vfs.AcquirePoolSegment(key, collection, collection.TTL)
-	defer utils.ReleaseToPool(seg)
 	if err != nil {
+		utils.ReleaseToPool(collection)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
+	defer utils.ReleaseToPool(collection, seg)
 	err = storage.PutSegment(key, seg)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
@@ -114,7 +116,6 @@ func DeleteCollectionController(ctx *gin.Context) {
 
 func GetTableController(ctx *gin.Context) {
 	_, seg, err := storage.FetchSegment(ctx.Param("key"))
-	defer utils.ReleaseToPool(seg)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{
 			"message": "key data not found.",
@@ -123,8 +124,8 @@ func GetTableController(ctx *gin.Context) {
 	}
 
 	tab, err := seg.ToTable()
-	defer utils.ReleaseToPool(tab)
 	if err != nil {
+		utils.ReleaseToPool(seg)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
@@ -134,13 +135,14 @@ func GetTableController(ctx *gin.Context) {
 	ctx.IndentedJSON(http.StatusOK, gin.H{
 		"table": tab.Table,
 	})
+
+	utils.ReleaseToPool(seg, tab)
 }
 
 func PutTableController(ctx *gin.Context) {
 	key := ctx.Param("key")
 
 	tab := types.AcquireTable()
-	defer utils.ReleaseToPool(tab)
 	err := ctx.ShouldBindJSON(tab)
 	if err != nil {
 		utils.ReleaseToPool(tab)
@@ -149,12 +151,13 @@ func PutTableController(ctx *gin.Context) {
 	}
 
 	seg, err := vfs.AcquirePoolSegment(key, tab, tab.TTL)
-	defer utils.ReleaseToPool(seg)
 	if err != nil {
+		utils.ReleaseToPool(tab)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
+	defer utils.ReleaseToPool(tab, seg)
 	err = storage.PutSegment(key, seg)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
@@ -184,7 +187,6 @@ func DeleteTableController(ctx *gin.Context) {
 
 func GetZsetController(ctx *gin.Context) {
 	_, seg, err := storage.FetchSegment(ctx.Param("key"))
-	defer utils.ReleaseToPool(seg)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{
 			"message": "key data not found.",
@@ -193,8 +195,8 @@ func GetZsetController(ctx *gin.Context) {
 	}
 
 	zset, err := seg.ToZSet()
-	defer utils.ReleaseToPool(zset)
 	if err != nil {
+		utils.ReleaseToPool(seg)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
@@ -204,26 +206,29 @@ func GetZsetController(ctx *gin.Context) {
 	ctx.IndentedJSON(http.StatusOK, gin.H{
 		"list": zset.ZSet,
 	})
+
+	utils.ReleaseToPool(seg, zset)
 }
 
 func PutZsetController(ctx *gin.Context) {
 	key := ctx.Param("key")
 
 	zset := types.AcquireZSet()
-	defer utils.ReleaseToPool(zset)
 	err := ctx.ShouldBindJSON(zset)
 	if err != nil {
+		utils.ReleaseToPool(zset)
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
 
 	seg, err := vfs.AcquirePoolSegment(key, zset, zset.TTL)
-	defer utils.ReleaseToPool(seg)
 	if err != nil {
+		utils.ReleaseToPool(zset)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
+	defer utils.ReleaseToPool(zset, seg)
 	err = storage.PutSegment(key, seg)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
@@ -253,8 +258,6 @@ func DeleteZsetController(ctx *gin.Context) {
 
 func GetTextController(ctx *gin.Context) {
 	_, seg, err := storage.FetchSegment(ctx.Param("key"))
-	defer utils.ReleaseToPool(seg)
-
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{
 			"message": "key data not found.",
@@ -263,8 +266,8 @@ func GetTextController(ctx *gin.Context) {
 	}
 
 	text, err := seg.ToText()
-	defer utils.ReleaseToPool(text)
 	if err != nil {
+		utils.ReleaseToPool(text)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
@@ -274,27 +277,31 @@ func GetTextController(ctx *gin.Context) {
 	ctx.IndentedJSON(http.StatusOK, gin.H{
 		"text": text.Content,
 	})
+
+	utils.ReleaseToPool(seg, text)
 }
 
 func PutTextController(ctx *gin.Context) {
 	key := ctx.Param("key")
 
 	text := types.AcquireText()
-	defer utils.ReleaseToPool(text)
 	err := ctx.ShouldBindJSON(text)
 	if err != nil {
+		utils.ReleaseToPool(text)
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
 
 	seg, err := vfs.AcquirePoolSegment(key, text, text.TTL)
-	defer utils.ReleaseToPool(seg)
+
 	if err != nil {
 		utils.ReleaseToPool(text)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
+	// 到此才能完全放心的使用 defer 来释放资源
+	defer utils.ReleaseToPool(seg, text)
 	err = storage.PutSegment(key, seg)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
@@ -324,8 +331,6 @@ func DeleteTextController(ctx *gin.Context) {
 
 func GetNumberController(ctx *gin.Context) {
 	_, seg, err := storage.FetchSegment(ctx.Param("key"))
-	defer utils.ReleaseToPool(seg)
-
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{
 			"message": "key data not found.",
@@ -334,8 +339,8 @@ func GetNumberController(ctx *gin.Context) {
 	}
 
 	number, err := seg.ToNumber()
-	defer utils.ReleaseToPool(number)
 	if err != nil {
+		utils.ReleaseToPool(seg)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
@@ -345,26 +350,29 @@ func GetNumberController(ctx *gin.Context) {
 	ctx.IndentedJSON(http.StatusOK, gin.H{
 		"number": number.Value,
 	})
+
+	utils.ReleaseToPool(seg, number)
 }
 
 func PutNumberController(ctx *gin.Context) {
 	key := ctx.Param("key")
 
 	number := types.AcquireNumber()
-	defer utils.ReleaseToPool(number)
 	err := ctx.ShouldBindJSON(number)
 	if err != nil {
+		utils.ReleaseToPool(number)
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
 
 	seg, err := vfs.AcquirePoolSegment(key, number, number.TTL)
-	defer utils.ReleaseToPool(seg)
 	if err != nil {
+		utils.ReleaseToPool(number)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
+	defer utils.ReleaseToPool(number, seg)
 	err = storage.PutSegment(key, seg)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
@@ -395,8 +403,6 @@ func DeleteNumberController(ctx *gin.Context) {
 
 func GetSetController(ctx *gin.Context) {
 	_, seg, err := storage.FetchSegment(ctx.Param("key"))
-	defer utils.ReleaseToPool(seg)
-
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{
 			"message": "key data not found.",
@@ -405,9 +411,8 @@ func GetSetController(ctx *gin.Context) {
 	}
 
 	set, err := seg.ToSet()
-	defer utils.ReleaseToPool(set)
-
 	if err != nil {
+		utils.ReleaseToPool(seg)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
@@ -417,26 +422,29 @@ func GetSetController(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"set": set.Set,
 	})
+
+	utils.ReleaseToPool(seg, set)
 }
 
 func PutSetController(ctx *gin.Context) {
 	key := ctx.Param("key")
 
 	set := types.AcquireSet()
-	defer utils.ReleaseToPool(set)
 	err := ctx.ShouldBindJSON(set)
 	if err != nil {
+		utils.ReleaseToPool(set)
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
 
 	seg, err := vfs.AcquirePoolSegment(key, set, set.TTL)
-	defer utils.ReleaseToPool(seg)
 	if err != nil {
+		utils.ReleaseToPool(set)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
+	defer utils.ReleaseToPool(set, seg)
 	err = storage.PutSegment(key, seg)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
@@ -466,7 +474,6 @@ func DeleteSetController(ctx *gin.Context) {
 
 func QueryController(ctx *gin.Context) {
 	version, seg, err := storage.FetchSegment(ctx.Param("key"))
-	defer utils.ReleaseToPool(seg)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{
 			"message": err.Error(),
@@ -474,6 +481,7 @@ func QueryController(ctx *gin.Context) {
 		return
 	}
 
+	defer utils.ReleaseToPool(seg)
 	ttl, _ := seg.ExpiresIn()
 
 	ctx.IndentedJSON(http.StatusOK, gin.H{
@@ -509,18 +517,17 @@ func NewLeaseController(ctx *gin.Context) {
 
 	// 创建一把新租期锁并且设置锁的租期
 	lease := types.AcquireLeaseLock()
-	defer utils.ReleaseToPool(lease)
-
 	// 尝试创建 segment
 	seg, err := vfs.AcquirePoolSegment(key, lease, vfs.ImmortalTTL)
-	defer utils.ReleaseToPool(seg)
 	if err != nil {
+		utils.ReleaseToPool(lease)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
 		})
 		return
 	}
 
+	defer utils.ReleaseToPool(lease, seg)
 	err = storage.PutSegment(key, seg)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
@@ -529,7 +536,7 @@ func NewLeaseController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{
+	ctx.IndentedJSON(http.StatusCreated, gin.H{
 		"token": lease.Token,
 	})
 }
