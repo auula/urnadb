@@ -508,7 +508,7 @@ func NewLeaseController(ctx *gin.Context) {
 		return
 	}
 
-	// 没有错误和存在则表示 key 锁已经存在，意味着同一把锁还没有过期，
+	// 存在则表示 key 锁已经存在，意味着同一把锁还没有过期，
 	// 并且这些检查操作是一个原子操作防止其他协程插入相同的锁。
 	if storage.HasSegment(key) {
 		_, seg, err := storage.FetchSegment(key)
