@@ -26,6 +26,12 @@ import (
 
 var storage *vfs.LogStructuredFS
 
+func Error404Handler(ctx *gin.Context) {
+	ctx.JSON(http.StatusNotFound, gin.H{
+		"message": "Oops! 404 Not Found!",
+	})
+}
+
 func GetCollectionController(ctx *gin.Context) {
 	_, seg, err := storage.FetchSegment(ctx.Param("key"))
 	if err != nil {
@@ -470,7 +476,7 @@ func QueryController(ctx *gin.Context) {
 	version, seg, err := storage.FetchSegment(ctx.Param("key"))
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "key data not found.",
+			"message": err.Error(),
 		})
 		return
 	}
@@ -484,6 +490,36 @@ func QueryController(ctx *gin.Context) {
 		"ttl":   ttl,
 		"mvcc":  version,
 	})
+}
+
+func NewLeaseController(ctx *gin.Context) {
+	key := ctx.Param("key")
+
+	// 创建一把锁，并且设置锁的租期
+	lock := types.AcquireLeaseLock()
+
+	// 把锁对象转换为 segment 方便后面序列化
+	seg, err := vfs.AcquirePoolSegment(key, lock, 0)
+	if err != nil {
+		utils.ReleaseToPool(lock)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+
+	// 持久化这把锁
+	err = storage.PutSegment(key, seg)
+	if err != nil {
+		utils.ReleaseToPool(seg, lock)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+
+	// 返回锁消息
+	ctx.JSON(http.StatusCreated, gin.H{
+		"message": lock,
+	})
+
+	utils.ReleaseToPool(lock, seg)
 }
 
 func GetHealthController(ctx *gin.Context) {
@@ -506,11 +542,5 @@ func GetHealthController(ctx *gin.Context) {
 		MemoryTotal:    fmt.Sprintf("%.2fGB", utils.BytesToGB(health.GetTotalMemory())),
 		SpaceTotalUsed: fmt.Sprintf("%.2fGB", utils.BytesToGB(storage.GetTotalSpaceUsed())),
 		DiskPercent:    fmt.Sprintf("%.2f%%", health.GetDiskPercent()),
-	})
-}
-
-func Error404Handler(ctx *gin.Context) {
-	ctx.JSON(http.StatusNotFound, gin.H{
-		"message": "Oops! 404 Not Found!",
 	})
 }

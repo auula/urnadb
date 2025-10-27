@@ -1,9 +1,11 @@
 package types
 
 import (
+	"encoding/json"
 	"sync"
 
 	"github.com/auula/urnadb/utils"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 const (
@@ -28,26 +30,26 @@ func init() {
 // LeaseLock 定义了一个同步锁结构体
 type LeaseLock struct {
 	// LockID 是锁的唯一标识，解锁的时候客户端需要提供相同的 LockID 才能解锁，除非锁已经过期。
-	LockID string `json:"lock_id" msgpack:"lock_id"`
+	Token string `json:"lock_token" msgpack:"lock_token"`
 }
 
 // NewLeaseLock 创建一个新的 LeaseLock 实例带有唯一的 LockID
 func NewLeaseLock() *LeaseLock {
 	return &LeaseLock{
-		LockID: utils.RandomString(length),
+		Token: utils.RandomString(length),
 	}
 }
 
 // 从对象池获取一个 LeaseLock ，内存被复用但是锁 ID 不会被复用
 func AcquireLeaseLock() *LeaseLock {
 	ll := leaseLockPools.Get().(*LeaseLock)
-	ll.LockID = utils.RandomString(length)
+	ll.Token = utils.RandomString(length)
 	return ll
 }
 
 // 放回对象池，清理数据
 func (ll *LeaseLock) Clear() {
-	ll.LockID = nullString
+	ll.Token = nullString
 	leaseLockPools.Put(ll)
 }
 
@@ -56,4 +58,14 @@ func (ll *LeaseLock) Clear() {
 func (ll *LeaseLock) ReleaseToPool() {
 	ll.Clear()
 	leaseLockPools.Put(ll)
+}
+
+// ToBytes 是给 AcquirePoolSegment 内部使用
+func (ll *LeaseLock) ToBytes() ([]byte, error) {
+	return msgpack.Marshal(&ll.Token)
+}
+
+// ToJSON 是给 segment 内部类型转换使用
+func (ll *LeaseLock) ToJSON() ([]byte, error) {
+	return json.Marshal(&ll.Token)
 }

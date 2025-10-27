@@ -20,7 +20,7 @@ import (
 )
 
 // Charset defines the set of characters to be used in generating random strings
-const Charset = "#$@!abcdefghijklmnpqrstuvwxyzABCDEFGHIJKLMNPQRSTUVWXYZ123456789"
+const Charset = "#@!abcdefghijklmnpqrstuvwxyzABCDEFGHIJKLMNPQRSTUVWXYZ123456789"
 
 // TrimDaemon removes the "-daemon" or "--daemon" arguments from os.Args
 func TrimDaemon(args []string) []string {

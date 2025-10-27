@@ -33,6 +33,7 @@ const (
 	table
 	number
 	unknown
+	leaselock
 	collection
 )
 
@@ -43,6 +44,7 @@ var kindToString = map[kind]string{
 	table:      "table",
 	number:     "number",
 	unknown:    "unknown",
+	leaselock:  "leaselock",
 	collection: "collection",
 }
 
@@ -275,6 +277,19 @@ func (s *Segment) ToNumber() (*types.Number, error) {
 	return number, nil
 }
 
+func (s *Segment) ToLeaseLock() (*types.LeaseLock, error) {
+	if s.Type != leaselock {
+		return nil, fmt.Errorf("not support conversion to lease lock type")
+	}
+	leaseLock := types.AcquireLeaseLock()
+	err := msgpack.Unmarshal(s.Value, &leaseLock.Token)
+	if err != nil {
+		leaseLock.ReleaseToPool()
+		return nil, err
+	}
+	return leaseLock, nil
+}
+
 // ExpiresIn 返回剩下的存活时间，一般在基于原有的 segment 更新时使用，
 // 如果返回 -1，表示这个 segment 永不过期，并且返回 ok = true 表示这个 segment 没有过期。
 // 如果返回 0，表示这个 segment 已经过期，ok = false 表示这个 segment 已经过期。
@@ -305,6 +320,8 @@ func toKind(data Serializable) kind {
 		return table
 	case *types.Number:
 		return number
+	case *types.LeaseLock:
+		return leaselock
 	case *types.Collection:
 		return collection
 	}
@@ -355,6 +372,12 @@ func (s *Segment) ToJSON() ([]byte, error) {
 			return nil, err
 		}
 		return collection.ToJSON()
+	case leaselock:
+		leaseLock, err := s.ToLeaseLock()
+		if err != nil {
+			return nil, err
+		}
+		return leaseLock.ToJSON()
 	}
 
 	return nil, errors.New("unknown data type")

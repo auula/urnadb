@@ -96,10 +96,10 @@ func init() {
 
 	leaseLock := root.Group("/locks")
 	{
-		leaseLock.PUT("/:name", nil)    // 创建一把分布式租期锁
-		leaseLock.GET("/:name", nil)    // 获取锁的状态
-		leaseLock.PATCH("/:name", nil)  // 续约锁 Lock Upgrade
-		leaseLock.DELETE("/:name", nil) // 释放锁
+		leaseLock.PUT("/:key", NewLeaseController) // 创建一把分布式租期锁
+		leaseLock.GET("/:key", nil)                // 获取锁的状态
+		leaseLock.PATCH("/:key", nil)              // 续约锁 Lock Upgrade
+		leaseLock.DELETE("/:key", nil)             // 释放锁
 	}
 }
 

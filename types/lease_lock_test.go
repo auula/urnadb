@@ -13,12 +13,12 @@ func TestNewLeaseLock(t *testing.T) {
 	// Check if lease lock is not nil
 	assert.NotNil(t, ll)
 
-	// Check if LockID is not empty
-	assert.NotEmpty(t, ll.LockID)
+	// Check if Token is not empty
+	assert.NotEmpty(t, ll.Token)
 
-	// Check if LockID length is 64 characters
-	assert.Equal(t, 64, len(ll.LockID))
+	// Check if Token length is 64 characters
+	assert.Equal(t, 64, len(ll.Token))
 
 	// Create another lock to verify unique IDs
-	assert.NotEqual(t, ll.LockID, NewLeaseLock().LockID)
+	assert.NotEqual(t, ll.Token, NewLeaseLock().Token)
 }
