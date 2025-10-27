@@ -17,6 +17,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/auula/urnadb/types"
 	"github.com/auula/urnadb/utils"
@@ -24,7 +25,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var storage *vfs.LogStructuredFS
+var (
+	storage         *vfs.LogStructuredFS
+	atomicLeaseLock = new(sync.Mutex)
+)
 
 func Error404Handler(ctx *gin.Context) {
 	ctx.JSON(http.StatusNotFound, gin.H{
@@ -493,11 +497,40 @@ func QueryController(ctx *gin.Context) {
 }
 
 func NewLeaseController(ctx *gin.Context) {
+	atomicLeaseLock.Lock()
+	defer atomicLeaseLock.Unlock()
+
 	key := ctx.Param("key")
+	if utils.NotNullString(key) {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "invalid key parmameter.",
+		})
+		return
+	}
 
-	// 创建一把锁，并且设置锁的租期
+	// 没有错误和存在则表示 key 锁已经存在，意味着同一把锁还没有过期，
+	// 并且这些检查操作是一个原子操作防止其他协程插入相同的锁。
+	exists := storage.HasSegment(key)
+	if exists {
+		_, seg, err := storage.FetchSegment(key)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+			utils.ReleaseToPool(seg)
+			return
+		}
+		lock, err := seg.ToLeaseLock()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"lock_token": lock.Token,
+		})
+		return
+	}
+
+	// 创建一把锁并且设置锁的租期
 	lock := types.AcquireLeaseLock()
-
 	// 把锁对象转换为 segment 方便后面序列化
 	seg, err := vfs.AcquirePoolSegment(key, lock, vfs.ImmortalTTL)
 	if err != nil {

@@ -80,3 +80,7 @@ func RandomString(length int) string {
 	}
 	return string(result)
 }
+
+func NotNullString(s string) bool {
+	return !(s != "" && len(s) > 0)
+}
