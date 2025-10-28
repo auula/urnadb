@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	ErrAlreadyLocked  = errors.New("resource already locked")
-	ErrLockNotFound   = errors.New("resource lock not found")
-	ErrInvalidToken   = errors.New("invalid lock token")
-	ErrStorageFailure = errors.New("storage operation failed")
+	ErrAlreadyLocked  = errors.New("resource already locked.")
+	ErrLockNotFound   = errors.New("resource lock not found.")
+	ErrInvalidToken   = errors.New("invalid lock token.")
+	ErrStorageFailure = errors.New("storage operation failed.")
 )
 
 type LockService interface {
@@ -43,7 +43,9 @@ func (s *LeaseLockService) acquireLeaseLock(key string) *sync.Mutex {
 
 func (s *LeaseLockService) ReleaseLock(name string, token string) error {
 	s.acquireLeaseLock(name).Lock()
+
 	if !s.storage.HasSegment(name) {
+		s.acquireLeaseLock(name).Unlock()
 		return ErrLockNotFound
 	}
 
@@ -90,7 +92,7 @@ func (s *LeaseLockService) AcquireLock(name string, ttl int64) (*types.LeaseLock
 	// 创建一把新租期锁并且设置锁的租期
 	lease := types.AcquireLeaseLock()
 	// 尝试创建 segment
-	seg, err := vfs.AcquirePoolSegment(name, lease, int64(ttl))
+	seg, err := vfs.AcquirePoolSegment(name, lease, ttl)
 	if err != nil {
 		utils.ReleaseToPool(lease)
 		return nil, err
