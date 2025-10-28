@@ -10,23 +10,34 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewLeaseController(ctx *gin.Context) {
+func NewLockController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.JSON(http.StatusBadRequest, response.Fail("empty key param."))
+		ctx.IndentedJSON(http.StatusBadRequest, response.Fail("empty key param."))
 		return
 	}
 
-	slock, err := ls.AcquireLock(name, 0)
+	type RequestBody struct {
+		TTL int64 `json:"ttl" binding:"required"`
+	}
+
+	var req RequestBody
+	err := ctx.ShouldBindJSON(&req)
+	if err != nil {
+		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		return
+	}
+
+	slock, err := ls.AcquireLock(name, req.TTL)
 	if err != nil {
 		if errors.Is(err, services.ErrInvalidToken) {
-			ctx.JSON(http.StatusForbidden, response.Fail(err.Error()))
+			ctx.IndentedJSON(http.StatusForbidden, response.Fail(err.Error()))
 		} else if errors.Is(err, services.ErrLockNotFound) {
-			ctx.JSON(http.StatusNotFound, response.Fail(err.Error()))
+			ctx.IndentedJSON(http.StatusNotFound, response.Fail(err.Error()))
 		} else if errors.Is(err, services.ErrAlreadyLocked) {
-			ctx.JSON(http.StatusLocked, response.Fail(err.Error()))
+			ctx.IndentedJSON(http.StatusLocked, response.Fail(err.Error()))
 		} else {
-			ctx.JSON(http.StatusInternalServerError, response.Fail(err.Error()))
+			ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(err.Error()))
 		}
 		return
 	}
@@ -34,4 +45,31 @@ func NewLeaseController(ctx *gin.Context) {
 	ctx.IndentedJSON(http.StatusCreated, response.Ok(gin.H{
 		"token": slock.Token,
 	}))
+}
+
+func DeleteLockController(ctx *gin.Context) {
+	name := ctx.Param("key")
+	if !utils.NotNullString(name) {
+		ctx.IndentedJSON(http.StatusBadRequest, response.Fail("empty key param."))
+		return
+	}
+
+	type RequestBody struct {
+		Token string `json:"token" binding:"required"`
+	}
+
+	var req RequestBody
+	err := ctx.ShouldBindJSON(&req)
+	if err != nil {
+		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		return
+	}
+
+	err = ls.ReleaseLock(name, req.Token)
+	if err != nil {
+		ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(err.Error()))
+		return
+	}
+
+	ctx.IndentedJSON(http.StatusOK, response.Ok("deleted lock successfully."))
 }
