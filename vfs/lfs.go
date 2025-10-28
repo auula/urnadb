@@ -53,7 +53,7 @@ const (
 	_GC_ACTIVE
 	_GC_INACTIVE
 	_SEGMENT_PADDING    = 26
-	_INDEX_SEGMENT_SIZE = 48
+	_INDEX_SEGMENT_SIZE = 49
 )
 
 var (
@@ -205,7 +205,7 @@ func (lfs *LogStructuredFS) HasSegment(key string) bool {
 		return false
 	}
 
-	return inode != nil && inode.ExpiredAt < time.Now().UnixMicro()
+	return inode != nil && time.Now().UnixMicro() < inode.ExpiredAt
 }
 
 func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
