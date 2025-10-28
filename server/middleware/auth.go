@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/auula/urnadb/clog"
+	"github.com/auula/urnadb/server/response"
 	"github.com/gin-gonic/gin"
 )
 
@@ -46,9 +47,9 @@ func AuthMiddleware() gin.HandlerFunc {
 			}
 			if !ok {
 				clog.Warnf("Unauthorized IP address: %s", ip)
-				c.JSON(http.StatusUnauthorized, gin.H{
-					"message": fmt.Sprintf("client IP %s is not allowed!", ip),
-				})
+				c.IndentedJSON(
+					http.StatusUnauthorized,
+					response.Fail(fmt.Sprintf("client IP %s is not allowed!", ip)))
 				c.Abort()
 				return
 			}
@@ -56,9 +57,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		if auth != authPassword {
 			clog.Warnf("Unauthorized access attempt from client %s", ip)
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "access not authorised!",
-			})
+			c.IndentedJSON(http.StatusUnauthorized, response.Fail("access not authorised!"))
 			c.Abort()
 			return
 		}

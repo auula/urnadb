@@ -45,7 +45,8 @@ func SetupRoutes() *gin.Engine {
 	// Lock 路由
 	lock := router.Group("/locks")
 	{
-		lock.PUT("/:key", controllers.NewLeaseController)
+		lock.PUT("/:key", controllers.NewLockController)
+		lock.DELETE("/:key", controllers.DeleteLockController)
 	}
 
 	// // records 路由

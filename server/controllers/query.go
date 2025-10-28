@@ -3,16 +3,21 @@ package controllers
 import (
 	"net/http"
 
+	"github.com/auula/urnadb/server/response"
 	"github.com/auula/urnadb/utils"
 	"github.com/gin-gonic/gin"
 )
 
 func QueryController(ctx *gin.Context) {
-	version, seg, err := qs.GetSegment(ctx.Param("key"))
+	name := ctx.Param("key")
+	if !utils.NotNullString(name) {
+		ctx.IndentedJSON(http.StatusBadRequest, response.Fail("empty key param."))
+		return
+	}
+
+	version, seg, err := qs.GetSegment(name)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": err.Error(),
-		})
+		ctx.IndentedJSON(http.StatusNotFound, response.Fail(err.Error()))
 		return
 	}
 
