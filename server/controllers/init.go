@@ -15,6 +15,7 @@ var (
 func InitAllComponents(storage *vfs.LogStructuredFS) error {
 	hs = services.NewHealthService(storage)
 	ls = services.NewLockServiceImpl(storage)
+	qs = services.NewQueryServiceImpl(storage)
 	ts = services.NewTableLFSServiceImpl(storage)
 	return nil
 }
