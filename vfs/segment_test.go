@@ -163,9 +163,9 @@ func TestToList(t *testing.T) {
 func TestToTable(t *testing.T) {
 	// 创建 Tables 数据
 	tablesData := types.Table{
-		Table: map[string]interface{}{
-			"key1": "value1",
-			"key2": int8(42),
+		Table: map[uint32]map[string]any{
+			1: {"key1": "value1"},
+			2: {"key2": int8(42)},
 		},
 	}
 
