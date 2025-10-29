@@ -75,12 +75,7 @@ func (s *TableLFSServiceImpl) CreateTable(name string, table *types.Table, ttl i
 
 	defer seg.ReleaseToPool()
 
-	err = s.storage.PutSegment(name, seg)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return s.storage.PutSegment(name, seg)
 }
 
 func (s *TableLFSServiceImpl) InsertRows(name string, data map[string]interface{}) error {
