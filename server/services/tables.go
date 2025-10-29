@@ -5,10 +5,13 @@ import (
 	"sync"
 
 	"github.com/auula/urnadb/types"
+	"github.com/auula/urnadb/utils"
 	"github.com/auula/urnadb/vfs"
 )
 
 var (
+	// 操作过程中出现 Table 已经过期了
+	ErrTableExpired = errors.New("table ttl is invalid or expired.")
 	// 表未找到
 	ErrTableNotFound = errors.New("table not found.")
 	// 创建表失败
@@ -100,7 +103,35 @@ func (s *TableLFSServiceImpl) InsertRows(name string, data map[string]interface{
 }
 
 func (s *TableLFSServiceImpl) PatchRows(name string, data map[string]interface{}) error {
-	return ErrTableUpdateFailed
+	s.acquireTablesLock(name).Lock()
+	defer s.acquireTablesLock(name).Unlock()
+
+	_, seg, err := s.storage.FetchSegment(name)
+	if err != nil {
+		return err
+	}
+
+	tab, err := seg.ToTable()
+	if err != nil {
+		return ErrTableUpdateFailed
+	}
+
+	defer utils.ReleaseToPool(tab, seg)
+
+	// 深度合并
+	tab.DeepMerge(data)
+
+	ttl, ok := seg.ExpiresIn()
+	if !ok {
+		return ErrTableExpired
+	}
+
+	seg, err = vfs.AcquirePoolSegment(name, tab, ttl)
+	if err != nil {
+		return err
+	}
+
+	return s.storage.PutSegment(name, seg)
 }
 
 func (s *TableLFSServiceImpl) SelectTableRows(name string, wheres map[string]interface{}) (map[string]interface{}, error) {

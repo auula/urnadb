@@ -15,6 +15,7 @@
 package types
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -118,4 +119,78 @@ func TestTables_ToBytes(t *testing.T) {
 	err = msgpack.Unmarshal(data, &decodedTables.Table)
 	assert.NoError(t, err)
 	assert.Equal(t, tables.Table, decodedTables.Table) // 确保反序列化后的数据与原始数据一致
+}
+
+func TestTablesDeepMerge(t *testing.T) {
+	tests := []struct {
+		name     string
+		base     map[string]any
+		news     map[string]any
+		expected map[string]any
+	}{
+		{
+			name: "simple overwrite",
+			base: map[string]any{"a": 1, "b": 2},
+			news: map[string]any{"b": 20, "c": 30},
+			expected: map[string]any{
+				"a": 1,
+				"b": 20,
+				"c": 30,
+			},
+		},
+		{
+			name: "nested merge",
+			base: map[string]any{
+				"a": map[string]any{"x": 1, "y": 2},
+				"b": 10,
+			},
+			news: map[string]any{
+				"a": map[string]any{"y": 20, "z": 30},
+				"b": 20,
+				"c": 30,
+			},
+			expected: map[string]any{
+				"a": map[string]any{"x": 1, "y": 20, "z": 30},
+				"b": 20,
+				"c": 30,
+			},
+		},
+		{
+			name: "type conflict",
+			base: map[string]any{
+				"a": map[string]any{"x": 1},
+			},
+			news: map[string]any{
+				"a": 100, // 类型冲突，覆盖
+			},
+			expected: map[string]any{
+				"a": 100,
+			},
+		},
+		{
+			name: "nested empty map",
+			base: map[string]any{
+				"a": map[string]any{"x": 1},
+			},
+			news: map[string]any{
+				"a": map[string]any{}, // 空 map，不影响 base
+			},
+			expected: map[string]any{
+				"a": map[string]any{"x": 1},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			table := &Table{
+				Table: tt.base,
+			}
+			table.DeepMerge(tt.news)
+
+			if !reflect.DeepEqual(table.Table, tt.expected) {
+				t.Errorf("DeepMerge() = %v, want %v", table.Table, tt.expected)
+			}
+		})
+	}
 }

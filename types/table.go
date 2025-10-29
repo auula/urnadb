@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"sync"
 
+	"github.com/auula/urnadb/utils"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -132,4 +133,8 @@ func (tab *Table) ToBytes() ([]byte, error) {
 
 func (tab *Table) ToJSON() ([]byte, error) {
 	return json.Marshal(&tab.Table)
+}
+
+func (tab *Table) DeepMerge(news map[string]interface{}) {
+	utils.DeepMergeMaps(tab.Table, news)
 }
