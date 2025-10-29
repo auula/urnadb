@@ -109,6 +109,8 @@ func (s *LeaseLockService) AcquireLock(name string, ttl int64) (*types.LeaseLock
 	return lease, nil
 }
 
+// 续租一定要注意服务器中途宕机了，客户端还认为服务器还活着，客户端也要有一个超时，如果超时了客户端抛出异常准备回滚。
+// 正常续租成功了，应该更换客户端的 token 凭证，解锁的时候需要使用这个 token 作为凭证。
 func (s *LeaseLockService) DoLeaseLock(name string, token string) (*types.LeaseLock, error) {
 	s.acquireLeaseLock(name).Lock()
 	defer s.acquireLeaseLock(name).Unlock()
@@ -136,14 +138,14 @@ func (s *LeaseLockService) DoLeaseLock(name string, token string) (*types.LeaseL
 
 	// 创建一把新租期锁并且设置锁的租期，租期锁一定有存活时间的，默认是续租期 10s 秒
 	newlease := types.AcquireLeaseLock()
-	newTTL := int64(10)
+	newttl := int64(10)
 	if seg.ExpiredAt > 0 {
-		// 类似于滑动窗口，把锁到期时间向后移动
-		newTTL = (seg.ExpiredAt - seg.CreatedAt) / int64(time.Microsecond)
+		// 类似于滑动窗口，把锁到期时间向后移动，续租是时间和前一个租期时间一致
+		newttl = (seg.ExpiredAt - seg.CreatedAt) / int64(time.Microsecond)
 	}
 
 	// 持久化这把新租期锁
-	newseg, err := vfs.AcquirePoolSegment(name, newlease, newTTL)
+	newseg, err := vfs.AcquirePoolSegment(name, newlease, newttl)
 	if err != nil {
 		utils.ReleaseToPool(newlease)
 		return nil, err
