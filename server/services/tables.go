@@ -10,15 +10,15 @@ import (
 
 var (
 	// 表未找到
-	ErrTableNotFound = errors.New("table not found")
+	ErrTableNotFound = errors.New("table not found.")
 	// 创建表失败
-	ErrTableCreateFailed = errors.New("failed to create table")
+	ErrTableCreateFailed = errors.New("failed to create table.")
 	// 表已存在
-	ErrTableAlreadyExists = errors.New("table already exists")
+	ErrTableAlreadyExists = errors.New("table already exists.")
 	// 删除表失败
-	ErrTableDropFailed = errors.New("failed to delete table")
+	ErrTableDropFailed = errors.New("failed to delete table.")
 	// 更新表失败
-	ErrTableUpdateFailed = errors.New("failed to update table")
+	ErrTableUpdateFailed = errors.New("failed to update table.")
 )
 
 type TableService interface {
