@@ -11,10 +11,9 @@ import (
 )
 
 var (
-	ErrAlreadyLocked  = errors.New("resource already locked.")
-	ErrLockNotFound   = errors.New("resource lock not found.")
-	ErrInvalidToken   = errors.New("invalid lock token.")
-	ErrStorageFailure = errors.New("storage operation failed.")
+	ErrAlreadyLocked = errors.New("resource already locked.")
+	ErrLockNotFound  = errors.New("resource lock not found.")
+	ErrInvalidToken  = errors.New("invalid lock token.")
 )
 
 type LockService interface {

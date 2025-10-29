@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	ErrorTableNotFound = errors.New("table not found")
+	ErrTableNotFound = errors.New("table not found")
+	ErrCreateTable   = errors.New("failed to create table")
 )
 
 type TableService interface {
@@ -22,7 +23,7 @@ type TableService interface {
 	// 删除一张表名为 name 的表的某个字段
 	RemoveColumn(name string, column string) error
 	// 创建一张表名为 name 的表
-	CreateTable(name string, table *types.Table) error
+	CreateTable(name string, table *types.Table, ttl int64) error
 	// 更新表中的某个字段
 	PatchRows(name string, data map[string]interface{}) error
 	// 插入表数据到一张表里面
@@ -46,12 +47,16 @@ func (t *TableLFSServiceImpl) QueryTable(name string) (*types.Table, error) {
 
 	_, seg, err := t.storage.FetchSegment(name)
 	if err != nil {
-		return nil, ErrorTableNotFound
+		return nil, ErrTableNotFound
 	}
+
 	return seg.ToTable()
 }
 
 func (t *TableLFSServiceImpl) DeleteTable(name string) error {
+	t.acquireTablesLock(name).Lock()
+	defer t.acquireTablesLock(name).Unlock()
+
 	return t.storage.DeleteSegment(name)
 }
 
@@ -59,7 +64,22 @@ func (s *TableLFSServiceImpl) RemoveColumn(tableName string, column string) erro
 	return nil
 }
 
-func (s *TableLFSServiceImpl) CreateTable(name string, table *types.Table) error {
+func (s *TableLFSServiceImpl) CreateTable(name string, table *types.Table, ttl int64) error {
+	s.acquireTablesLock(name).Lock()
+	defer s.acquireTablesLock(name).Unlock()
+
+	seg, err := vfs.AcquirePoolSegment(name, table, ttl)
+	if err != nil {
+		return ErrCreateTable
+	}
+
+	defer seg.ReleaseToPool()
+
+	err = s.storage.PutSegment(name, seg)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
