@@ -9,8 +9,16 @@ import (
 )
 
 var (
+	// 表未找到
 	ErrTableNotFound = errors.New("table not found")
-	ErrCreateTable   = errors.New("failed to create table")
+	// 创建表失败
+	ErrTableCreateFailed = errors.New("failed to create table")
+	// 表已存在
+	ErrTableAlreadyExists = errors.New("table already exists")
+	// 删除表失败
+	ErrTableDropFailed = errors.New("failed to delete table")
+	// 更新表失败
+	ErrTableUpdateFailed = errors.New("failed to update table")
 )
 
 type TableService interface {
@@ -57,7 +65,12 @@ func (t *TableLFSServiceImpl) DeleteTable(name string) error {
 	t.acquireTablesLock(name).Lock()
 	defer t.acquireTablesLock(name).Unlock()
 
-	return t.storage.DeleteSegment(name)
+	err := t.storage.DeleteSegment(name)
+	if err != nil {
+		return ErrTableDropFailed
+	}
+
+	return nil
 }
 
 func (s *TableLFSServiceImpl) RemoveColumn(tableName string, column string) error {
@@ -68,9 +81,13 @@ func (s *TableLFSServiceImpl) CreateTable(name string, table *types.Table, ttl i
 	s.acquireTablesLock(name).Lock()
 	defer s.acquireTablesLock(name).Unlock()
 
+	if s.storage.HasSegment(name) {
+		return ErrTableAlreadyExists
+	}
+
 	seg, err := vfs.AcquirePoolSegment(name, table, ttl)
 	if err != nil {
-		return ErrCreateTable
+		return ErrTableCreateFailed
 	}
 
 	defer seg.ReleaseToPool()
@@ -83,7 +100,7 @@ func (s *TableLFSServiceImpl) InsertRows(name string, data map[string]interface{
 }
 
 func (s *TableLFSServiceImpl) PatchRows(name string, data map[string]interface{}) error {
-	return nil
+	return ErrTableUpdateFailed
 }
 
 func (s *TableLFSServiceImpl) SelectTableRows(name string, wheres map[string]interface{}) (map[string]interface{}, error) {
