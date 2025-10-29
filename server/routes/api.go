@@ -46,6 +46,7 @@ func SetupRoutes() *gin.Engine {
 	lock := router.Group("/locks")
 	{
 		lock.PUT("/:key", controllers.NewLockController)
+		lock.PATCH("/:key", controllers.DoLeaseLockController)
 		lock.DELETE("/:key", controllers.DeleteLockController)
 	}
 
