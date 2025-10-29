@@ -18,10 +18,12 @@ type TableService interface {
 	QueryTable(name string) (*types.Table, error)
 	// 删除一张表名为 name 的表
 	DeleteTable(name string) error
-	// 创建一张表名为 name 的表
-	CreateTable(name string, table *types.Table) error
 	// 删除一张表名为 name 的表的某个字段
 	RemoveColumn(name string, column string) error
+	// 创建一张表名为 name 的表
+	CreateTable(name string, table *types.Table) error
+	// 更新表中的某个字段
+	PatchRows(name string, data map[string]interface{}) error
 	// 插入表数据到一张表里面
 	InsertRows(name string, data map[string]interface{}) error
 	// 根据表名和子查询条件搜索表
@@ -57,6 +59,10 @@ func (s *TableLFSServiceImpl) CreateTable(name string, table *types.Table) error
 }
 
 func (s *TableLFSServiceImpl) InsertRows(name string, data map[string]interface{}) error {
+	return nil
+}
+
+func (s *TableLFSServiceImpl) PatchRows(name string, data map[string]interface{}) error {
 	return nil
 }
 
