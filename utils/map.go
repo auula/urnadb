@@ -17,3 +17,20 @@ func DeepMergeMaps(base, news map[string]interface{}) {
 		}
 	}
 }
+
+func SearchInMap(m map[string]any, key string) []any {
+	var results []any
+	if item, exists := m[key]; exists {
+		results = append(results, item)
+	}
+
+	// 遍历 map，查找是否有嵌套的 map 类型
+	for _, value := range m {
+		if nestedMap, ok := value.(map[string]any); ok {
+			// 递归查找嵌套的 map
+			results = append(results, SearchInMap(nestedMap, key)...)
+		}
+	}
+
+	return results
+}

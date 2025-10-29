@@ -16,6 +16,8 @@ package types
 
 import (
 	"encoding/json"
+	"errors"
+	"reflect"
 	"sync"
 
 	"github.com/auula/urnadb/utils"
@@ -23,8 +25,8 @@ import (
 )
 
 type Table struct {
-	Table map[string]any `json:"table" msgpack:"table" binding:"required"`
-	TTL   int64          `json:"ttl,omitempty"`
+	Table  map[uint32]map[string]any `json:"table" msgpack:"table" binding:"required"`
+	NextID uint32                    `json:"t_id,omitempty"`
 }
 
 var tablePools = sync.Pool{
@@ -55,71 +57,94 @@ func (tab *Table) ReleaseToPool() {
 // 新建一个 Table
 func NewTable() *Table {
 	return &Table{
-		Table: make(map[string]any),
+		NextID: 0,
+		Table:  make(map[uint32]map[string]any),
 	}
 }
 
 // Clear 清空 Table 和 TTL
 func (tab *Table) Clear() {
-	tab.TTL = 0
-	tab.Table = make(map[string]any)
+	tab.NextID = 0
+	tab.Table = make(map[uint32]map[string]any)
 }
 
 // 向 Table 中添加一个项
-func (tab *Table) AddItem(key string, value any) {
-	tab.Table[key] = value
+func (tab *Table) AddRows(rows map[string]any) uint32 {
+	tab.NextID += 1
+	tab.Table[tab.NextID] = rows
+	return tab.NextID
 }
 
 // 从 Table 中删除一个项
-func (tab *Table) RemoveItem(key string) {
-	delete(tab.Table, key)
-}
-
-// 检查 Table 中是否包含指定的键
-func (tab *Table) ContainsKey(key string) bool {
-	_, exists := tab.Table[key]
-	return exists
+func (tab *Table) RemoveRows(id uint32) {
+	delete(tab.Table, id)
 }
 
 // 从 Table 中获取一个项
-func (tab *Table) GetItem(key string) any {
-	if tab.ContainsKey(key) {
-		return tab.Table[key]
+func (tab *Table) GetRows(key uint32) any {
+	return tab.Table[key]
+}
+
+func (tab *Table) SelectRowsAll(wheres map[string]any) []map[string]any {
+	var results []map[string]any
+
+	for _, row := range tab.Table {
+		match := true
+		for key, value := range wheres {
+			v, ok := row[key]
+			if !ok {
+				match = false
+				break
+			}
+			if !reflect.DeepEqual(v, value) {
+				match = false
+				break
+			}
+		}
+
+		if match {
+			results = append(results, row)
+		}
 	}
+
+	return results
+}
+
+func (tab *Table) UpdateRows(wheres, data map[string]any) error {
+	// 优先处理按 t_id 更新
+	if idVal, ok := wheres["t_id"]; ok {
+		id, ok := idVal.(uint32)
+		if !ok {
+			return errors.New("t_id must be unsigned 32-bit integer.")
+		}
+		if row, exists := tab.Table[id]; exists {
+			for k, v := range data {
+				row[k] = v
+			}
+			tab.Table[id] = row
+		} else {
+			return errors.New("t_id is invalid.")
+		}
+	} else {
+		// 原来的遍历逻辑
+		for rowID, row := range tab.Table {
+			match := true
+			for key, value := range wheres {
+				if rowVal, ok := row[key]; !ok || rowVal != value {
+					match = false
+					break
+				}
+			}
+			if match {
+				for k, v := range data {
+					row[k] = v
+				}
+				tab.Table[rowID] = row
+			}
+		}
+	}
+
 	return nil
-}
-
-// 从 Tables 查找出键为目标 key 的值，包括所有值中值
-func (tab *Table) SearchItem(key string) any {
-	var results []any
-	if items, exists := tab.Table[key]; exists {
-		results = append(results, items)
-	}
-
-	for _, item := range tab.Table {
-		if innerMap, ok := item.(map[string]any); ok {
-			results = append(results, searchInMap(innerMap, key)...)
-		}
-	}
-
-	return results
-}
-
-func searchInMap(m map[string]any, key string) []any {
-	var results []any
-	if item, exists := m[key]; exists {
-		results = append(results, item)
-	}
-
-	// 遍历 map，查找是否有嵌套的 map 类型
-	for _, value := range m {
-		if nestedMap, ok := value.(map[string]any); ok {
-			// 递归查找嵌套的 map
-			results = append(results, searchInMap(nestedMap, key)...)
-		}
-	}
-
-	return results
 }
 
 // 获取 Table 中的元素个数
@@ -135,6 +160,6 @@ func (tab *Table) ToJSON() ([]byte, error) {
 	return json.Marshal(&tab.Table)
 }
 
-func (tab *Table) DeepMerge(news map[string]interface{}) {
-	utils.DeepMergeMaps(tab.Table, news)
+func (tab *Table) DeepMerge(id uint32, news map[string]any) {
+	utils.DeepMergeMaps(tab.Table[id], news)
 }
