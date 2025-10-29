@@ -66,12 +66,15 @@ func (t *TableLFSServiceImpl) QueryTable(name string) (*types.Table, error) {
 
 func (t *TableLFSServiceImpl) DeleteTable(name string) error {
 	t.acquireTablesLock(name).Lock()
-	defer t.acquireTablesLock(name).Unlock()
 
 	err := t.storage.DeleteSegment(name)
 	if err != nil {
+		t.acquireTablesLock(name).Unlock()
 		return ErrTableDropFailed
 	}
+
+	t.acquireTablesLock(name).Unlock()
+	t.tlock.Delete(name)
 
 	return nil
 }
@@ -171,8 +174,8 @@ func (s *TableLFSServiceImpl) PatchRows(name string, wheres, data map[string]any
 }
 
 func (s *TableLFSServiceImpl) SelectTableRows(name string, wheres map[string]any) ([]map[string]any, error) {
-	s.acquireTablesLock(name).Lock()
-	defer s.acquireTablesLock(name).Unlock()
+	s.acquireTablesLock(name).RLock()
+	defer s.acquireTablesLock(name).RUnlock()
 
 	_, seg, err := s.storage.FetchSegment(name)
 	if err != nil {
@@ -188,21 +191,6 @@ func (s *TableLFSServiceImpl) SelectTableRows(name string, wheres map[string]any
 
 	// 类似于 SQL 的 AND 多条件查询一样
 	result := tab.SelectRowsAll(wheres)
-
-	ttl, ok := seg.ExpiresIn()
-	if !ok {
-		return nil, ErrTableExpired
-	}
-
-	seg, err = vfs.AcquirePoolSegment(name, tab, ttl)
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.storage.PutSegment(name, seg)
-	if err != nil {
-		return nil, err
-	}
 
 	return result, nil
 }
