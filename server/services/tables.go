@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/auula/urnadb/types"
 	"github.com/auula/urnadb/vfs"
@@ -31,6 +32,7 @@ type TableService interface {
 }
 
 type TableLFSServiceImpl struct {
+	tlock   sync.Map
 	storage *vfs.LogStructuredFS
 }
 
@@ -39,6 +41,9 @@ func (t *TableLFSServiceImpl) AllTables() []*types.Table {
 }
 
 func (t *TableLFSServiceImpl) QueryTable(name string) (*types.Table, error) {
+	t.acquireTablesLock(name).Lock()
+	defer t.acquireTablesLock(name).Unlock()
+
 	_, seg, err := t.storage.FetchSegment(name)
 	if err != nil {
 		return nil, ErrorTableNotFound
@@ -74,4 +79,9 @@ func NewTableLFSServiceImpl(storage *vfs.LogStructuredFS) TableService {
 	return &TableLFSServiceImpl{
 		storage: storage,
 	}
+}
+
+func (s *TableLFSServiceImpl) acquireTablesLock(key string) *sync.RWMutex {
+	actual, _ := s.tlock.LoadOrStore(key, new(sync.RWMutex))
+	return actual.(*sync.RWMutex)
 }

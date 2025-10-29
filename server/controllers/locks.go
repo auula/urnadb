@@ -13,7 +13,7 @@ import (
 func NewLockController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail("empty key param."))
+		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
 		return
 	}
 
@@ -42,6 +42,8 @@ func NewLockController(ctx *gin.Context) {
 		return
 	}
 
+	defer slock.ReleaseToPool()
+
 	ctx.IndentedJSON(http.StatusCreated, response.Ok(gin.H{
 		"token": slock.Token,
 	}))
@@ -50,7 +52,7 @@ func NewLockController(ctx *gin.Context) {
 func DeleteLockController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail("empty key param."))
+		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
 		return
 	}
 

@@ -24,15 +24,14 @@ type LockService interface {
 }
 
 type LeaseLockService struct {
-	// 注意这把锁可能会永久不会删除，需要主动删除???
-	atomicLeaseLocks *sync.Map
+	// 锁是对象的一部分，而不是指向对象的资源
+	atomicLeaseLocks sync.Map
 	storage          *vfs.LogStructuredFS
 }
 
 func NewLockServiceImpl(storage *vfs.LogStructuredFS) LockService {
 	return &LeaseLockService{
-		atomicLeaseLocks: new(sync.Map),
-		storage:          storage,
+		storage: storage,
 	}
 }
 

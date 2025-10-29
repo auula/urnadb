@@ -722,7 +722,6 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 	}
 
 	instance := &LogStructuredFS{
-		mu:        sync.RWMutex{},
 		indexs:    make([]*indexMap, shard),
 		regions:   make(map[int64]*os.File, 10),
 		offset:    int64(len(dataFileMetadata)),
@@ -739,7 +738,6 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 
 	for i := 0; i < shard; i++ {
 		instance.indexs[i] = &indexMap{
-			mu:    sync.RWMutex{},
 			index: make(map[uint64]*inode, 1e6),
 		}
 	}
