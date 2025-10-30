@@ -103,6 +103,7 @@ func (s *TableLFSServiceImpl) RemoveRows(name string, condtitons map[string]any)
 
 	seg, err = vfs.AcquirePoolSegment(name, tab, ttl)
 	if err != nil {
+		clog.Errorf("tables service remove rows: %#v", err)
 		return err
 	}
 
@@ -119,6 +120,7 @@ func (s *TableLFSServiceImpl) CreateTable(name string, table *types.Table, ttl i
 
 	seg, err := vfs.AcquirePoolSegment(name, table, ttl)
 	if err != nil {
+		clog.Errorf("tables service create: %#v", err)
 		return err
 	}
 
@@ -160,6 +162,7 @@ func (s *TableLFSServiceImpl) InsertRows(name string, rows map[string]any) (uint
 
 	err = s.storage.PutSegment(name, seg)
 	if err != nil {
+		clog.Errorf("tables service insert rows: %#v", err)
 		return 0, err
 	}
 
