@@ -111,7 +111,7 @@ func PatchRowsTableController(ctx *gin.Context) {
 	}))
 }
 
-type RemoveRowsRequest struct {
+type RowsConditionsRequest struct {
 	Wheres map[string]any `json:"wheres" binding:"required"`
 }
 
@@ -122,7 +122,7 @@ func RemoveRowsTabelController(ctx *gin.Context) {
 		return
 	}
 
-	var req RemoveRowsRequest
+	var req RowsConditionsRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
 		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
@@ -144,7 +144,7 @@ type InsertRowsRequest struct {
 	Rows map[string]any `json:"rows" binding:"required"`
 }
 
-func InsertRowsTableControoler(ctx *gin.Context) {
+func InsertRowsTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
 		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
@@ -167,6 +167,31 @@ func InsertRowsTableControoler(ctx *gin.Context) {
 	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
 		"t_id":    id,
 		"message": "table rows insert successfully.",
+	}))
+}
+
+func QueryRowsTableController(ctx *gin.Context) {
+	name := ctx.Param("key")
+	if !utils.NotNullString(name) {
+		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		return
+	}
+
+	var req RowsConditionsRequest
+	err := ctx.ShouldBindJSON(&req)
+	if err != nil {
+		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		return
+	}
+
+	rows, err := ts.QueryRows(name, req.Wheres)
+	if err != nil {
+		handlerTablesError(ctx, err)
+		return
+	}
+
+	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+		"rows": rows,
 	}))
 }
 
