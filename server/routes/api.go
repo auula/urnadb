@@ -38,7 +38,7 @@ func SetupRoutes() *gin.Engine {
 	table := router.Group("/tables")
 	{
 		table.GET("/:key", controllers.GetTableController)
-		table.PUT("/:key", controllers.PutTableController)
+		table.PUT("/:key", controllers.CreateTableController)
 		table.DELETE("/:key", controllers.DeleteTableController)
 	}
 
@@ -57,30 +57,6 @@ func SetupRoutes() *gin.Engine {
 		records.PUT("/:key", controllers.PutRecordsController)
 		records.DELETE("/:key", controllers.DeleteRecordsController)
 	}
-
-	// // Set 路由
-	// set := router.Group("/sets")
-	// {
-	// 	set.GET("/:key", controllers.GetSetController)
-	// 	set.PUT("/:key", controllers.PutSetController)
-	// 	set.DELETE("/:key", controllers.DeleteSetController)
-	// }
-
-	// // ZSet 路由
-	// zset := router.Group("/zsets")
-	// {
-	// 	zset.GET("/:key", controllers.GetZsetController)
-	// 	zset.PUT("/:key", controllers.PutZsetController)
-	// 	zset.DELETE("/:key", controllers.DeleteZsetController)
-	// }
-
-	// // Collection 路由
-	// collection := router.Group("/collections")
-	// {
-	// 	collection.GET("/:key", controllers.GetCollectionController)
-	// 	collection.PUT("/:key", controllers.PutCollectionController)
-	// 	collection.DELETE("/:key", controllers.DeleteCollectionController)
-	// }
 
 	return router
 }

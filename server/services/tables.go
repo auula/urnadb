@@ -124,7 +124,7 @@ func (s *TableLFSServiceImpl) CreateTable(name string, table *types.Table, ttl i
 		return ErrTableCreateFailed
 	}
 
-	defer seg.ReleaseToPool()
+	defer utils.ReleaseToPool(table, seg)
 
 	return s.storage.PutSegment(name, seg)
 }

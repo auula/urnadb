@@ -34,15 +34,7 @@ func NewLockController(ctx *gin.Context) {
 
 	slock, err := ls.AcquireLock(name, req.TTLSeconds)
 	if err != nil {
-		if errors.Is(err, services.ErrInvalidToken) {
-			ctx.IndentedJSON(http.StatusForbidden, response.Fail(err.Error()))
-		} else if errors.Is(err, services.ErrLockNotFound) {
-			ctx.IndentedJSON(http.StatusNotFound, response.Fail(err.Error()))
-		} else if errors.Is(err, services.ErrAlreadyLocked) {
-			ctx.IndentedJSON(http.StatusLocked, response.Fail(err.Error()))
-		} else {
-			ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(err.Error()))
-		}
+		handlerLocksError(ctx, err)
 		return
 	}
 
@@ -69,15 +61,7 @@ func DeleteLockController(ctx *gin.Context) {
 
 	err = ls.ReleaseLock(name, req.Token)
 	if err != nil {
-		if errors.Is(err, services.ErrInvalidToken) {
-			ctx.IndentedJSON(http.StatusForbidden, response.Fail(err.Error()))
-		} else if errors.Is(err, services.ErrLockNotFound) {
-			ctx.IndentedJSON(http.StatusNotFound, response.Fail(err.Error()))
-		} else if errors.Is(err, services.ErrAlreadyLocked) {
-			ctx.IndentedJSON(http.StatusLocked, response.Fail(err.Error()))
-		} else {
-			ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(err.Error()))
-		}
+		handlerLocksError(ctx, err)
 		return
 	}
 
@@ -100,15 +84,7 @@ func DoLeaseLockController(ctx *gin.Context) {
 
 	slock, err := ls.DoLeaseLock(name, req.Token)
 	if err != nil {
-		if errors.Is(err, services.ErrInvalidToken) {
-			ctx.IndentedJSON(http.StatusForbidden, response.Fail(err.Error()))
-		} else if errors.Is(err, services.ErrLockNotFound) {
-			ctx.IndentedJSON(http.StatusNotFound, response.Fail(err.Error()))
-		} else if errors.Is(err, services.ErrAlreadyLocked) {
-			ctx.IndentedJSON(http.StatusLocked, response.Fail(err.Error()))
-		} else {
-			ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(err.Error()))
-		}
+		handlerLocksError(ctx, err)
 		return
 	}
 
@@ -117,4 +93,17 @@ func DoLeaseLockController(ctx *gin.Context) {
 	ctx.IndentedJSON(http.StatusCreated, response.Ok(gin.H{
 		"token": slock.Token,
 	}))
+}
+
+func handlerLocksError(ctx *gin.Context, err error) {
+	switch {
+	case errors.Is(err, services.ErrInvalidToken):
+		ctx.IndentedJSON(http.StatusForbidden, response.Fail(err.Error()))
+	case errors.Is(err, services.ErrLockNotFound):
+		ctx.IndentedJSON(http.StatusNotFound, response.Fail(err.Error()))
+	case errors.Is(err, services.ErrAlreadyLocked):
+		ctx.IndentedJSON(http.StatusLocked, response.Fail(err.Error()))
+	default:
+		ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(err.Error()))
+	}
 }
