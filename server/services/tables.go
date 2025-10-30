@@ -11,17 +11,11 @@ import (
 
 var (
 	// 操作过程中出现 Table 已经过期了
-	ErrTableExpired = errors.New("table ttl is invalid or expired.")
+	ErrTableExpired = errors.New("table ttl is invalid or expired")
 	// 表未找到
-	ErrTableNotFound = errors.New("table not found.")
-	// 创建表失败
-	ErrTableCreateFailed = errors.New("failed to create table.")
+	ErrTableNotFound = errors.New("table not found")
 	// 表已存在
-	ErrTableAlreadyExists = errors.New("table already exists.")
-	// 删除表失败
-	ErrTableDropFailed = errors.New("failed to delete table.")
-	// 更新表失败
-	ErrTableUpdateFailed = errors.New("failed to update table.")
+	ErrTableAlreadyExists = errors.New("table already exists")
 )
 
 type TableService interface {
@@ -70,7 +64,7 @@ func (t *TableLFSServiceImpl) DeleteTable(name string) error {
 	err := t.storage.DeleteSegment(name)
 	if err != nil {
 		t.acquireTablesLock(name).Unlock()
-		return ErrTableDropFailed
+		return err
 	}
 
 	t.acquireTablesLock(name).Unlock()
@@ -121,7 +115,7 @@ func (s *TableLFSServiceImpl) CreateTable(name string, table *types.Table, ttl i
 
 	seg, err := vfs.AcquirePoolSegment(name, table, ttl)
 	if err != nil {
-		return ErrTableCreateFailed
+		return err
 	}
 
 	defer utils.ReleaseToPool(table, seg)
@@ -177,7 +171,7 @@ func (s *TableLFSServiceImpl) PatchRows(name string, condttions, data map[string
 
 	tab, err := seg.ToTable()
 	if err != nil {
-		return ErrTableUpdateFailed
+		return err
 	}
 
 	defer utils.ReleaseToPool(tab, seg)

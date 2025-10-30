@@ -127,7 +127,7 @@ func (tab *Table) UpdateRows(wheres, data map[string]any) error {
 	if idVal, ok := wheres["t_id"]; ok {
 		id, ok := idVal.(uint32)
 		if !ok {
-			return errors.New("t_id must be unsigned 32-bit integer.")
+			return errors.New("t_id must be unsigned 32-bit integer")
 		}
 		if row, exists := tab.Table[id]; exists {
 			for k, v := range data {
@@ -135,7 +135,7 @@ func (tab *Table) UpdateRows(wheres, data map[string]any) error {
 			}
 			tab.Table[id] = row
 		} else {
-			return errors.New("t_id is invalid.")
+			return errors.New("t_id is invalid")
 		}
 	} else {
 		// 原来的遍历逻辑

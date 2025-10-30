@@ -204,7 +204,7 @@ func handlerTablesError(ctx *gin.Context, err error) {
 	case errors.Is(err, services.ErrTableExpired):
 		ctx.IndentedJSON(http.StatusGone, response.Fail(err.Error()))
 	default:
-		// 所有其他错误（包括 TableCreateFailed, TableDropFailed, TableUpdateFailed 等）都统一返回 500 内部服务器错误
+		// 所有其他错误都统一返回 500 内部服务器错误
 		ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(err.Error()))
 	}
 }
