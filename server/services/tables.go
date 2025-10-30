@@ -53,7 +53,7 @@ func (t *TableLFSServiceImpl) GetTable(name string) (*types.Table, error) {
 
 	_, seg, err := t.storage.FetchSegment(name)
 	if err != nil {
-		clog.Errorf("tables service get: %+v", err)
+		clog.Errorf("tables service get: %#v", err)
 		return nil, ErrTableNotFound
 	}
 
