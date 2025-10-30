@@ -80,7 +80,8 @@ func (tab *Table) RemoveRows(wheres map[string]any) {
 	for row_id, row := range tab.Table {
 		match := true
 		for key, value := range wheres {
-			if v, ok := row[key]; !ok || v != value {
+			// if v, ok := row[key]; !ok || v != value {
+			if v, ok := row[key]; !(ok && v == value) {
 				match = false
 				break
 			}
