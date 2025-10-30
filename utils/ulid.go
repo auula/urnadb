@@ -23,12 +23,12 @@ import (
 )
 
 var (
-	mu      sync.Mutex
+	atom    sync.Mutex
 	entropy = ulid.Monotonic(rand.Reader, 0)
 )
 
 func NewULID() string {
-	mu.Lock()
-	defer mu.Unlock()
+	atom.Lock()
+	defer atom.Unlock()
 	return ulid.MustNew(ulid.Timestamp(time.Now()), entropy).String()
 }

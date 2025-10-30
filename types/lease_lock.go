@@ -36,24 +36,25 @@ var leaseLockPools = sync.Pool{
 func init() {
 	// 预先填充池中的对象，把对象放入池中
 	for i := 0; i < 10; i++ {
-		leaseLockPools.Put(new(LeaseLock))
+		// 预先填充的 ulid 时间戳部分一定早于当前实时生成的
+		leaseLockPools.Put(NewLeaseLock())
 	}
 }
 
 // LeaseLock 定义了一个同步锁结构体
 type LeaseLock struct {
-	// LockID 是锁的唯一标识，解锁的时候客户端需要提供相同的 LockID 才能解锁，除非锁已经过期。
-	Token string `json:"lock_token" msgpack:"lock_token"`
+	// Token 是锁的唯一标识，解锁的时候客户端需要提供相同的 Token 才能解锁，除非锁已经过期。
+	Token string `json:"token" msgpack:"token"`
 }
 
-// NewLeaseLock 创建一个新的 LeaseLock 实例带有唯一的 LockID
+// NewLeaseLock 创建一个新的 LeaseLock 实例带有唯一的 Token
 func NewLeaseLock() *LeaseLock {
 	return &LeaseLock{
 		Token: utils.NewULID(),
 	}
 }
 
-// 从对象池获取一个 LeaseLock ，内存被复用但是锁 ID 不会被复用
+// 从对象池获取一个 LeaseLock ，内存被复用但是锁 Token 不会被复用
 func AcquireLeaseLock() *LeaseLock {
 	ll := leaseLockPools.Get().(*LeaseLock)
 	ll.Token = utils.NewULID()
