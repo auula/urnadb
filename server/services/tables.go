@@ -28,7 +28,7 @@ type TableService interface {
 	// 返回存储层所有的表
 	AllTables() []*types.Table
 	// 根据表名获取到这种表
-	QueryTable(name string) (*types.Table, error)
+	GetTable(name string) (*types.Table, error)
 	// 删除一张表名为 name 的表
 	DeleteTable(name string) error
 	// 删除一行记录，有条件的删除
@@ -52,7 +52,7 @@ func (t *TableLFSServiceImpl) AllTables() []*types.Table {
 	return nil
 }
 
-func (t *TableLFSServiceImpl) QueryTable(name string) (*types.Table, error) {
+func (t *TableLFSServiceImpl) GetTable(name string) (*types.Table, error) {
 	t.acquireTablesLock(name).RLock()
 	defer t.acquireTablesLock(name).RUnlock()
 

@@ -41,7 +41,7 @@ func CreateTableController(ctx *gin.Context) {
 	}
 
 	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"message": "table created successful.",
+		"message": "table created successfully.",
 	}))
 }
 
@@ -59,7 +59,7 @@ func DeleteTableController(ctx *gin.Context) {
 	}
 
 	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"message": "table deleted successful.",
+		"message": "table deleted successfully.",
 	}))
 }
 
