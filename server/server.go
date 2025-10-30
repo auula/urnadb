@@ -39,16 +39,16 @@ var (
 	storage *vfs.LogStructuredFS
 )
 
-type serverState int32
+type state int32
 
 const (
 	minPort = uint16(1024)
 	maxPort = uint16(1<<16 - 1)
 	timeout = time.Second * 3
 
-	stateIdle serverState = iota
-	stateRunning
-	stateStopping
+	idle state = iota
+	running
+	stopping
 )
 
 func init() {
@@ -120,7 +120,7 @@ func New(opt *Options) (*HttpServer, error) {
 		port: opt.Port,
 	}
 
-	hs.state.Store(int32(stateIdle))
+	hs.state.Store(int32(idle))
 
 	// 开启 HTTP Keep-Alive 长连接
 	hs.serv.SetKeepAlivesEnabled(true)
@@ -153,7 +153,7 @@ func (hs *HttpServer) IPv4() string {
 // Startup blocking goroutine
 func (hs *HttpServer) Startup() error {
 	// 防止重复启动
-	if !hs.state.CompareAndSwap(int32(stateIdle), int32(stateRunning)) {
+	if !hs.state.CompareAndSwap(int32(idle), int32(running)) {
 		return fmt.Errorf("server already started and running")
 	}
 
@@ -177,12 +177,12 @@ func (hs *HttpServer) Startup() error {
 
 func (hs *HttpServer) Shutdown() error {
 	// 使用原子操作防止重复关闭，已经停止或者正在停止
-	if !hs.state.CompareAndSwap(int32(stateRunning), int32(stateStopping)) {
+	if !hs.state.CompareAndSwap(int32(running), int32(stopping)) {
 		return nil
 	}
 
 	// 确保最后状态被重置
-	defer hs.state.Store(int32(stateIdle))
+	defer hs.state.Store(int32(idle))
 
 	// 先关闭 http 服务器停止接受数据请求
 	err := hs.serv.Shutdown(context.Background())
