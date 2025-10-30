@@ -140,6 +140,36 @@ func RemoveRowsTabelController(ctx *gin.Context) {
 	}))
 }
 
+type InsertRowsRequest struct {
+	Rows map[string]any `json:"rows" binding:"required"`
+}
+
+func InsertRowsTableControoler(ctx *gin.Context) {
+	name := ctx.Param("key")
+	if !utils.NotNullString(name) {
+		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		return
+	}
+
+	var req InsertRowsRequest
+	err := ctx.ShouldBindJSON(req)
+	if err != nil {
+		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		return
+	}
+
+	id, err := ts.InsertRows(name, req.Rows)
+	if err != nil {
+		handlerTablesError(ctx, err)
+		return
+	}
+
+	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+		"t_id":    id,
+		"message": "table rows insert successfully.",
+	}))
+}
+
 func handlerTablesError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, services.ErrTableAlreadyExists):
