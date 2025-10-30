@@ -111,6 +111,35 @@ func PatchRowsTableController(ctx *gin.Context) {
 	}))
 }
 
+type RemoveRowsRequest struct {
+	Wheres map[string]any `json:"wheres" binding:"required"`
+}
+
+func RemoveRowsTabelController(ctx *gin.Context) {
+	name := ctx.Param("key")
+	if !utils.NotNullString(name) {
+		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		return
+	}
+
+	var req RemoveRowsRequest
+	err := ctx.ShouldBindJSON(req)
+	if err != nil {
+		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		return
+	}
+
+	err = ts.RemoveRows(name, req.Wheres)
+	if err != nil {
+		handlerTablesError(ctx, err)
+		return
+	}
+
+	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+		"message": "table rows remove successfully.",
+	}))
+}
+
 func handlerTablesError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, services.ErrTableAlreadyExists):
