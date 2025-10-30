@@ -37,8 +37,9 @@ func SetupRoutes() *gin.Engine {
 	// Table 路由
 	table := router.Group("/tables")
 	{
-		table.GET("/:key", controllers.GetTableController)
+		table.GET("/:key", controllers.QueryTableController)
 		table.PUT("/:key", controllers.CreateTableController)
+		table.POST("/:key", controllers.UpdateTableController)
 		table.DELETE("/:key", controllers.DeleteTableController)
 	}
 

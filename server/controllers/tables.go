@@ -11,22 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func GetTableController(ctx *gin.Context) {
-	tab, err := ts.QueryTable(ctx.Param("key"))
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	defer tab.ReleaseToPool()
-
-	ctx.IndentedJSON(http.StatusOK, gin.H{
-		"table": tab.Table,
-	})
-}
-
 type CreateTableRequest struct {
 	TTLSeconds int64 `json:"ttl"`
 }
@@ -56,11 +40,75 @@ func CreateTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, nil)
+	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+		"message": "table created successful.",
+	}))
 }
 
 func DeleteTableController(ctx *gin.Context) {
+	name := ctx.Param("key")
+	if !utils.NotNullString(name) {
+		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		return
+	}
 
+	err := ts.DeleteTable(name)
+	if err != nil {
+		handlerTablesError(ctx, err)
+		return
+	}
+
+	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+		"message": "table deleted successful.",
+	}))
+}
+
+func QueryTableController(ctx *gin.Context) {
+	name := ctx.Param("key")
+	if !utils.NotNullString(name) {
+		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		return
+	}
+
+	tab, err := ts.GetTable(name)
+	if err != nil {
+		handlerTablesError(ctx, err)
+		return
+	}
+
+	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+		"table": tab,
+	}))
+}
+
+type PatchRowsRequest struct {
+	Wheres map[string]any `json:"wheres"`
+	Sets   map[string]any `json:"sets"`
+}
+
+func UpdateTableController(ctx *gin.Context) {
+	name := ctx.Param("key")
+	if !utils.NotNullString(name) {
+		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		return
+	}
+
+	var req PatchRowsRequest
+	err := ctx.ShouldBindJSON(&req)
+	if err != nil {
+		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		return
+	}
+
+	err = ts.PatchRows(name, req.Wheres, req.Sets)
+	if err != nil {
+		handlerTablesError(ctx, err)
+		return
+	}
+
+	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+		"message": "table rows updated successfully.",
+	}))
 }
 
 func handlerTablesError(ctx *gin.Context, err error) {
