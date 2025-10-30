@@ -123,7 +123,7 @@ func RemoveRowsTabelController(ctx *gin.Context) {
 	}
 
 	var req RemoveRowsRequest
-	err := ctx.ShouldBindJSON(req)
+	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
 		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
 		return
@@ -152,7 +152,7 @@ func InsertRowsTableControoler(ctx *gin.Context) {
 	}
 
 	var req InsertRowsRequest
-	err := ctx.ShouldBindJSON(req)
+	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
 		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
 		return
