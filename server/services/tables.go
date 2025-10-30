@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/auula/urnadb/clog"
 	"github.com/auula/urnadb/types"
 	"github.com/auula/urnadb/utils"
 	"github.com/auula/urnadb/vfs"
@@ -52,6 +53,7 @@ func (t *TableLFSServiceImpl) GetTable(name string) (*types.Table, error) {
 
 	_, seg, err := t.storage.FetchSegment(name)
 	if err != nil {
+		clog.Errorf("tables service get: %+v", err)
 		return nil, ErrTableNotFound
 	}
 
@@ -64,6 +66,7 @@ func (t *TableLFSServiceImpl) DeleteTable(name string) error {
 	err := t.storage.DeleteSegment(name)
 	if err != nil {
 		t.acquireTablesLock(name).Unlock()
+		clog.Errorf("tables service delete: %#v", err)
 		return err
 	}
 
@@ -84,6 +87,7 @@ func (s *TableLFSServiceImpl) RemoveRows(name string, condtitons map[string]any)
 
 	tab, err := seg.ToTable()
 	if err != nil {
+		clog.Errorf("tables service remove rows: %#v", err)
 		return err
 	}
 
@@ -134,6 +138,7 @@ func (s *TableLFSServiceImpl) InsertRows(name string, rows map[string]any) (uint
 
 	tab, err := seg.ToTable()
 	if err != nil {
+		clog.Errorf("tables service insert rows: %#v", err)
 		return 0, err
 	}
 
@@ -149,6 +154,7 @@ func (s *TableLFSServiceImpl) InsertRows(name string, rows map[string]any) (uint
 
 	seg, err = vfs.AcquirePoolSegment(name, tab, ttl)
 	if err != nil {
+		clog.Errorf("tables service insert rows: %#v", err)
 		return 0, err
 	}
 
@@ -171,6 +177,7 @@ func (s *TableLFSServiceImpl) PatchRows(name string, condttions, data map[string
 
 	tab, err := seg.ToTable()
 	if err != nil {
+		clog.Errorf("tables service patch rows: %#v", err)
 		return err
 	}
 
@@ -189,6 +196,7 @@ func (s *TableLFSServiceImpl) PatchRows(name string, condttions, data map[string
 
 	seg, err = vfs.AcquirePoolSegment(name, tab, ttl)
 	if err != nil {
+		clog.Errorf("tables service patch rows: %#v", err)
 		return err
 	}
 
@@ -201,11 +209,13 @@ func (s *TableLFSServiceImpl) QueryRows(name string, wheres map[string]any) ([]m
 
 	_, seg, err := s.storage.FetchSegment(name)
 	if err != nil {
-		return nil, nil
+		clog.Errorf("tables service query rows: %#v", err)
+		return nil, err
 	}
 
 	tab, err := seg.ToTable()
 	if err != nil {
+		clog.Errorf("tables service query rows: %#v", err)
 		return nil, err
 	}
 
