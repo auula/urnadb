@@ -169,22 +169,28 @@ func TestVFSWrite(t *testing.T) {
 	data := `
 {
   "table": {
-    "is_valid": false,
-    "items": [
-      {
-        "id": 1,
-        "name": "Item 1"
+    "1": {
+      "active": true,
+      "age": 25,
+      "name": "Alice",
+      "score": 95.5,
+      "tags": [
+        "admin",
+        "user"
+      ]
+    },
+    "2": {
+      "active": false,
+      "age": 30,
+      "config": {
+        "font": 14,
+        "theme": "dark"
       },
-      {
-        "id": 2,
-        "name": "Item 2"
-      }
-    ],
-    "meta": {
-      "version": "2.0",
-      "author": "Leon Ding"
-    }
-  }
+      "name": "Bob"
+    },
+    "3": {}
+  },
+  "t_id": 4
 }
 `
 
@@ -225,22 +231,28 @@ func BenchmarkVFSWrite(b *testing.B) {
 	data := `
 {
   "table": {
-    "is_valid": false,
-    "items": [
-      {
-        "id": 1,
-        "name": "Item 1"
+    "1": {
+      "active": true,
+      "age": 25,
+      "name": "Alice",
+      "score": 95.5,
+      "tags": [
+        "admin",
+        "user"
+      ]
+    },
+    "2": {
+      "active": false,
+      "age": 30,
+      "config": {
+        "font": 14,
+        "theme": "dark"
       },
-      {
-        "id": 2,
-        "name": "Item 2"
-      }
-    ],
-    "meta": {
-      "version": "2.0",
-      "author": "Leon Ding"
-    }
-  }
+      "name": "Bob"
+    },
+    "3": {}
+  },
+  "t_id": 4
 }
 `
 	tables := types.AcquireTable()
@@ -309,22 +321,28 @@ func TestUpdateSegmentWithCAS_Concurrent(t *testing.T) {
 	data := `
 {
   "table": {
-    "is_valid": false,
-    "items": [
-      {
-        "id": 1,
-        "name": "Item 1"
+    "1": {
+      "active": true,
+      "age": 25,
+      "name": "Alice",
+      "score": 95.5,
+      "tags": [
+        "admin",
+        "user"
+      ]
+    },
+    "2": {
+      "active": false,
+      "age": 30,
+      "config": {
+        "font": 14,
+        "theme": "dark"
       },
-      {
-        "id": 2,
-        "name": "Item 2"
-      }
-    ],
-    "meta": {
-      "version": "2.0",
-      "author": "Leon Ding"
-    }
-  }
+      "name": "Bob"
+    },
+    "3": {}
+  },
+  "t_id": 4
 }
 `
 	var tables types.Table
@@ -477,22 +495,28 @@ func TestVFSOpertions(t *testing.T) {
 	data := `
 {
   "table": {
-    "is_valid": false,
-    "items": [
-      {
-        "id": 1,
-        "name": "Item 1"
+    "1": {
+      "active": true,
+      "age": 25,
+      "name": "Alice",
+      "score": 95.5,
+      "tags": [
+        "admin",
+        "user"
+      ]
+    },
+    "2": {
+      "active": false,
+      "age": 30,
+      "config": {
+        "font": 14,
+        "theme": "dark"
       },
-      {
-        "id": 2,
-        "name": "Item 2"
-      }
-    ],
-    "meta": {
-      "version": "2.0",
-      "author": "Leon Ding"
-    }
-  }
+      "name": "Bob"
+    },
+    "3": {}
+  },
+  "t_id": 4
 }
 `
 

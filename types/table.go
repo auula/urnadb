@@ -76,8 +76,20 @@ func (tab *Table) AddRows(rows map[string]any) uint32 {
 }
 
 // 从 Table 中删除一个项
-func (tab *Table) RemoveRows(id uint32) {
-	delete(tab.Table, id)
+func (tab *Table) RemoveRows(wheres map[string]any) {
+	for row_id, row := range tab.Table {
+		match := true
+		for key, value := range wheres {
+			if v, ok := row[key]; !ok || v != value {
+				match = false
+				break
+			}
+		}
+
+		if match {
+			delete(tab.Table, row_id)
+		}
+	}
 }
 
 // 从 Table 中获取一个项

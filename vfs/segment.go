@@ -29,25 +29,21 @@ type kind int8
 const (
 	set kind = iota
 	zset
-	text
 	table
 	number
 	unknown
 	leaselock
-	collection
 )
 
 const ImmortalTTL = -1
 
 var kindToString = map[kind]string{
-	set:        "set",
-	zset:       "zset",
-	text:       "text",
-	table:      "table",
-	number:     "number",
-	unknown:    "unknown",
-	leaselock:  "leaselock",
-	collection: "collection",
+	set:       "set",
+	zset:      "zset",
+	table:     "table",
+	number:    "number",
+	unknown:   "unknown",
+	leaselock: "leaselock",
 }
 
 // | DEL 1 | KIND 1 | EAT 8 | CAT 8 | KLEN 4 | VLEN 4 | KEY ? | VALUE ? | CRC32 4 |
@@ -227,32 +223,6 @@ func (s *Segment) ToZSet() (*types.ZSet, error) {
 	return zset, nil
 }
 
-func (s *Segment) ToText() (*types.Text, error) {
-	if s.Type != text {
-		return nil, fmt.Errorf("not support conversion to text type")
-	}
-	text := types.AcquireText()
-	err := msgpack.Unmarshal(s.Value, &text.Content)
-	if err != nil {
-		text.ReleaseToPool()
-		return nil, err
-	}
-	return text, nil
-}
-
-func (s *Segment) ToCollection() (*types.Collection, error) {
-	if s.Type != collection {
-		return nil, fmt.Errorf("not support conversion to collection type")
-	}
-	collection := types.AcquireCollection()
-	err := msgpack.Unmarshal(s.Value, &collection.Collection)
-	if err != nil {
-		collection.ReleaseToPool()
-		return nil, err
-	}
-	return collection, nil
-}
-
 func (s *Segment) ToTable() (*types.Table, error) {
 	if s.Type != table {
 		return nil, fmt.Errorf("not support conversion to table type")
@@ -316,16 +286,12 @@ func toKind(data Serializable) kind {
 		return set
 	case *types.ZSet:
 		return zset
-	case *types.Text:
-		return text
 	case *types.Table:
 		return table
 	case *types.Number:
 		return number
 	case *types.LeaseLock:
 		return leaselock
-	case *types.Collection:
-		return collection
 	}
 	return unknown
 }
@@ -350,12 +316,6 @@ func (s *Segment) ToJSON() ([]byte, error) {
 			return nil, err
 		}
 		return zset.ToJSON()
-	case text:
-		text, err := s.ToText()
-		if err != nil {
-			return nil, err
-		}
-		return text.ToJSON()
 	case number:
 		num, err := s.ToNumber()
 		if err != nil {
@@ -368,12 +328,6 @@ func (s *Segment) ToJSON() ([]byte, error) {
 			return nil, err
 		}
 		return tab.ToJSON()
-	case collection:
-		collection, err := s.ToCollection()
-		if err != nil {
-			return nil, err
-		}
-		return collection.ToJSON()
 	case leaselock:
 		leaseLock, err := s.ToLeaseLock()
 		if err != nil {

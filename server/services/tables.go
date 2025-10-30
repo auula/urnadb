@@ -31,8 +31,8 @@ type TableService interface {
 	QueryTable(name string) (*types.Table, error)
 	// 删除一张表名为 name 的表
 	DeleteTable(name string) error
-	// 删除一张表名为 name 的表的某个字段
-	RemoveColumn(name string, column string) error
+	// 删除一行记录，有条件的删除
+	RemoveRows(name string, condtitons map[string]any) error
 	// 创建一张表名为 name 的表
 	CreateTable(name string, table *types.Table, ttl int64) error
 	// 更新表中的某个记录，有条件的更新
@@ -40,7 +40,7 @@ type TableService interface {
 	// 插入一行数据到一张表里面
 	InsertRows(name string, rows map[string]any) (uint32, error)
 	// 根据表名和子查询条件搜索表
-	SelectTableRows(name string, wheres map[string]any) ([]map[string]any, error)
+	QueryRows(name string, wheres map[string]any) ([]map[string]any, error)
 }
 
 type TableLFSServiceImpl struct {
@@ -79,8 +79,36 @@ func (t *TableLFSServiceImpl) DeleteTable(name string) error {
 	return nil
 }
 
-func (s *TableLFSServiceImpl) RemoveColumn(tableName string, column string) error {
-	return nil
+func (s *TableLFSServiceImpl) RemoveRows(name string, condtitons map[string]any) error {
+	s.acquireTablesLock(name).Lock()
+	defer s.acquireTablesLock(name).Unlock()
+
+	_, seg, err := s.storage.FetchSegment(name)
+	if err != nil {
+		return err
+	}
+
+	tab, err := seg.ToTable()
+	if err != nil {
+		return err
+	}
+
+	defer utils.ReleaseToPool(tab, seg)
+
+	// 从表里面删除一条记录
+	tab.RemoveRows(condtitons)
+
+	ttl, ok := seg.ExpiresIn()
+	if !ok {
+		return ErrTableExpired
+	}
+
+	seg, err = vfs.AcquirePoolSegment(name, tab, ttl)
+	if err != nil {
+		return err
+	}
+
+	return s.storage.PutSegment(name, seg)
 }
 
 func (s *TableLFSServiceImpl) CreateTable(name string, table *types.Table, ttl int64) error {
@@ -122,7 +150,7 @@ func (s *TableLFSServiceImpl) InsertRows(name string, rows map[string]any) (uint
 
 	ttl, ok := seg.ExpiresIn()
 	if !ok {
-		return 0, err
+		return 0, ErrTableExpired
 	}
 
 	seg, err = vfs.AcquirePoolSegment(name, tab, ttl)
@@ -138,7 +166,7 @@ func (s *TableLFSServiceImpl) InsertRows(name string, rows map[string]any) (uint
 	return id, nil
 }
 
-func (s *TableLFSServiceImpl) PatchRows(name string, wheres, data map[string]any) error {
+func (s *TableLFSServiceImpl) PatchRows(name string, condttions, data map[string]any) error {
 	s.acquireTablesLock(name).Lock()
 	defer s.acquireTablesLock(name).Unlock()
 
@@ -155,7 +183,7 @@ func (s *TableLFSServiceImpl) PatchRows(name string, wheres, data map[string]any
 	defer utils.ReleaseToPool(tab, seg)
 
 	// 根据条件来更新，可以是基于默认的 t_id 和类似于 SQL 条件的
-	err = tab.UpdateRows(wheres, data)
+	err = tab.UpdateRows(condttions, data)
 	if err != nil {
 		return err
 	}
@@ -173,7 +201,7 @@ func (s *TableLFSServiceImpl) PatchRows(name string, wheres, data map[string]any
 	return s.storage.PutSegment(name, seg)
 }
 
-func (s *TableLFSServiceImpl) SelectTableRows(name string, wheres map[string]any) ([]map[string]any, error) {
+func (s *TableLFSServiceImpl) QueryRows(name string, wheres map[string]any) ([]map[string]any, error) {
 	s.acquireTablesLock(name).RLock()
 	defer s.acquireTablesLock(name).RUnlock()
 
@@ -184,7 +212,7 @@ func (s *TableLFSServiceImpl) SelectTableRows(name string, wheres map[string]any
 
 	tab, err := seg.ToTable()
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	defer utils.ReleaseToPool(tab, seg)

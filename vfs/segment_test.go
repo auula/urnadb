@@ -125,40 +125,6 @@ func TestToZSet(t *testing.T) {
 	assert.Equal(t, zsetData.ZSet, result.ZSet)
 }
 
-// TestToText 测试 ToText 方法
-func TestToText(t *testing.T) {
-	// 创建 Text 数据
-	textData := types.Text{
-		Content: "Hello, World!",
-	}
-
-	segment, err := NewSegment("test-key-01", &textData, 0)
-	assert.NoError(t, err)
-
-	// 测试 ToText 方法
-	result, err := segment.ToText()
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, textData.Content, result.Content)
-}
-
-// TestToList 测试 ToList 方法
-func TestToList(t *testing.T) {
-	// 创建 List 数据
-	listData := types.Collection{
-		Collection: []any{"item1", "item2", int8(123)},
-	}
-
-	segment, err := NewSegment("test-key-01", &listData, 0)
-	assert.NoError(t, err)
-
-	// 测试 ToList 方法
-	result, err := segment.ToCollection()
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, listData.Collection, result.Collection)
-}
-
 // TestToTable 测试 ToTable 方法
 func TestToTable(t *testing.T) {
 	// 创建 Tables 数据
