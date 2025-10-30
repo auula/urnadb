@@ -12,7 +12,7 @@ import (
 )
 
 type CreateTableRequest struct {
-	TTLSeconds int64 `json:"ttl"`
+	TTLSeconds int64 `json:"ttl" binding:"omitempty"`
 }
 
 func CreateTableController(ctx *gin.Context) {
@@ -82,11 +82,11 @@ func QueryTableController(ctx *gin.Context) {
 }
 
 type PatchRowsRequest struct {
-	Wheres map[string]any `json:"wheres"`
-	Sets   map[string]any `json:"sets"`
+	Wheres map[string]any `json:"wheres" binding:"required"`
+	Sets   map[string]any `json:"sets" binding:"required"`
 }
 
-func UpdateTableController(ctx *gin.Context) {
+func PatchRowsTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
 		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
