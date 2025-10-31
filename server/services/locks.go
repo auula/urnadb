@@ -17,7 +17,7 @@ var (
 	ErrInvalidToken  = errors.New("invalid lock token")
 )
 
-type LockService interface {
+type LocksService interface {
 	ReleaseLock(name string, token string) error
 	AcquireLock(name string, ttl int64) (lock *types.LeaseLock, err error)
 	DoLeaseLock(name string, token string) (lock *types.LeaseLock, err error)
@@ -29,7 +29,7 @@ type LeaseLockService struct {
 	storage          *vfs.LogStructuredFS
 }
 
-func NewLockServiceImpl(storage *vfs.LogStructuredFS) LockService {
+func NewLocksServiceImpl(storage *vfs.LogStructuredFS) LocksService {
 	return &LeaseLockService{
 		storage: storage,
 	}
