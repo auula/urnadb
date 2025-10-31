@@ -7,14 +7,14 @@ import (
 )
 
 var (
-	ts services.TableService
+	ts services.TablesService
 	qs services.QueryService
 	ls services.LockService
 	hs *services.HealthService
 )
 
 var (
-	missingKeyParam = response.Fail("missing key in request path.")
+	missingKeyParam = response.Fail("missing key in request path")
 )
 
 func InitAllComponents(storage *vfs.LogStructuredFS) error {
