@@ -69,3 +69,9 @@ func (rs *RecordsServiceImpl) SearchRows(name string, column string) (map[string
 
 	return nil, nil
 }
+
+func NewRecordsService(storage *vfs.LogStructuredFS) RecordsService {
+	return &RecordsServiceImpl{
+		storage: storage,
+	}
+}
