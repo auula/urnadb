@@ -529,11 +529,11 @@ func (lfs *LogStructuredFS) scanAndRecoverIndexs() error {
 	return crashRecoveryAllIndex(lfs.regions, lfs.indexs)
 }
 
-func (lfs *LogStructuredFS) SetCompressor(compressor Compressor) {
+func (*LogStructuredFS) SetCompressor(compressor Compressor) {
 	transformer.SetCompressor(compressor)
 }
 
-func (lfs *LogStructuredFS) SetEncryptor(encryptor Encryptor, secret []byte) error {
+func (*LogStructuredFS) SetEncryptor(encryptor Encryptor, secret []byte) error {
 	return transformer.SetEncryptor(encryptor, secret)
 }
 

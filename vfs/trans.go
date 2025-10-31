@@ -152,20 +152,20 @@ func (t *Transformer) Decode(data []byte) ([]byte, error) {
 
 type Snappy struct{}
 
-func (s *Snappy) Compress(data []byte) ([]byte, error) {
+func (*Snappy) Compress(data []byte) ([]byte, error) {
 	// Snappy 压缩数据
 	compressed := snappy.Encode(nil, data)
 	return compressed, nil
 }
 
-func (s *Snappy) Decompress(data []byte) ([]byte, error) {
+func (*Snappy) Decompress(data []byte) ([]byte, error) {
 	// Snappy 解压数据
 	return snappy.Decode(nil, data)
 }
 
 type Cryptor struct{}
 
-func (c *Cryptor) Encrypt(secret, plaintext []byte) ([]byte, error) {
+func (*Cryptor) Encrypt(secret, plaintext []byte) ([]byte, error) {
 	// Create AES cipher block
 	block, err := aes.NewCipher(secret)
 	if err != nil {
@@ -193,7 +193,7 @@ func (c *Cryptor) Encrypt(secret, plaintext []byte) ([]byte, error) {
 	return append(iv, ciphertext...), nil
 }
 
-func (c *Cryptor) Decrypt(secret, ciphertext []byte) ([]byte, error) {
+func (*Cryptor) Decrypt(secret, ciphertext []byte) ([]byte, error) {
 	// Create AES cipher block
 	block, err := aes.NewCipher(secret)
 	if err != nil {
