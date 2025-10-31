@@ -1,6 +1,12 @@
 version = 1
 
 [[analyzers]]
+name = "test-coverage"
+
+[[analyzers]]
+name = "secrets"
+
+[[analyzers]]
 name = "shell"
 
 [[analyzers]]
@@ -8,3 +14,6 @@ name = "go"
 
   [analyzers.meta]
   import_root = "github.com/auula/urnadb"
+
+[[transformers]]
+name = "gofmt"
