@@ -1,17 +1,12 @@
-ignore:
-  - urnadb.go
-  - (?s:example/[^\/]+\.go.*)\Z
-  - ^doc.go.*
-  - (?s:[^\/]+_test\.go.*)\Z
-  - cmd/
-  - server/
-
-
 coverage:
   status:
     project:
       default:
-        target: 50%
-        threshold: 5%
-      vfs:
-        target: 20% 
+        target: 60%
+        threshold: 10%
+        # 排除不需要检查的目录
+        flags:
+          - ignore-paths
+        ignore:
+          - "cmd/"
+          - "server/"
