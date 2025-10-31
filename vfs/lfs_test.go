@@ -436,8 +436,7 @@ func TestConcurrentPutAndFetchSegment(t *testing.T) {
 			// 创建 segment
 			k := fmt.Sprintf("key-%d", id)
 
-			record := types.NewRecord()
-			record.AddRecord("id", int64(id))
+			record := types.NewVariant(int16(id))
 
 			segment, err := NewSegment(k, record, 0)
 			if err != nil {
@@ -469,12 +468,12 @@ func TestConcurrentPutAndFetchSegment(t *testing.T) {
 			}
 
 			// 转换为 record 并验证
-			record, err := seg.ToRecord()
+			record, err := seg.ToVariant()
 			if err != nil {
 				t.Errorf("failed to convert segment to record for key %s \t %v", k, err)
 			}
 
-			t.Logf("K:%s\tV:%v", k, record.Size())
+			t.Logf("K:%s\tV:%v", k, record.Value.(int16))
 		}(i)
 	}
 

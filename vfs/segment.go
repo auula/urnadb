@@ -32,6 +32,7 @@ const (
 	table
 	record
 	unknown
+	variant
 	leaselock
 )
 
@@ -41,6 +42,7 @@ var kindToString = map[kind]string{
 	set:       "set",
 	zset:      "zset",
 	table:     "table",
+	variant:   "variant",
 	record:    "record",
 	unknown:   "unknown",
 	leaselock: "leaselock",
@@ -197,17 +199,36 @@ func (s *Segment) Size() int32 {
 	return _SEGMENT_PADDING + s.KeySize + s.ValueSize + 4
 }
 
+func (s *Segment) ToVariant() (*types.Variant, error) {
+	if s.Type != variant {
+		return nil, fmt.Errorf("not support conversion to variant type")
+	}
+
+	decodedData, err := transformer.Decode(s.Value)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode segment value: %w", err)
+	}
+
+	variant := types.AcquireVariant()
+	err = msgpack.Unmarshal(decodedData, &variant.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	return variant, nil
+}
+
 func (s *Segment) ToRecord() (*types.Record, error) {
 	if s.Type != record {
 		return nil, fmt.Errorf("not support conversion to record type")
 	}
-	
+
 	// 先通过 transformer 解码
 	decodedData, err := transformer.Decode(s.Value)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode segment value: %w", err)
 	}
-	
+
 	record := types.AcquireRecord()
 	err = msgpack.Unmarshal(decodedData, &record.Record)
 	if err != nil {
@@ -221,13 +242,13 @@ func (s *Segment) ToTable() (*types.Table, error) {
 	if s.Type != table {
 		return nil, fmt.Errorf("not support conversion to table type")
 	}
-	
+
 	// 先通过 transformer 解码
 	decodedData, err := transformer.Decode(s.Value)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode segment value: %w", err)
 	}
-	
+
 	table := types.AcquireTable()
 	err = msgpack.Unmarshal(decodedData, table)
 	if err != nil {
@@ -241,13 +262,13 @@ func (s *Segment) ToLeaseLock() (*types.LeaseLock, error) {
 	if s.Type != leaselock {
 		return nil, fmt.Errorf("not support conversion to lease lock type")
 	}
-	
+
 	// 先通过 transformer 解码
 	decodedData, err := transformer.Decode(s.Value)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode segment value: %w", err)
 	}
-	
+
 	leaseLock := types.AcquireLeaseLock()
 	err = msgpack.Unmarshal(decodedData, &leaseLock.Token)
 	if err != nil {
@@ -283,6 +304,8 @@ func toKind(data Serializable) kind {
 		return record
 	case *types.LeaseLock:
 		return leaselock
+	case *types.Variant:
+		return variant
 	}
 	return unknown
 }
@@ -308,6 +331,12 @@ func (s *Segment) ToJSON() ([]byte, error) {
 			return nil, err
 		}
 		return tab.ToJSON()
+	case variant:
+		variants, err := s.ToVariant()
+		if err != nil {
+			return nil, err
+		}
+		return variants.ToJSON()
 	case leaselock:
 		leaseLock, err := s.ToLeaseLock()
 		if err != nil {
