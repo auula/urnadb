@@ -169,7 +169,7 @@ func (s *TablesServiceImpl) InsertRows(name string, rows map[string]any) (uint32
 	return id, nil
 }
 
-func (s *TablesServiceImpl) PatchRows(name string, condttions, data map[string]any) error {
+func (s *TablesServiceImpl) PatchRows(name string, conditions, data map[string]any) error {
 	s.acquireTablesLock(name).Lock()
 	defer s.acquireTablesLock(name).Unlock()
 
@@ -187,7 +187,7 @@ func (s *TablesServiceImpl) PatchRows(name string, condttions, data map[string]a
 	defer utils.ReleaseToPool(tab, seg)
 
 	// 根据条件来更新，可以是基于默认的 t_id 和类似于 SQL 条件的
-	err = tab.UpdateRows(condttions, data)
+	err = tab.UpdateRows(conditions, data)
 	if err != nil {
 		clog.Errorf("Tables service patch rows: %#v", err)
 		return err
