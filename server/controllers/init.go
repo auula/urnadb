@@ -9,7 +9,8 @@ import (
 var (
 	ts services.TablesService
 	qs services.QueryService
-	ls services.LockService
+	ls services.LocksService
+	rs services.RecordsService
 	hs *services.HealthService
 )
 
@@ -19,8 +20,9 @@ var (
 
 func InitAllComponents(storage *vfs.LogStructuredFS) error {
 	hs = services.NewHealthService(storage)
-	ls = services.NewLockServiceImpl(storage)
+	rs = services.NewRecordsService(storage)
+	ls = services.NewLocksServiceImpl(storage)
 	qs = services.NewQueryServiceImpl(storage)
-	ts = services.NewTableLFSServiceImpl(storage)
+	ts = services.NewTablesServiceImpl(storage)
 	return nil
 }
