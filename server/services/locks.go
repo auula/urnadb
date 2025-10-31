@@ -51,7 +51,7 @@ func (s *LeaseLockService) ReleaseLock(name string, token string) error {
 	_, seg, err := s.storage.FetchSegment(name)
 	if err != nil {
 		s.acquireLeaseLock(name).Unlock()
-		clog.Errorf("locks service release lock: %#v", err)
+		clog.Errorf("Locks service release lock: %#v", err)
 		return err
 	}
 
@@ -59,7 +59,7 @@ func (s *LeaseLockService) ReleaseLock(name string, token string) error {
 	if err != nil {
 		seg.ReleaseToPool()
 		s.acquireLeaseLock(name).Unlock()
-		clog.Errorf("locks service release lock: %#v", err)
+		clog.Errorf("Locks service release lock: %#v", err)
 		return err
 	}
 
@@ -73,7 +73,7 @@ func (s *LeaseLockService) ReleaseLock(name string, token string) error {
 	err = s.storage.DeleteSegment(name)
 	if err != nil {
 		s.acquireLeaseLock(name).Unlock()
-		clog.Errorf("locks service release lock: %#v", err)
+		clog.Errorf("Locks service release lock: %#v", err)
 		return err
 	}
 
@@ -97,7 +97,7 @@ func (s *LeaseLockService) AcquireLock(name string, ttl int64) (*types.LeaseLock
 	seg, err := vfs.AcquirePoolSegment(name, lease, ttl)
 	if err != nil {
 		utils.ReleaseToPool(lease)
-		clog.Errorf("locks service acquire lock: %#v", err)
+		clog.Errorf("Locks service acquire lock: %#v", err)
 		return nil, err
 	}
 
@@ -105,7 +105,7 @@ func (s *LeaseLockService) AcquireLock(name string, ttl int64) (*types.LeaseLock
 	err = s.storage.PutSegment(name, seg)
 	if err != nil {
 		utils.ReleaseToPool(lease, seg)
-		clog.Errorf("locks service acquire lock: %#v", err)
+		clog.Errorf("Locks service acquire lock: %#v", err)
 		return nil, err
 	}
 
@@ -126,14 +126,14 @@ func (s *LeaseLockService) DoLeaseLock(name string, token string) (*types.LeaseL
 
 	_, seg, err := s.storage.FetchSegment(name)
 	if err != nil {
-		clog.Errorf("locks service do lease lock: %#v", err)
+		clog.Errorf("Locks service do lease lock: %#v", err)
 		return nil, err
 	}
 
 	old, err := seg.ToLeaseLock()
 	if err != nil {
 		seg.ReleaseToPool()
-		clog.Errorf("locks service do lease lock: %#v", err)
+		clog.Errorf("Locks service do lease lock: %#v", err)
 		return nil, err
 	}
 
@@ -155,13 +155,13 @@ func (s *LeaseLockService) DoLeaseLock(name string, token string) (*types.LeaseL
 	newseg, err := vfs.AcquirePoolSegment(name, newlease, newttl)
 	if err != nil {
 		utils.ReleaseToPool(newlease)
-		clog.Errorf("locks service do lease lock: %#v", err)
+		clog.Errorf("Locks service do lease lock: %#v", err)
 		return nil, err
 	}
 
 	err = s.storage.PutSegment(name, newseg)
 	if err != nil {
-		clog.Errorf("locks service do lease lock: %#v", err)
+		clog.Errorf("Locks service do lease lock: %#v", err)
 		return nil, err
 	}
 
