@@ -62,8 +62,6 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		clog.Infof("Client %s connection successfully", ip)
-
 		// 如果验证通过，继续执行后续的处理程序
 		c.Next()
 	}
