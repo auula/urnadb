@@ -199,7 +199,7 @@ func (s *Segment) Size() int32 {
 	return _SEGMENT_PADDING + s.KeySize + s.ValueSize + 4
 }
 
-func (s *Segment) ToVariant() (any, error) {
+func (s *Segment) ToVariant() (*types.Variant, error) {
 	if s.Type != variant {
 		return nil, fmt.Errorf("not support conversion to variant type")
 	}
@@ -209,13 +209,13 @@ func (s *Segment) ToVariant() (any, error) {
 		return nil, fmt.Errorf("failed to decode segment value: %w", err)
 	}
 
-	vant := types.NewValue("")
-	err = msgpack.Unmarshal(decodedData, &vant.Value)
+	variant := types.AcquireVariant()
+	err = msgpack.Unmarshal(decodedData, &variant.Value)
 	if err != nil {
 		return nil, err
 	}
 
-	return vant, nil
+	return variant, nil
 }
 
 func (s *Segment) ToRecord() (*types.Record, error) {
@@ -304,11 +304,7 @@ func toKind(data Serializable) kind {
 		return record
 	case *types.LeaseLock:
 		return leaselock
-	case
-		*types.Value[bool],
-		*types.Value[int64],
-		*types.Value[string],
-		*types.Value[float64]:
+	case *types.Variant:
 		return variant
 	}
 	return unknown
@@ -335,6 +331,12 @@ func (s *Segment) ToJSON() ([]byte, error) {
 			return nil, err
 		}
 		return tab.ToJSON()
+	case variant:
+		variants, err := s.ToVariant()
+		if err != nil {
+			return nil, err
+		}
+		return variants.ToJSON()
 	case leaselock:
 		leaseLock, err := s.ToLeaseLock()
 		if err != nil {

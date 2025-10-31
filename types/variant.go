@@ -16,49 +16,86 @@ package types
 
 import (
 	"encoding/json"
+	"sync"
 
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-type Number interface {
-	int64 | float64
+var variantPools = sync.Pool{
+	New: func() any {
+		return new(Variant)
+	},
 }
 
-type Variant interface {
-	string | bool | Number
+func init() {
+	// 预先填充池中的对象，把对象放入池中
+	for i := 0; i < 10; i++ {
+		variantPools.Put(new(Variant))
+	}
 }
 
-type Value[T Variant] struct {
-	Value T
+// 从对象池获取一个 Variant
+func AcquireVariant() *Variant {
+	return variantPools.Get().(*Variant)
 }
 
-func NewValue[T Variant](v T) *Value[T] {
-	return &Value[T]{
+// 释放 Variant 归还到对象池
+func (v *Variant) ReleaseToPool() {
+	// 清理数据，避免脏数据影响复用
+	v.Clear()
+	variantPools.Put(v)
+}
+
+func (v *Variant) Clear() {
+	// 对于特定类型，可以更细致地清理
+	switch v.Value.(type) {
+	case string:
+		// 设置为零值而不是nil
+		v.Value = ""
+	case int64:
+		v.Value = int64(0)
+	case float64:
+		v.Value = 0.0
+	case bool:
+		v.Value = false
+	default:
+		v.Value = nil
+	}
+}
+
+type Variant struct {
+	Value any
+}
+
+func NewVariant(v any) *Variant {
+	return &Variant{
 		Value: v,
 	}
 }
 
 // 类型转换
-func (v *Value[T]) String() string {
-	return string(any(v.Value).(string))
+func (v *Variant) String() string {
+	return v.Value.(string)
 }
 
-func (v *Value[T]) Int64() int64 {
-	return any(v.Value).(int64)
+func (v *Variant) AddInt64(delta int64) int64 {
+	v.Value = v.Value.(int64) + delta
+	return v.Value.(int64)
 }
 
-func (v *Value[T]) Float64() float64 {
-	return any(v.Value).(float64)
+func (v *Variant) AddFloat64(delta float64) float64 {
+	v.Value = v.Value.(float64) + delta
+	return v.Value.(float64)
 }
 
-func (v *Value[T]) Bool() bool {
-	return any(v.Value).(bool)
+func (v *Variant) Bool() bool {
+	return v.Value.(bool)
 }
 
-func (v *Value[T]) ToBytes() ([]byte, error) {
+func (v *Variant) ToBytes() ([]byte, error) {
 	return msgpack.Marshal(&v.Value)
 }
 
-func (v *Value[T]) ToJSON() ([]byte, error) {
+func (v *Variant) ToJSON() ([]byte, error) {
 	return json.Marshal(&v.Value)
 }
