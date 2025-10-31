@@ -38,16 +38,16 @@ type TablesService interface {
 	QueryRows(name string, wheres map[string]any) ([]map[string]any, error)
 }
 
-type TableLFSServiceImpl struct {
+type TablesServiceImpl struct {
 	tlock   sync.Map
 	storage *vfs.LogStructuredFS
 }
 
-func (t *TableLFSServiceImpl) AllTables() []*types.Table {
+func (t *TablesServiceImpl) AllTables() []*types.Table {
 	return nil
 }
 
-func (t *TableLFSServiceImpl) GetTable(name string) (*types.Table, error) {
+func (t *TablesServiceImpl) GetTable(name string) (*types.Table, error) {
 	t.acquireTablesLock(name).RLock()
 	defer t.acquireTablesLock(name).RUnlock()
 
@@ -60,7 +60,7 @@ func (t *TableLFSServiceImpl) GetTable(name string) (*types.Table, error) {
 	return seg.ToTable()
 }
 
-func (t *TableLFSServiceImpl) DeleteTable(name string) error {
+func (t *TablesServiceImpl) DeleteTable(name string) error {
 	t.acquireTablesLock(name).Lock()
 
 	err := t.storage.DeleteSegment(name)
@@ -76,7 +76,7 @@ func (t *TableLFSServiceImpl) DeleteTable(name string) error {
 	return nil
 }
 
-func (s *TableLFSServiceImpl) RemoveRows(name string, condtitons map[string]any) error {
+func (s *TablesServiceImpl) RemoveRows(name string, condtitons map[string]any) error {
 	s.acquireTablesLock(name).Lock()
 	defer s.acquireTablesLock(name).Unlock()
 
@@ -110,7 +110,7 @@ func (s *TableLFSServiceImpl) RemoveRows(name string, condtitons map[string]any)
 	return s.storage.PutSegment(name, seg)
 }
 
-func (s *TableLFSServiceImpl) CreateTable(name string, table *types.Table, ttl int64) error {
+func (s *TablesServiceImpl) CreateTable(name string, table *types.Table, ttl int64) error {
 	s.acquireTablesLock(name).Lock()
 	defer s.acquireTablesLock(name).Unlock()
 
@@ -129,7 +129,7 @@ func (s *TableLFSServiceImpl) CreateTable(name string, table *types.Table, ttl i
 	return s.storage.PutSegment(name, seg)
 }
 
-func (s *TableLFSServiceImpl) InsertRows(name string, rows map[string]any) (uint32, error) {
+func (s *TablesServiceImpl) InsertRows(name string, rows map[string]any) (uint32, error) {
 	s.acquireTablesLock(name).Lock()
 	defer s.acquireTablesLock(name).Unlock()
 
@@ -169,7 +169,7 @@ func (s *TableLFSServiceImpl) InsertRows(name string, rows map[string]any) (uint
 	return id, nil
 }
 
-func (s *TableLFSServiceImpl) PatchRows(name string, condttions, data map[string]any) error {
+func (s *TablesServiceImpl) PatchRows(name string, condttions, data map[string]any) error {
 	s.acquireTablesLock(name).Lock()
 	defer s.acquireTablesLock(name).Unlock()
 
@@ -189,6 +189,7 @@ func (s *TableLFSServiceImpl) PatchRows(name string, condttions, data map[string
 	// 根据条件来更新，可以是基于默认的 t_id 和类似于 SQL 条件的
 	err = tab.UpdateRows(condttions, data)
 	if err != nil {
+		clog.Errorf("Tables service patch rows: %#v", err)
 		return err
 	}
 
@@ -206,7 +207,7 @@ func (s *TableLFSServiceImpl) PatchRows(name string, condttions, data map[string
 	return s.storage.PutSegment(name, seg)
 }
 
-func (s *TableLFSServiceImpl) QueryRows(name string, wheres map[string]any) ([]map[string]any, error) {
+func (s *TablesServiceImpl) QueryRows(name string, wheres map[string]any) ([]map[string]any, error) {
 	s.acquireTablesLock(name).RLock()
 	defer s.acquireTablesLock(name).RUnlock()
 
@@ -230,13 +231,13 @@ func (s *TableLFSServiceImpl) QueryRows(name string, wheres map[string]any) ([]m
 	return result, nil
 }
 
-func NewTableLFSServiceImpl(storage *vfs.LogStructuredFS) TablesService {
-	return &TableLFSServiceImpl{
+func NewTablesServiceImpl(storage *vfs.LogStructuredFS) TablesService {
+	return &TablesServiceImpl{
 		storage: storage,
 	}
 }
 
-func (s *TableLFSServiceImpl) acquireTablesLock(key string) *sync.RWMutex {
+func (s *TablesServiceImpl) acquireTablesLock(key string) *sync.RWMutex {
 	actual, _ := s.tlock.LoadOrStore(key, new(sync.RWMutex))
 	return actual.(*sync.RWMutex)
 }
