@@ -26,7 +26,7 @@ import (
 
 type Table struct {
 	Table  map[uint32]map[string]any `json:"table" msgpack:"table" binding:"required"`
-	NextID uint32                    `json:"t_id,omitempty"`
+	NextID uint32                    `json:"t_id" msgpack:"next_id"`
 }
 
 var tablePools = sync.Pool{
@@ -166,7 +166,7 @@ func (tab *Table) Size() int {
 }
 
 func (tab *Table) ToBytes() ([]byte, error) {
-	return msgpack.Marshal(&tab.Table)
+	return msgpack.Marshal(&tab)
 }
 
 func (tab *Table) ToJSON() ([]byte, error) {

@@ -30,7 +30,7 @@ const (
 	set kind = iota
 	zset
 	table
-	number
+	record
 	unknown
 	leaselock
 )
@@ -41,7 +41,7 @@ var kindToString = map[kind]string{
 	set:       "set",
 	zset:      "zset",
 	table:     "table",
-	number:    "number",
+	record:    "record",
 	unknown:   "unknown",
 	leaselock: "leaselock",
 }
@@ -197,38 +197,39 @@ func (s *Segment) Size() int32 {
 	return _SEGMENT_PADDING + s.KeySize + s.ValueSize + 4
 }
 
-func (s *Segment) ToSet() (*types.Set, error) {
-	if s.Type != set {
-		return nil, fmt.Errorf("not support conversion to set type")
+func (s *Segment) ToRecord() (*types.Record, error) {
+	if s.Type != record {
+		return nil, fmt.Errorf("not support conversion to record type")
 	}
-	set := types.AcquireSet()
-	err := msgpack.Unmarshal(s.Value, &set.Set)
+	
+	// 先通过 transformer 解码
+	decodedData, err := transformer.Decode(s.Value)
 	if err != nil {
-		set.ReleaseToPool()
+		return nil, fmt.Errorf("failed to decode segment value: %w", err)
+	}
+	
+	record := types.AcquireRecord()
+	err = msgpack.Unmarshal(decodedData, &record.Record)
+	if err != nil {
+		record.ReleaseToPool()
 		return nil, err
 	}
-	return set, nil
-}
-
-func (s *Segment) ToZSet() (*types.ZSet, error) {
-	if s.Type != zset {
-		return nil, fmt.Errorf("not support conversion to zset type")
-	}
-	zset := types.AcquireZSet()
-	err := msgpack.Unmarshal(s.Value, &zset.ZSet)
-	if err != nil {
-		zset.ReleaseToPool()
-		return nil, err
-	}
-	return zset, nil
+	return record, nil
 }
 
 func (s *Segment) ToTable() (*types.Table, error) {
 	if s.Type != table {
 		return nil, fmt.Errorf("not support conversion to table type")
 	}
+	
+	// 先通过 transformer 解码
+	decodedData, err := transformer.Decode(s.Value)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode segment value: %w", err)
+	}
+	
 	table := types.AcquireTable()
-	err := msgpack.Unmarshal(s.Value, &table.Table)
+	err = msgpack.Unmarshal(decodedData, table)
 	if err != nil {
 		table.ReleaseToPool()
 		return nil, err
@@ -236,25 +237,19 @@ func (s *Segment) ToTable() (*types.Table, error) {
 	return table, nil
 }
 
-func (s *Segment) ToNumber() (*types.Number, error) {
-	if s.Type != number {
-		return nil, fmt.Errorf("not support conversion to number type")
-	}
-	number := types.AcquireNumber()
-	err := msgpack.Unmarshal(s.Value, &number.Value)
-	if err != nil {
-		number.ReleaseToPool()
-		return nil, err
-	}
-	return number, nil
-}
-
 func (s *Segment) ToLeaseLock() (*types.LeaseLock, error) {
 	if s.Type != leaselock {
 		return nil, fmt.Errorf("not support conversion to lease lock type")
 	}
+	
+	// 先通过 transformer 解码
+	decodedData, err := transformer.Decode(s.Value)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode segment value: %w", err)
+	}
+	
 	leaseLock := types.AcquireLeaseLock()
-	err := msgpack.Unmarshal(s.Value, &leaseLock.Token)
+	err = msgpack.Unmarshal(decodedData, &leaseLock.Token)
 	if err != nil {
 		leaseLock.ReleaseToPool()
 		return nil, err
@@ -282,14 +277,10 @@ func (s *Segment) ExpiresIn() (int64, bool) {
 // 将类型映射为 kind 的辅助函数
 func toKind(data Serializable) kind {
 	switch data.(type) {
-	case *types.Set:
-		return set
-	case *types.ZSet:
-		return zset
 	case *types.Table:
 		return table
-	case *types.Number:
-		return number
+	case *types.Record:
+		return record
 	case *types.LeaseLock:
 		return leaselock
 	}
@@ -305,19 +296,8 @@ func (s *Segment) Payload() ([]byte, uint32) {
 func (s *Segment) ToJSON() ([]byte, error) {
 	switch s.Type {
 	case set:
-		set, err := s.ToSet()
-		if err != nil {
-			return nil, err
-		}
-		return set.ToJSON()
-	case zset:
-		zset, err := s.ToZSet()
-		if err != nil {
-			return nil, err
-		}
-		return zset.ToJSON()
-	case number:
-		num, err := s.ToNumber()
+	case record:
+		num, err := s.ToRecord()
 		if err != nil {
 			return nil, err
 		}

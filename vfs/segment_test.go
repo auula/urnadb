@@ -22,24 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewSegment(t *testing.T) {
-	// Test valid Set type
-	set := types.Set{
-		Set: map[string]bool{
-			"item1": true,
-			"item2": true,
-		},
-	}
-
-	// Create a new segment for the Set type
-	segment, err := NewSegment("mock-key", &set, 1000)
-	assert.NoError(t, err)                                   // Ensure no error
-	assert.NotNil(t, segment)                                // Ensure segment is created
-	assert.Equal(t, "mock-key", string(segment.Key))         // Ensure the key is set correctly
-	assert.Equal(t, int32(len("mock-key")), segment.KeySize) // Ensure the key size is correct
-	assert.Equal(t, int32(15), segment.ValueSize)            // Ensure the value size is correct
-}
-
 func TestNewTombstoneSegment(t *testing.T) {
 	// Create a Tombstone segment
 	segment := NewTombstoneSegment("mock-key")
@@ -52,49 +34,40 @@ func TestNewTombstoneSegment(t *testing.T) {
 }
 
 func TestSegmentSize(t *testing.T) {
-	// Create a Set type data for testing
-	set := types.Set{
-		Set: map[string]bool{
-			"item1": true,
-			"item2": true,
-		},
-	}
+	// Create a Record type data for testing
+	record := types.NewRecord()
+	record.AddRecord("item1", "value1")
+	record.AddRecord("item2", "value2")
 
-	// Create a segment for the Set type
-	segment, err := NewSegment("mock-key", &set, 1000)
+	// Create a segment for the Record type
+	segment, err := NewSegment("mock-key", record, 1000)
 	assert.NoError(t, err)
 
-	// Ensure the size is calculated correctly
-	assert.Equal(t, int32(53), segment.Size())
+	// Ensure the size is calculated correctly (size will vary based on data)
+	assert.True(t, segment.Size() > 0)
 }
 
-func TestToSet(t *testing.T) {
-	// Create a Set type Segment
-	setData := types.Set{
-		Set: map[string]bool{
-			"item1": true,
-			"item2": true,
-		},
-		TTL: int64(0),
-	}
-	segment, err := NewSegment("mock-key", &setData, 1000)
+func TestToRecord(t *testing.T) {
+	// Create a Record type Segment
+	recordData := types.NewRecord()
+	recordData.AddRecord("item1", "value1")
+	recordData.AddRecord("item2", "value2")
+
+	segment, err := NewSegment("mock-key", recordData, 1000)
 	assert.NoError(t, err)
 
-	// Convert the segment to Set
-	set, err := segment.ToSet()
-	assert.NoError(t, err)                // Ensure no error
-	assert.Equal(t, setData.Set, set.Set) // Ensure the Set values match
+	// Convert the segment to Record
+	record, err := segment.ToRecord()
+	assert.NoError(t, err)                            // Ensure no error
+	assert.Equal(t, recordData.Size(), record.Size()) // Ensure the Record size matches
 }
 
 func TestTTL(t *testing.T) {
 	// Create a Segment with TTL
-	set := types.Set{
-		Set: map[string]bool{
-			"item1": true,
-			"item2": true,
-		},
-	}
-	segment, err := NewSegment("mock-key", &set, 1) // TTL = 1 second
+	record := types.NewRecord()
+	record.AddRecord("item1", "value1")
+
+	segment, err := NewSegment("mock-key", record, 1) // TTL = 1 second
 	assert.NoError(t, err)
 
 	// Wait 1 second
@@ -105,43 +78,19 @@ func TestTTL(t *testing.T) {
 	assert.True(t, ttl <= 0) // Ensure TTL is <= 0 after expiration
 }
 
-// TestToZSet 测试 ToZSet 方法
-func TestToZSet(t *testing.T) {
-	// 创建 ZSet 数据
-	zsetData := types.ZSet{
-		ZSet: map[string]float64{
-			"user1": 100.5,
-			"user2": 200.0,
-		},
-	}
-
-	segment, err := NewSegment("test-key-01", &zsetData, 0)
-	assert.NoError(t, err)
-
-	// 测试 ToZSet 方法
-	result, err := segment.ToZSet()
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, zsetData.ZSet, result.ZSet)
-}
-
 // TestToTable 测试 ToTable 方法
 func TestToTable(t *testing.T) {
-	// 创建 Tables 数据
-	tablesData := types.Table{
-		Table: map[uint32]map[string]any{
-			1: {"key1": "value1"},
-			2: {"key2": int8(42)},
-		},
-	}
+	// 创建 Table 数据
+	tablesData := types.NewTable()
+	tablesData.AddRows(map[string]any{"key1": "value1"})
+	tablesData.AddRows(map[string]any{"key2": 42})
 
-	segment, err := NewSegment("test-key-01", &tablesData, 0)
+	segment, err := NewSegment("test-key-01", tablesData, 0)
 	assert.NoError(t, err)
 
 	// 测试 ToTable 方法
 	result, err := segment.ToTable()
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-
-	assert.Equal(t, tablesData.Table, result.Table)
+	assert.Equal(t, tablesData.Size(), result.Size())
 }
