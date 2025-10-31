@@ -16,7 +16,6 @@ package utils
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -83,7 +82,7 @@ func TestFlushToDisk(t *testing.T) {
 
 func TestFlushToDisk_SyncError_CloseError(t *testing.T) {
 	// 创建临时文件
-	tmpfile, err := ioutil.TempFile("", "testfile")
+	tmpfile, err := os.CreateTemp("", "testfile")
 	if err != nil {
 		t.Fatalf("failed to create temp file：%v", err)
 	}

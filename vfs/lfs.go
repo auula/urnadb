@@ -999,7 +999,7 @@ func validateFileHeader(file *os.File) error {
 		return errors.New("file is too short to contain valid signature")
 	}
 
-	if !bytes.Equal(fileHeader[:], dataFileMetadata[:]) {
+	if !bytes.Equal(fileHeader[:], dataFileMetadata) {
 		return fmt.Errorf("unsupported data file version: %v", file.Name())
 	}
 
