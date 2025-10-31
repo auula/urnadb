@@ -12,9 +12,10 @@ import (
 )
 
 var (
-	ErrAlreadyLocked = errors.New("resource already locked")
-	ErrLockNotFound  = errors.New("resource lock not found")
-	ErrInvalidToken  = errors.New("invalid lock token")
+	ErrAlreadyLocked   = errors.New("resource already locked")
+	ErrLockNotFound    = errors.New("resource lock not found")
+	ErrInvalidToken    = errors.New("invalid lock token")
+	ErrInvalidLeaseTTL = errors.New("lock lifetime must not be negative")
 )
 
 type LocksService interface {
@@ -89,6 +90,10 @@ func (s *LeaseLockService) AcquireLock(name string, ttl int64) (*types.LeaseLock
 	// 存在则表示锁已经存在，意味着同一把锁还没有过期，同一资源还未过期。
 	if s.storage.HasSegment(name) {
 		return nil, ErrAlreadyLocked
+	}
+
+	if ttl < 0 {
+		return nil, ErrInvalidLeaseTTL
 	}
 
 	// 创建一把新租期锁并且设置锁的租期
