@@ -75,21 +75,49 @@ func NewVariant(v any) *Variant {
 
 // 类型转换
 func (v *Variant) String() string {
-	return v.Value.(string)
+	if v.Value != nil {
+		return v.Value.(string)
+	}
+	return nullString
+}
+
+func (v *Variant) IsNumber() bool {
+	if v.Value == nil {
+		return false
+	}
+	ok := false
+	switch v.Value.(type) {
+	case float64, float32:
+		ok = true
+	default:
+		ok = false
+	}
+	return ok
 }
 
 func (v *Variant) AddInt64(delta int64) int64 {
-	v.Value = v.Value.(int64) + delta
-	return v.Value.(int64)
+	res := int64(0)
+	if v.Value != nil {
+		v.Value = v.Value.(int64) + delta
+		res = v.Value.(int64)
+	}
+	return res
 }
 
 func (v *Variant) AddFloat64(delta float64) float64 {
-	v.Value = v.Value.(float64) + delta
-	return v.Value.(float64)
+	res := float64(0)
+	if v.Value != nil {
+		v.Value = v.Value.(float64) + delta
+		res = v.Value.(float64)
+	}
+	return res
 }
 
 func (v *Variant) Bool() bool {
-	return v.Value.(bool)
+	if v != nil {
+		return v.Value.(bool)
+	}
+	return false
 }
 
 func (v *Variant) ToBytes() ([]byte, error) {
