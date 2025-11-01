@@ -13,3 +13,4 @@ ignore:
   - "server/"
   - "**/*_test.go"
   - "vendor/" 
+  - "urnadb.go"
