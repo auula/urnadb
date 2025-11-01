@@ -23,7 +23,7 @@ import (
 )
 
 type Record struct {
-	Record map[string]any `json:"record" msgpack:"record" binding:"required"`
+	Record map[string]any `json:"record" msgpack:"record"`
 }
 
 var recordPools = sync.Pool{
