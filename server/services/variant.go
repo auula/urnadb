@@ -11,7 +11,7 @@ import (
 // 客户端只需要发生算数运输的偏移量即可，最终操作中服务器端完成运算和持久化。
 type VariantService interface {
 	GetVariant(name string) (*types.Variant, error)
-	SetVariant(name string, value *types.Variant) error
+	SetVariant(name string, value *types.Variant, ttl int64) error
 	Increment(name string, delta float64) error
 }
 
@@ -46,11 +46,11 @@ func (vs *VariantServiceImpl) GetVariant(name string) (*types.Variant, error) {
 }
 
 // SetVariant 设置变量值
-func (vs *VariantServiceImpl) SetVariant(name string, value *types.Variant) error {
+func (vs *VariantServiceImpl) SetVariant(name string, value *types.Variant, ttl int64) error {
 	vs.acquireTablesLock(name).Lock()
 	defer vs.acquireTablesLock(name).Unlock()
 
-	seg, err := vfs.AcquirePoolSegment(name, value, 0)
+	seg, err := vfs.AcquirePoolSegment(name, value, ttl)
 	if err != nil {
 		return err
 	}
