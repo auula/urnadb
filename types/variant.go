@@ -64,7 +64,7 @@ func (v *Variant) Clear() {
 }
 
 type Variant struct {
-	Value any
+	Value any `json:"variant" msgpack:"variant"`
 }
 
 func NewVariant(v any) *Variant {

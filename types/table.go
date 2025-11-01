@@ -25,7 +25,7 @@ import (
 )
 
 type Table struct {
-	Table  map[uint32]map[string]any `json:"table" msgpack:"table" binding:"required"`
+	Table  map[uint32]map[string]any `json:"table" msgpack:"table"`
 	NextID uint32                    `json:"t_id" msgpack:"next_id"`
 }
 
