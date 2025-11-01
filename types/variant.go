@@ -51,7 +51,7 @@ func (v *Variant) Clear() {
 	switch v.Value.(type) {
 	case string:
 		// 设置为零值而不是nil
-		v.Value = ""
+		v.Value = nullString
 	case int64:
 		v.Value = int64(0)
 	case float64:
@@ -85,32 +85,25 @@ func (v *Variant) IsNumber() bool {
 	if v.Value == nil {
 		return false
 	}
-	ok := false
-	switch v.Value.(type) {
-	case float64, float32:
-		ok = true
-	default:
-		ok = false
-	}
-	return ok
+	_, iok := v.Value.(int64)
+	_, fok := v.Value.(float64)
+	return iok || fok
 }
 
 func (v *Variant) AddInt64(delta int64) int64 {
-	res := int64(0)
 	if v.Value != nil {
 		v.Value = v.Value.(int64) + delta
-		res = v.Value.(int64)
+		return v.Value.(int64)
 	}
-	return res
+	return 0
 }
 
 func (v *Variant) AddFloat64(delta float64) float64 {
-	res := float64(0)
 	if v.Value != nil {
 		v.Value = v.Value.(float64) + delta
-		res = v.Value.(float64)
+		return v.Value.(float64)
 	}
-	return res
+	return 0
 }
 
 func (v *Variant) Bool() bool {
