@@ -77,7 +77,7 @@ func TestLeaseLockReleaseToPool(t *testing.T) {
 
 func TestLeaseLockToBytes(t *testing.T) {
 	ll := NewLeaseLock()
-	
+
 	bytes, err := ll.ToBytes()
 	assert.NoError(t, err)
 	assert.NotNil(t, bytes)
@@ -91,7 +91,7 @@ func TestLeaseLockToBytes(t *testing.T) {
 
 func TestLeaseLockToJSON(t *testing.T) {
 	ll := NewLeaseLock()
-	
+
 	jsonBytes, err := ll.ToJSON()
 	assert.NoError(t, err)
 	assert.NotNil(t, jsonBytes)
@@ -134,18 +134,18 @@ func TestLeaseLockPoolReuse(t *testing.T) {
 	// 获取一个锁
 	ll1 := AcquireLeaseLock()
 	token1 := ll1.Token
-	
+
 	// 释放回池
 	ll1.ReleaseToPool()
-	
+
 	// 再次获取锁（可能是同一个对象）
 	ll2 := AcquireLeaseLock()
 	token2 := ll2.Token
-	
+
 	// Token 应该不同（即使对象可能被复用）
 	assert.NotEqual(t, token1, token2)
 	assert.NotEmpty(t, token2)
-	
+
 	ll2.ReleaseToPool()
 }
 
@@ -166,7 +166,7 @@ func BenchmarkAcquireLeaseLock(b *testing.B) {
 func BenchmarkLeaseLockToBytes(b *testing.B) {
 	ll := NewLeaseLock()
 	b.ResetTimer()
-	
+
 	for i := 0; i < b.N; i++ {
 		_, _ = ll.ToBytes()
 	}
@@ -175,7 +175,7 @@ func BenchmarkLeaseLockToBytes(b *testing.B) {
 func BenchmarkLeaseLockToJSON(b *testing.B) {
 	ll := NewLeaseLock()
 	b.ResetTimer()
-	
+
 	for i := 0; i < b.N; i++ {
 		_, _ = ll.ToJSON()
 	}
