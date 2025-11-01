@@ -128,14 +128,14 @@ func New(opt *Options) (*HttpServer, error) {
 	return &hs, nil
 }
 
-func (hs *HttpServer) SetupFS(fss *vfs.LogStructuredFS) {
+func (*HttpServer) SetupFS(fss *vfs.LogStructuredFS) {
 	pkgmut.Lock()
 	defer pkgmut.Unlock()
 	storage = fss
 	controllers.InitAllComponents(storage)
 }
 
-func (hs *HttpServer) SetAllowIP(allowd []string) {
+func (*HttpServer) SetAllowIP(allowd []string) {
 	pkgmut.Lock()
 	defer pkgmut.Unlock()
 	middleware.SetAllowIpList(allowd)
@@ -146,7 +146,7 @@ func (hs *HttpServer) Port() uint16 {
 }
 
 // IPv4 return local IPv4 address
-func (hs *HttpServer) IPv4() string {
+func (*HttpServer) IPv4() string {
 	return ipv4
 }
 
