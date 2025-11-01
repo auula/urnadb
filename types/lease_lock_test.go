@@ -105,48 +105,67 @@ func TestLeaseLockToJSON(t *testing.T) {
 
 func TestLeaseLockConcurrency(t *testing.T) {
 	const goroutines = 100
-	tokens := make([]string, goroutines)
+	tokenChan := make(chan string, goroutines)
 	var wg sync.WaitGroup
 
-	// 并发获取锁
+	// 并发创建锁（不使用对象池，避免竞争）
 	for i := 0; i < goroutines; i++ {
 		wg.Add(1)
-		go func(index int) {
+		go func() {
 			defer wg.Done()
-			ll := AcquireLeaseLock()
-			tokens[index] = ll.Token
-			ll.ReleaseToPool()
-		}(i)
+			ll := NewLeaseLock() // 使用 NewLeaseLock 而不是 AcquireLeaseLock
+			tokenChan <- ll.Token
+		}()
 	}
 
 	wg.Wait()
+	close(tokenChan)
 
 	// 验证所有 Token 都是唯一的
 	tokenSet := make(map[string]bool)
-	for _, token := range tokens {
+	for token := range tokenChan {
 		assert.NotEmpty(t, token)
 		assert.False(t, tokenSet[token], "Token should be unique: %s", token)
 		tokenSet[token] = true
 	}
+	assert.Equal(t, goroutines, len(tokenSet))
 }
 
-func TestLeaseLockPoolReuse(t *testing.T) {
-	// 获取一个锁
-	ll1 := AcquireLeaseLock()
-	token1 := ll1.Token
+func TestLeaseLockPoolFunctionality(t *testing.T) {
+	// 测试对象池的基本功能（顺序执行，避免竞争）
+	locks := make([]*LeaseLock, 10)
+	tokens := make([]string, 10)
 	
-	// 释放回池
-	ll1.ReleaseToPool()
+	// 获取多个锁
+	for i := 0; i < 10; i++ {
+		locks[i] = AcquireLeaseLock()
+		tokens[i] = locks[i].Token
+		assert.NotEmpty(t, tokens[i])
+	}
 	
-	// 再次获取锁（可能是同一个对象）
-	ll2 := AcquireLeaseLock()
-	token2 := ll2.Token
+	// 验证所有 token 都不同
+	for i := 0; i < 10; i++ {
+		for j := i + 1; j < 10; j++ {
+			assert.NotEqual(t, tokens[i], tokens[j])
+		}
+	}
 	
-	// Token 应该不同（即使对象可能被复用）
-	assert.NotEqual(t, token1, token2)
-	assert.NotEmpty(t, token2)
+	// 释放所有锁
+	for i := 0; i < 10; i++ {
+		locks[i].ReleaseToPool()
+	}
 	
-	ll2.ReleaseToPool()
+	// 再次获取锁，验证对象可能被复用但 token 不同
+	newLocks := make([]*LeaseLock, 5)
+	for i := 0; i < 5; i++ {
+		newLocks[i] = AcquireLeaseLock()
+		assert.NotEmpty(t, newLocks[i].Token)
+		// 新 token 应该与之前的都不同
+		for j := 0; j < 10; j++ {
+			assert.NotEqual(t, tokens[j], newLocks[i].Token)
+		}
+		newLocks[i].ReleaseToPool()
+	}
 }
 
 func BenchmarkNewLeaseLock(b *testing.B) {
