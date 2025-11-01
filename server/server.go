@@ -33,8 +33,7 @@ import (
 )
 
 var (
-	pkgmut = sync.Mutex{}
-	// ipv4 return local IPv4 address
+	pkgmut         = sync.Mutex{}
 	ipv4    string = "0.0.0.0"
 	storage *vfs.LogStructuredFS
 )
@@ -52,26 +51,16 @@ const (
 )
 
 func init() {
-	// Initialized local server ip address
+	// initialized local server ip address
 	addrs, err := net.Interfaces()
 	if err != nil {
 		clog.Errorf("get server IPv4 address failed: %s", err)
 	}
 
-	for _, face := range addrs {
-		adders, err := face.Addrs()
-		if err != nil {
-			clog.Errorf("get server IPv4 address failed: %s", err)
-		}
-
-		for _, addr := range adders {
-			if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
-				if ipNet.IP.To4() != nil {
-					ipv4 = ipNet.IP.String()
-					return
-				}
-			}
-		}
+	// const local IPv4 address
+	ipv4, err = getIPv4Address(addrs)
+	if err != nil {
+		clog.Errorf("get server IPv4 address failed: %s", err)
 	}
 }
 
@@ -213,4 +202,25 @@ func closeStorage() error {
 		}
 	}
 	return nil
+}
+
+func getIPv4Address(addrs []net.Interface) (string, error) {
+	ip := ""
+	for _, face := range addrs {
+		adders, err := face.Addrs()
+		if err != nil {
+			return ip, err
+		}
+
+		for _, addr := range adders {
+			if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
+				if ipNet.IP.To4() != nil {
+					ip = ipNet.IP.String()
+					break
+				}
+			}
+
+		}
+	}
+	return ip, nil
 }

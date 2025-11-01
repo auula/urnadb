@@ -16,6 +16,7 @@ package server
 
 import (
 	"io/fs"
+	"net"
 	"testing"
 	"time"
 
@@ -159,4 +160,44 @@ func TestHttpServer_Shutdown(t *testing.T) {
 
 	// 关闭也需要一点时间
 	time.Sleep(500 * time.Millisecond)
+}
+
+// 测试 getIPv4Address 函数
+func TestGetIPv4Address_EmptyInterfaces(t *testing.T) {
+	result, err := getIPv4Address([]net.Interface{})
+	assert.NoError(t, err)
+	assert.Equal(t, "", result)
+}
+
+func TestGetIPv4Address_RealInterfaces(t *testing.T) {
+	interfaces, _ := net.Interfaces()
+	result, err := getIPv4Address(interfaces)
+	assert.NoError(t, err)
+	// 结果可能为空字符串
+	if result != "" {
+		ip := net.ParseIP(result)
+		assert.NotNil(t, ip)
+		assert.NotNil(t, ip.To4())
+	}
+}
+
+// 测试 init 函数中的错误处理逻辑
+func TestInitIPv4Logic(t *testing.T) {
+	// 保存原始值
+	originalIPv4 := ipv4
+	defer func() {
+		ipv4 = originalIPv4
+	}()
+
+	// 测试正常情况
+	interfaces, err := net.Interfaces()
+	if err == nil {
+		result, err := getIPv4Address(interfaces)
+		assert.NoError(t, err)
+		// 验证结果是有效的 IP 地址或空字符串
+		if result != "" {
+			ip := net.ParseIP(result)
+			assert.NotNil(t, ip)
+		}
+	}
 }
