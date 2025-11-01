@@ -1320,7 +1320,7 @@ func serializedSegment(seg *Segment) ([]byte, error) {
 // 9. This is because records in the in-memory index may be distributed across multiple data files on disk.
 func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 	if len(lfs.regions) >= 5 {
-		var regionIds []int64
+		var regionIds, dirtyIds []int64
 		for v := range lfs.regions {
 			regionIds = append(regionIds, v)
 		}
@@ -1329,12 +1329,14 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 		})
 
 		// find 40% dirty region
-		for i := 0; i < 4 && i < len(regionIds); i++ {
+		for i := 0; i <= 4 && i < len(regionIds); i++ {
+			dirtyIds = append(dirtyIds, regionIds[i])
 			lfs.dirtyRegions = append(lfs.dirtyRegions, lfs.regions[regionIds[i]])
 		}
 
 		// Cleanup dirty region
 		defer func() {
+			dirtyIds = nil
 			lfs.dirtyRegions = nil
 		}()
 
@@ -1376,8 +1378,6 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 							return err
 						}
 
-						delete(lfs.regions, inode.RegionID)
-
 						inode.Position = lfs.offset
 						inode.RegionID = lfs.regionID
 
@@ -1405,15 +1405,19 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 
 			}
 
-			// Delete dirty region file
-			lfs.mu.Lock()
-			err = os.Remove(filepath.Join(lfs.directory, fd.Name()))
-			lfs.mu.Unlock()
-			if err != nil {
-				return fmt.Errorf("failed to remove dirty region: %w", err)
-			}
-
 		}
+
+		// delete dirty region file
+		for _, reg_id := range dirtyIds {
+			lfs.mu.Lock()
+			fd, ok := lfs.regions[reg_id]
+			if ok {
+				_ = os.Remove(filepath.Join(lfs.directory, fd.Name()))
+				delete(lfs.regions, reg_id)
+			}
+			lfs.mu.Unlock()
+		}
+
 	} else {
 		clog.Warnf("dirty regions (%d%%) does not meet garbage collection status", len(lfs.regions)/10)
 	}
