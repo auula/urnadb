@@ -10,5 +10,6 @@ coverage:
 
 ignore:
   - "cmd/"
-  - "server/::"      
-  - "**/*_test.go" 
+  - "server/"
+  - "**/*_test.go"
+  - "vendor/" 
