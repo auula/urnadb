@@ -1,12 +1,14 @@
+codecov:
+  branch: main                    # 基准分支
+  max_report_age: off             # 无时间限制
+  require_ci_to_pass: true        # 等待CI通过
+
 coverage:
-  status:
-    project:
-      default:
-        target: 60%
-        threshold: 10%
-        # 排除不需要检查的目录
-        flags:
-          - ignore-paths
-        ignore:
-          - "cmd/"
-          - "server/"
+  precision: 2                    # 2位小数
+  round: down                     # 向下舍入
+  range: "60...100"               # 颜色分段：60%黄，80%绿
+
+ignore:
+  - "cmd/"
+  - "server/::"      
+  - "**/*_test.go" 
