@@ -6,7 +6,7 @@ codecov:
 coverage:
   precision: 2                    # 2位小数
   round: down                     # 向下舍入
-  range: "60...100"               # 颜色分段：60%黄，80%绿
+  range: "40...100"               # 颜色分段：40%黄，60%绿
 
 ignore:
   - "cmd/"
