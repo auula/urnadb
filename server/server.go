@@ -35,7 +35,7 @@ import (
 var (
 	pkgmut = sync.Mutex{}
 	// ipv4 return local IPv4 address
-	ipv4    string = "127.0.0.1"
+	ipv4    string = "0.0.0.0"
 	storage *vfs.LogStructuredFS
 )
 
@@ -113,7 +113,7 @@ func New(opt *Options) (*HttpServer, error) {
 	hs := HttpServer{
 		serv: &http.Server{
 			Handler:      routes.SetupRoutes(),
-			Addr:         net.JoinHostPort("0.0.0.0", strconv.Itoa(int(opt.Port))),
+			Addr:         net.JoinHostPort(ipv4, strconv.Itoa(int(opt.Port))),
 			WriteTimeout: timeout,
 			ReadTimeout:  timeout,
 		},
