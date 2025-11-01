@@ -1551,7 +1551,7 @@ func scanAndRecoverCheckpoint(files []string, regions map[int64]*os.File, indexs
 					continue
 				}
 
-				if segment.ExpiredAt <= time.Now().UnixMicro() && segment.ExpiredAt != 0 {
+				if segment.ExpiredAt > 0 && segment.ExpiredAt <= time.Now().UnixMicro() {
 					offset += int64(segment.Size())
 					continue
 				}
