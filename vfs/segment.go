@@ -121,9 +121,9 @@ func (s *Segment) Clear() {
 	s.Value = nil
 	s.KeySize = 0
 	s.CreatedAt = 0
-	s.ExpiredAt = 0
 	s.ValueSize = 0
 	s.Tombstone = 0
+	s.ExpiredAt = ImmortalTTL
 }
 
 // NewSegmentWithExpiry 使用数据类型和元信息初始化并返回对应的 Segment，适用于基于已有过期时间的 segment 的更新操作
