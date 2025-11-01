@@ -54,13 +54,13 @@ func init() {
 	// initialized local server ip address
 	addrs, err := net.Interfaces()
 	if err != nil {
-		clog.Errorf("get server IPv4 address failed: %s", err)
+		clog.Errorf("Initial server IPv4 address failed: %s", err)
 	}
 
 	// const local IPv4 address
 	ipv4, err = getIPv4Address(addrs)
 	if err != nil {
-		clog.Errorf("get server IPv4 address failed: %s", err)
+		clog.Errorf("Get server IPv4 address failed: %s", err)
 	}
 }
 
