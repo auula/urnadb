@@ -2,11 +2,9 @@ package services
 
 import (
 	"errors"
-	"strconv"
 	"sync"
 
 	"github.com/auula/urnadb/types"
-	"github.com/auula/urnadb/utils"
 	"github.com/auula/urnadb/vfs"
 )
 
@@ -15,7 +13,7 @@ import (
 type VariantService interface {
 	GetVariant(name string) (*types.Variant, error)
 	SetVariant(name string, value *types.Variant, ttl int64) error
-	Increment(name string, delta string) (float64, error)
+	Increment(name string, delta float64) (float64, error)
 }
 
 func (vs *VariantServiceImpl) acquireTablesLock(key string) *sync.RWMutex {
@@ -62,7 +60,7 @@ func (vs *VariantServiceImpl) SetVariant(name string, value *types.Variant, ttl 
 }
 
 // Increment 增量操作 - 只对数值类型有效
-func (vs *VariantServiceImpl) Increment(name string, delta string) (float64, error) {
+func (vs *VariantServiceImpl) Increment(name string, delta float64) (float64, error) {
 	vs.acquireTablesLock(name).Lock()
 	defer vs.acquireTablesLock(name).Unlock()
 
@@ -77,17 +75,11 @@ func (vs *VariantServiceImpl) Increment(name string, delta string) (float64, err
 	}
 
 	// 过滤非数值类型
-	isnum, f_ok, d_ok := utils.IsStrictNumber(delta)
-	res_num := float64(0)
-	if isnum || f_ok || d_ok {
-		fnum, err := strconv.ParseFloat(delta, 64)
-		if err != nil {
-			return 0, err
-		}
-		res_num = variant.AddFloat64(fnum)
-	} else {
-		return 0, errors.New("increment operation is only valid for numeric types")
+	if variant.IsBool() || variant.IsString() {
+		return 0, errors.New("varinat value is bool or string")
 	}
+
+	res_num := variant.AddFloat64(delta)
 
 	ttl, ok := seg.ExpiresIn()
 	if !ok {
