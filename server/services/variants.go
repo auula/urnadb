@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/auula/urnadb/types"
+	"github.com/auula/urnadb/utils"
 	"github.com/auula/urnadb/vfs"
 )
 
@@ -56,6 +57,8 @@ func (vs *VariantServiceImpl) SetVariant(name string, value *types.Variant, ttl 
 		return err
 	}
 
+	defer seg.ReleaseToPool()
+
 	return vs.storage.PutSegment(name, seg)
 }
 
@@ -85,6 +88,8 @@ func (vs *VariantServiceImpl) Increment(name string, delta float64) (float64, er
 	if !ok {
 		return 0, nil
 	}
+
+	defer utils.ReleaseToPool(seg, variant)
 
 	seg, err = vfs.AcquirePoolSegment(name, variant, ttl)
 	if err != nil {
