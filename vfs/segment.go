@@ -27,9 +27,7 @@ import (
 type kind int8
 
 const (
-	set kind = iota
-	zset
-	table
+	table kind = iota
 	record
 	unknown
 	variant
@@ -39,11 +37,9 @@ const (
 const ImmortalTTL = -1
 
 var kindToString = map[kind]string{
-	set:       "set",
-	zset:      "zset",
 	table:     "table",
-	variant:   "variant",
 	record:    "record",
+	variant:   "variant",
 	unknown:   "unknown",
 	leaselock: "leaselock",
 }
@@ -154,7 +150,6 @@ func NewSegment[T Serializable](key string, data T, ttl int64) (*Segment, error)
 		return nil, fmt.Errorf("transformer encode: %w", err)
 	}
 
-	// 如果类型不匹配，则返回错误
 	return &Segment{
 		Type:      toKind(data),
 		Tombstone: 0,
@@ -200,6 +195,7 @@ func (s *Segment) Size() int32 {
 }
 
 func (s *Segment) ToVariant() (*types.Variant, error) {
+	// 如果类型不匹配，则返回错误
 	if s.Type != variant {
 		return nil, fmt.Errorf("not support conversion to variant type")
 	}
@@ -219,6 +215,7 @@ func (s *Segment) ToVariant() (*types.Variant, error) {
 }
 
 func (s *Segment) ToRecord() (*types.Record, error) {
+	// 如果类型不匹配，则返回错误
 	if s.Type != record {
 		return nil, fmt.Errorf("not support conversion to record type")
 	}
@@ -239,6 +236,7 @@ func (s *Segment) ToRecord() (*types.Record, error) {
 }
 
 func (s *Segment) ToTable() (*types.Table, error) {
+	// 如果类型不匹配，则返回错误
 	if s.Type != table {
 		return nil, fmt.Errorf("not support conversion to table type")
 	}
@@ -259,6 +257,7 @@ func (s *Segment) ToTable() (*types.Table, error) {
 }
 
 func (s *Segment) ToLeaseLock() (*types.LeaseLock, error) {
+	// 如果类型不匹配，则返回错误
 	if s.Type != leaselock {
 		return nil, fmt.Errorf("not support conversion to lease lock type")
 	}
