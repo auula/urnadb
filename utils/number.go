@@ -22,7 +22,8 @@ func Int64ToUint64Safe(s int64) (uint64, error) {
 	return uint64(s), nil
 }
 
-// 第一个 bool 值为 true 就是数字，第二个 bool 是负数就是 true ,第三个 bool 是小数
+// 第一个 bool 值为 true 就是数字，第二个 bool 是负数就是 true ，第三个 bool 是小数
+// 3 个 true 就是 -3.1415927
 func IsStrictNumber(s string) (isNumber bool, isNegative bool, isFloat bool) {
 	if s == "" {
 		return false, false, false
