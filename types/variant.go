@@ -30,7 +30,9 @@ var variantPools = sync.Pool{
 func init() {
 	// 预先填充池中的对象，把对象放入池中
 	for i := 0; i < 10; i++ {
-		variantPools.Put(new(Variant))
+		variantPools.Put(&Variant{
+			Value: float64(0),
+		})
 	}
 }
 
@@ -59,7 +61,8 @@ func (v *Variant) Clear() {
 	case bool:
 		v.Value = false
 	default:
-		v.Value = nil
+		// 这里也可以统一赋一个数字类型，避免后续 panic
+		v.Value = float64(0)
 	}
 }
 
@@ -129,7 +132,7 @@ func (v *Variant) Bool() bool {
 	return v.Value.(bool)
 }
 
-func (v *Variant) ToBytes() ([]byte, error) {
+func (v Variant) ToBytes() ([]byte, error) {
 	return msgpack.Marshal(&v.Value)
 }
 
@@ -145,4 +148,26 @@ func (v *Variant) IsVariant() bool {
 	_, oki := v.Value.(int64)
 	_, okf := v.Value.(float64)
 	return !oks || !oki || !okf
+}
+
+// fix bug: msgpack: Decode(non-pointer float64)
+func (v *Variant) FromBytesSafe(data []byte) error {
+	var raw any
+	err := msgpack.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+
+	switch val := raw.(type) {
+	case int, int8, int16, int32, int64, float32, float64:
+		v.Value = val
+	case string:
+		v.Value = val
+	case bool:
+		v.Value = val
+	default:
+		// 默认数字类型
+		v.Value = float64(0)
+	}
+	return nil
 }
