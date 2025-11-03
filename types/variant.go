@@ -30,9 +30,7 @@ var variantPools = sync.Pool{
 func init() {
 	// 预先填充池中的对象，把对象放入池中
 	for i := 0; i < 10; i++ {
-		variantPools.Put(&Variant{
-			Value: float64(0),
-		})
+		variantPools.Put(new(Variant))
 	}
 }
 
@@ -132,7 +130,7 @@ func (v *Variant) Bool() bool {
 	return v.Value.(bool)
 }
 
-func (v Variant) ToBytes() ([]byte, error) {
+func (v *Variant) ToBytes() ([]byte, error) {
 	return msgpack.Marshal(&v.Value)
 }
 
