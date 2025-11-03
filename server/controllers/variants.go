@@ -46,11 +46,12 @@ func CreateVariantController(ctx *gin.Context) {
 		return
 	}
 
-	new_variant := types.NewVariant(req.Value)
+	new_variant := types.AcquireVariant()
+	new_variant.Value = req.Value
 
-	if new_variant.IsVariant() {
+	if !new_variant.IsVariant() {
 		ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(
-			"only allow string, int, and float types.",
+			"only allow string, int, and float types",
 		))
 		return
 	}
@@ -68,7 +69,7 @@ func CreateVariantController(ctx *gin.Context) {
 }
 
 type MathVarianrRequest struct {
-	Delta string `json:"delta" bingding:"required"`
+	Delta float64 `json:"delta" bingding:"required"`
 }
 
 // increment += -=
@@ -82,7 +83,7 @@ func MathVariantController(ctx *gin.Context) {
 	var req MathVarianrRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusBadRequest, response.Fail("delta must be a float or int type"))
 		return
 	}
 
