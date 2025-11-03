@@ -368,3 +368,195 @@ func BenchmarkVariant_AddFloat64(b *testing.B) {
 		_ = variant.AddFloat64(float64(i))
 	}
 }
+
+// 测试对象池功能
+func TestVariantPool(t *testing.T) {
+	t.Run("acquire and release", func(t *testing.T) {
+		v1 := AcquireVariant()
+		assert.NotNil(t, v1)
+
+		v1.Value = "test"
+		assert.Equal(t, "test", v1.Value)
+
+		v1.ReleaseToPool()
+
+		v2 := AcquireVariant()
+		assert.NotNil(t, v2)
+		assert.NotEqual(t, "test", v2.Value)
+	})
+}
+
+// 测试 Clear 方法
+func TestVariant_Clear(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    any
+		expected any
+	}{
+		{"clear string", "hello", ""},
+		{"clear int64", int64(100), int64(0)},
+		{"clear float64", 3.14, 0.0},
+		{"clear bool", true, false},
+		{"clear unknown type", []int{1, 2, 3}, float64(0)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := NewVariant(tt.input)
+			v.Clear()
+			assert.Equal(t, tt.expected, v.Value)
+		})
+	}
+}
+
+// 测试类型检查方法
+func TestVariant_IsString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    any
+		expected bool
+	}{
+		{"string is string", "hello", true},
+		{"empty string is string", "", true},
+		{"int64 is not string", int64(100), false},
+		{"float64 is not string", 3.14, false},
+		{"bool is not string", true, false},
+		{"nil is not string", nil, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := NewVariant(tt.input)
+			result := v.IsString()
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestVariant_IsNumber(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    any
+		expected bool
+	}{
+		{"int64 is number", int64(100), true},
+		{"float64 is number", 3.14, true},
+		{"string is not number", "hello", false},
+		{"bool is not number", true, false},
+		{"nil is not number", nil, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := NewVariant(tt.input)
+			result := v.IsNumber()
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestVariant_IsBool(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    any
+		expected bool
+	}{
+		{"true is bool", true, true},
+		{"false is bool", false, true},
+		{"string is not bool", "hello", false},
+		{"int64 is not bool", int64(100), false},
+		{"float64 is not bool", 3.14, false},
+		{"nil is not bool", nil, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := NewVariant(tt.input)
+			result := v.IsBool()
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestVariant_IsVariant(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    any
+		expected bool
+	}{
+		{"complex type is variant", map[string]int{"a": 1}, true},
+		{"slice is variant", []int{1, 2, 3}, true},
+		{"struct is variant", struct{ Name string }{Name: "test"}, true},
+		{"nil is not variant", nil, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := NewVariant(tt.input)
+			result := v.IsVariant()
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// 测试 FromBytesSafe 方法
+func TestVariant_FromBytesSafe(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    any
+		expected any
+	}{
+		{"string from bytes", "hello world", "hello world"},
+		{"int64 from bytes", int64(12345), int64(12345)},
+		{"float64 from bytes", 3.14159, 3.14159},
+		{"bool from bytes", true, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			original := NewVariant(tt.input)
+			data, err := original.ToBytes()
+			assert.NoError(t, err)
+
+			v := NewVariant(nil)
+			err = v.FromBytesSafe(data)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, v.Value)
+		})
+	}
+
+	t.Run("invalid data", func(t *testing.T) {
+		v := NewVariant(nil)
+		// 使用一个真正无效的 msgpack 格式
+		// 0xC1 是 msgpack 中的保留字节，应该产生错误
+		err := v.FromBytesSafe([]byte{0xC1})
+		assert.Error(t, err)
+	})
+}
+
+// 测试 nil 值处理
+func TestVariant_NilHandling(t *testing.T) {
+	t.Run("nil value string", func(t *testing.T) {
+		v := NewVariant(nil)
+		result := v.String()
+		assert.Equal(t, "", result)
+	})
+
+	t.Run("nil value add int64", func(t *testing.T) {
+		v := NewVariant(nil)
+		result := v.AddInt64(10)
+		assert.Equal(t, int64(0), result)
+	})
+
+	t.Run("nil value add float64", func(t *testing.T) {
+		v := NewVariant(nil)
+		result := v.AddFloat64(1.5)
+		assert.Equal(t, 0.0, result)
+	})
+
+	t.Run("nil value bool", func(t *testing.T) {
+		v := NewVariant(nil)
+		result := v.Bool()
+		assert.Equal(t, false, result)
+	})
+}
