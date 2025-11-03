@@ -79,7 +79,7 @@ type Serializable interface {
 	ToBytes() ([]byte, error)
 }
 
-func AcquirePoolSegment(key string, data Serializable, ttl int64) (*Segment, error) {
+func AcquirePoolSegment[T Serializable](key string, data T, ttl int64) (*Segment, error) {
 	seg := segmentPool.Get().(*Segment)
 	createdAt, expiredAt := int64(time.Now().UnixMicro()), int64(ImmortalTTL)
 	if ttl > 0 {
@@ -318,7 +318,6 @@ func (s *Segment) Payload() ([]byte, uint32) {
 
 func (s *Segment) ToJSON() ([]byte, error) {
 	switch s.Type {
-	case set:
 	case record:
 		num, err := s.ToRecord()
 		if err != nil {
