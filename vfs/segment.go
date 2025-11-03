@@ -206,7 +206,7 @@ func (s *Segment) ToVariant() (*types.Variant, error) {
 	}
 
 	variant := types.AcquireVariant()
-	err = msgpack.Unmarshal(decodedData, &variant.Value)
+	err = variant.FromBytesSafe(decodedData)
 	if err != nil {
 		return nil, err
 	}
