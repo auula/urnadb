@@ -22,6 +22,8 @@ func GetVariantController(ctx *gin.Context) {
 		return
 	}
 
+	defer variant.ReleaseToPool()
+
 	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
 		"variant": variant.Value,
 	}))
@@ -55,6 +57,8 @@ func CreateVariantController(ctx *gin.Context) {
 		))
 		return
 	}
+
+	defer new_variant.ReleaseToPool()
 
 	err = vs.SetVariant(name, new_variant, req.TTLSeconds)
 	if err != nil {
