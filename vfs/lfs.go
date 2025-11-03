@@ -1328,8 +1328,8 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 			return regionIds[i] < regionIds[j]
 		})
 
-		// find 40% dirty region
-		for i := 0; i <= 4 && i < len(regionIds); i++ {
+		// find 40% dirty regions
+		for i := 0; i < 4 && i < len(regionIds); i++ {
 			dirtyIds = append(dirtyIds, regionIds[i])
 			lfs.dirtyRegions = append(lfs.dirtyRegions, lfs.regions[regionIds[i]])
 		}
