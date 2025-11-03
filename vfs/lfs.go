@@ -538,15 +538,15 @@ func (*LogStructuredFS) SetEncryptor(encryptor Encryptor, secret []byte) error {
 }
 
 func (lfs *LogStructuredFS) RunCheckpoint(second uint32) {
-	lfs.mu.Lock()
-	if lfs.checkpointWorker != nil {
-		lfs.mu.Unlock()
-		return
-	}
-
-	// 设置 checkpoint 异步生成周期
-	lfs.checkpointWorker = time.NewTicker(time.Duration(second) * time.Second)
-	lfs.mu.Unlock()
+	func() {
+		lfs.mu.Lock()
+		defer lfs.mu.Unlock()
+		if lfs.checkpointWorker != nil {
+			return
+		}
+		// 设置 checkpoint 异步生成周期
+		lfs.checkpointWorker = time.NewTicker(time.Duration(second) * time.Second)
+	}()
 
 	var chkptState bool = false
 
@@ -1371,18 +1371,24 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 						}
 
 						// 缩小锁的颗粒度
-						lfs.mu.Lock()
-						err = appendToActiveRegion(lfs.active, bytes)
-						if err != nil {
-							lfs.mu.Unlock()
+						if err := func() error {
+							lfs.mu.Lock()
+							defer lfs.mu.Unlock()
+
+							err = appendToActiveRegion(lfs.active, bytes)
+							if err != nil {
+								return err
+							}
+
+							inode.Position = lfs.offset
+							inode.RegionID = lfs.regionID
+
+							lfs.offset += int64(segment.Size())
+
+							return nil
+						}(); err != nil {
 							return err
 						}
-
-						inode.Position = lfs.offset
-						inode.RegionID = lfs.regionID
-
-						lfs.offset += int64(segment.Size())
-						lfs.mu.Unlock()
 
 						readOffset += int64(segment.Size())
 
@@ -1409,13 +1415,15 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 
 		// delete dirty region file
 		for _, reg_id := range dirtyIds {
-			lfs.mu.Lock()
-			fd, ok := lfs.regions[reg_id]
-			if ok {
-				_ = os.Remove(filepath.Join(lfs.directory, fd.Name()))
-				delete(lfs.regions, reg_id)
-			}
-			lfs.mu.Unlock()
+			func(reg_id int64) {
+				lfs.mu.Lock()
+				defer lfs.mu.Unlock()
+				fd, ok := lfs.regions[reg_id]
+				if ok {
+					_ = os.Remove(filepath.Join(lfs.directory, fd.Name()))
+					delete(lfs.regions, reg_id)
+				}
+			}(reg_id)
 		}
 
 	} else {
