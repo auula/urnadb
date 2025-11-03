@@ -34,7 +34,7 @@ func CreateTableController(ctx *gin.Context) {
 		return
 	}
 
-	err = ts.CreateTable(name, types.NewTable(), req.TTLSeconds)
+	err = ts.CreateTable(name, types.AcquireTable(), req.TTLSeconds)
 	if err != nil {
 		handlerTablesError(ctx, err)
 		return

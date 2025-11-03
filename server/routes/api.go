@@ -35,21 +35,21 @@ func SetupRoutes() *gin.Engine {
 	}
 
 	// Table 路由
-	table := router.Group("/tables")
+	tables := router.Group("/tables")
 	{
-		table.GET("/:key", controllers.QueryTableController)
-		table.PUT("/:key", controllers.CreateTableController)
-		table.POST("/:key", controllers.RemoveRowsTabelController)
-		table.PATCH("/:key", controllers.PatchRowsTableController)
-		table.DELETE("/:key", controllers.DeleteTableController)
+		tables.GET("/:key", controllers.QueryTableController)
+		tables.PUT("/:key", controllers.CreateTableController)
+		tables.POST("/:key", controllers.RemoveRowsTabelController)
+		tables.PATCH("/:key", controllers.PatchRowsTableController)
+		tables.DELETE("/:key", controllers.DeleteTableController)
 	}
 
 	// Lock 路由
-	lock := router.Group("/locks")
+	locks := router.Group("/locks")
 	{
-		lock.PUT("/:key", controllers.NewLockController)
-		lock.PATCH("/:key", controllers.DoLeaseLockController)
-		lock.DELETE("/:key", controllers.DeleteLockController)
+		locks.PUT("/:key", controllers.NewLockController)
+		locks.PATCH("/:key", controllers.DoLeaseLockController)
+		locks.DELETE("/:key", controllers.DeleteLockController)
 	}
 
 	// // records 路由
@@ -58,6 +58,13 @@ func SetupRoutes() *gin.Engine {
 		records.GET("/:key", controllers.GetRecordsController)
 		records.PUT("/:key", controllers.PutRecordsController)
 		records.DELETE("/:key", controllers.DeleteRecordsController)
+	}
+
+	variants := router.Group("/variants")
+	{
+		variants.GET("/:key", controllers.GetVariantController)
+		variants.PUT("/:key", controllers.CreateVariantController)
+		variants.POST("/:key", controllers.MathVariantController)
 	}
 
 	return router

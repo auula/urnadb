@@ -120,3 +120,13 @@ func (v *Variant) ToBytes() ([]byte, error) {
 func (v *Variant) ToJSON() ([]byte, error) {
 	return json.Marshal(&v.Value)
 }
+
+func (v *Variant) IsVariant() bool {
+	if v.Value == nil {
+		return false
+	}
+	_, oks := v.Value.(string)
+	_, oki := v.Value.(int64)
+	_, okf := v.Value.(float64)
+	return !oks || !oki || !okf
+}
