@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/auula/urnadb/types"
-	"github.com/auula/urnadb/utils"
 	"github.com/auula/urnadb/vfs"
 )
 
