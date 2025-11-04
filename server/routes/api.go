@@ -63,8 +63,9 @@ func SetupRoutes() *gin.Engine {
 	variants := router.Group("/variants")
 	{
 		variants.GET("/:key", controllers.GetVariantController)
-		variants.PUT("/:key", controllers.CreateVariantController)
 		variants.POST("/:key", controllers.MathVariantController)
+		variants.PUT("/:key", controllers.CreateVariantController)
+		variants.DELETE("/:key", controllers.DeleteVariantController)
 	}
 
 	return router

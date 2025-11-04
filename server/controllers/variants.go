@@ -1,13 +1,33 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/auula/urnadb/server/response"
+	"github.com/auula/urnadb/server/services"
 	"github.com/auula/urnadb/types"
 	"github.com/auula/urnadb/utils"
 	"github.com/gin-gonic/gin"
 )
+
+func DeleteVariantController(ctx *gin.Context) {
+	name := ctx.Param("key")
+	if !utils.NotNullString(name) {
+		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		return
+	}
+
+	err := vs.DeleteVariant(name)
+	if err != nil {
+		handlerVariantsError(ctx, err)
+		return
+	}
+
+	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+		"message": "variant deleted successfully.",
+	}))
+}
 
 func GetVariantController(ctx *gin.Context) {
 	name := ctx.Param("key")
@@ -18,7 +38,7 @@ func GetVariantController(ctx *gin.Context) {
 
 	variant, err := vs.GetVariant(name)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(err.Error()))
+		handlerVariantsError(ctx, err)
 		return
 	}
 
@@ -62,7 +82,7 @@ func CreateVariantController(ctx *gin.Context) {
 
 	err = vs.SetVariant(name, new_variant, req.TTLSeconds)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusOK, response.Fail(err.Error()))
+		handlerVariantsError(ctx, err)
 		return
 	}
 
@@ -93,11 +113,23 @@ func MathVariantController(ctx *gin.Context) {
 
 	res_num, err := vs.Increment(name, req.Delta)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		handlerVariantsError(ctx, err)
 		return
 	}
 
 	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
 		"variant": res_num,
 	}))
+}
+
+func handlerVariantsError(ctx *gin.Context, err error) {
+	switch {
+	case errors.Is(err, services.ErrVariantNotFound):
+		ctx.IndentedJSON(http.StatusNotFound, response.Fail(err.Error()))
+	case errors.Is(err, services.ErrVariantExpired):
+		ctx.IndentedJSON(http.StatusGone, response.Fail(err.Error()))
+	default:
+		// 所有其他错误都统一返回 500 内部服务器错误
+		ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(err.Error()))
+	}
 }
