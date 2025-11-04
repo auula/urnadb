@@ -4,9 +4,15 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/auula/urnadb/clog"
 	"github.com/auula/urnadb/types"
 	"github.com/auula/urnadb/utils"
 	"github.com/auula/urnadb/vfs"
+)
+
+var (
+	ErrVariantNotFound = errors.New("variant not found")
+	ErrVariantExpired  = errors.New("variant ttl is invalid or expired")
 )
 
 // 如果 Number 类型要完成类似于 redis 的 increment 的操作，
@@ -15,9 +21,10 @@ type VariantService interface {
 	GetVariant(name string) (*types.Variant, error)
 	SetVariant(name string, value *types.Variant, ttl int64) error
 	Increment(name string, delta float64) (float64, error)
+	DeleteVariant(name string) error
 }
 
-func (vs *VariantServiceImpl) acquireTablesLock(key string) *sync.RWMutex {
+func (vs *VariantServiceImpl) acquireVariantLock(key string) *sync.RWMutex {
 	actual, _ := vs.vlock.LoadOrStore(key, new(sync.RWMutex))
 	return actual.(*sync.RWMutex)
 }
@@ -36,11 +43,12 @@ func NewVariantServiceImpl(storage *vfs.LogStructuredFS) VariantService {
 
 // GetVariant 获取变量值
 func (vs *VariantServiceImpl) GetVariant(name string) (*types.Variant, error) {
-	vs.acquireTablesLock(name).RLock()
-	defer vs.acquireTablesLock(name).RUnlock()
+	vs.acquireVariantLock(name).RLock()
+	defer vs.acquireVariantLock(name).RUnlock()
 
 	_, seg, err := vs.storage.FetchSegment(name)
 	if err != nil {
+		clog.Errorf("Variant service get value: %#v", err)
 		return nil, err
 	}
 
@@ -49,11 +57,12 @@ func (vs *VariantServiceImpl) GetVariant(name string) (*types.Variant, error) {
 
 // SetVariant 设置变量值
 func (vs *VariantServiceImpl) SetVariant(name string, value *types.Variant, ttl int64) error {
-	vs.acquireTablesLock(name).Lock()
-	defer vs.acquireTablesLock(name).Unlock()
+	vs.acquireVariantLock(name).Lock()
+	defer vs.acquireVariantLock(name).Unlock()
 
 	seg, err := vfs.AcquirePoolSegment(name, value, ttl)
 	if err != nil {
+		clog.Errorf("Variant service set value: %#v", err)
 		return err
 	}
 
@@ -64,16 +73,18 @@ func (vs *VariantServiceImpl) SetVariant(name string, value *types.Variant, ttl 
 
 // Increment 增量操作 - 只对数值类型有效
 func (vs *VariantServiceImpl) Increment(name string, delta float64) (float64, error) {
-	vs.acquireTablesLock(name).Lock()
-	defer vs.acquireTablesLock(name).Unlock()
+	vs.acquireVariantLock(name).Lock()
+	defer vs.acquireVariantLock(name).Unlock()
 
 	_, seg, err := vs.storage.FetchSegment(name)
 	if err != nil {
+		clog.Errorf("Variant service incremnt: %#v", err)
 		return 0, err
 	}
 
 	variant, err := seg.ToVariant()
 	if err != nil {
+		clog.Errorf("Variant service incremnt: %#v", err)
 		return 0, err
 	}
 
@@ -86,20 +97,42 @@ func (vs *VariantServiceImpl) Increment(name string, delta float64) (float64, er
 
 	ttl, ok := seg.ExpiresIn()
 	if !ok {
-		return 0, nil
+		return 0, ErrVariantExpired
 	}
 
 	defer utils.ReleaseToPool(seg, variant)
 
 	seg, err = vfs.AcquirePoolSegment(name, variant, ttl)
 	if err != nil {
+		clog.Errorf("Variant service incremnt: %#v", err)
 		return 0, err
 	}
 
 	err = vs.storage.PutSegment(name, seg)
 	if err != nil {
+		clog.Errorf("Variant service incremnt: %#v", err)
 		return 0, err
 	}
 
 	return res_num, nil
+}
+
+func (vs *VariantServiceImpl) DeleteVariant(name string) error {
+	// 先检查 variant
+	if !vs.storage.HasSegment(name) {
+		return ErrVariantNotFound
+	}
+
+	vs.acquireVariantLock(name).Lock()
+
+	err := vs.storage.DeleteSegment(name)
+	if err != nil {
+		clog.Errorf("Variant service delete: %#v", err)
+		return err
+	}
+
+	vs.acquireVariantLock(name).Unlock()
+	vs.vlock.Delete(name)
+
+	return nil
 }
