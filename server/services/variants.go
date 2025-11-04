@@ -118,7 +118,6 @@ func (vs *VariantServiceImpl) Increment(name string, delta float64) (float64, er
 }
 
 func (vs *VariantServiceImpl) DeleteVariant(name string) error {
-	// 先检查 variant
 	if !vs.storage.HasSegment(name) {
 		return ErrVariantNotFound
 	}

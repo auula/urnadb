@@ -111,12 +111,12 @@ func (s *TablesServiceImpl) RemoveRows(name string, condtitons map[string]any) e
 }
 
 func (s *TablesServiceImpl) CreateTable(name string, table *types.Table, ttl int64) error {
-	s.acquireTablesLock(name).Lock()
-	defer s.acquireTablesLock(name).Unlock()
-
 	if s.storage.HasSegment(name) {
 		return ErrTableAlreadyExists
 	}
+
+	s.acquireTablesLock(name).Lock()
+	defer s.acquireTablesLock(name).Unlock()
 
 	seg, err := vfs.AcquirePoolSegment(name, table, ttl)
 	if err != nil {

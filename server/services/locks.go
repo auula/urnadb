@@ -42,12 +42,11 @@ func (s *LeaseLockService) acquireLeaseLock(key string) *sync.Mutex {
 }
 
 func (s *LeaseLockService) ReleaseLock(name string, token string) error {
-	s.acquireLeaseLock(name).Lock()
-
 	if !s.storage.HasSegment(name) {
-		s.acquireLeaseLock(name).Unlock()
 		return ErrLockNotFound
 	}
+
+	s.acquireLeaseLock(name).Lock()
 
 	_, seg, err := s.storage.FetchSegment(name)
 	if err != nil {
@@ -84,13 +83,13 @@ func (s *LeaseLockService) ReleaseLock(name string, token string) error {
 }
 
 func (s *LeaseLockService) AcquireLock(name string, ttl int64) (*types.LeaseLock, error) {
-	s.acquireLeaseLock(name).Lock()
-	defer s.acquireLeaseLock(name).Unlock()
-
 	// 存在则表示锁已经存在，意味着同一把锁还没有过期，同一资源还未过期。
 	if s.storage.HasSegment(name) {
 		return nil, ErrAlreadyLocked
 	}
+
+	s.acquireLeaseLock(name).Lock()
+	defer s.acquireLeaseLock(name).Unlock()
 
 	if ttl < 0 {
 		return nil, ErrInvalidLeaseTTL
@@ -122,12 +121,12 @@ func (s *LeaseLockService) AcquireLock(name string, ttl int64) (*types.LeaseLock
 // 续租一定要注意服务器中途宕机了，客户端还认为服务器还活着，客户端也要有一个超时，如果超时了客户端抛出异常准备回滚。
 // 正常续租成功了，应该更换客户端的 token 凭证，解锁的时候需要使用这个 token 作为凭证。
 func (s *LeaseLockService) DoLeaseLock(name string, token string) (*types.LeaseLock, error) {
-	s.acquireLeaseLock(name).Lock()
-	defer s.acquireLeaseLock(name).Unlock()
-
 	if !s.storage.HasSegment(name) {
 		return nil, ErrLockNotFound
 	}
+
+	s.acquireLeaseLock(name).Lock()
+	defer s.acquireLeaseLock(name).Unlock()
 
 	_, seg, err := s.storage.FetchSegment(name)
 	if err != nil {
