@@ -27,7 +27,7 @@ import (
 
 	"github.com/auula/urnadb/clog"
 	"github.com/auula/urnadb/server/controllers"
-	"github.com/auula/urnadb/server/middleware"
+	"github.com/auula/urnadb/server/middlewares"
 	"github.com/auula/urnadb/server/routes"
 	"github.com/auula/urnadb/vfs"
 )
@@ -96,7 +96,7 @@ func New(opt *Options) (*HttpServer, error) {
 	}
 
 	pkgmut.Lock()
-	middleware.SetAuthPassword(opt.Auth)
+	middlewares.SetAuthPassword(opt.Auth)
 	pkgmut.Unlock()
 
 	hs := HttpServer{
@@ -127,7 +127,7 @@ func (*HttpServer) SetupFS(fss *vfs.LogStructuredFS) {
 func (*HttpServer) SetAllowIP(allowd []string) {
 	pkgmut.Lock()
 	defer pkgmut.Unlock()
-	middleware.SetAllowIpList(allowd)
+	middlewares.SetAllowIpList(allowd)
 }
 
 func (hs *HttpServer) Port() uint16 {

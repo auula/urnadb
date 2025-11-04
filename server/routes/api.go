@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/auula/urnadb/server/controllers"
-	"github.com/auula/urnadb/server/middleware"
+	"github.com/auula/urnadb/server/middlewares"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,7 +19,7 @@ func SetupRoutes() *gin.Engine {
 	})
 
 	// 全局中间件
-	router.Use(middleware.AuthMiddleware())
+	router.Use(middlewares.AuthMiddleware())
 
 	// 404处理
 	router.NoRoute(controllers.Error404Handler)
