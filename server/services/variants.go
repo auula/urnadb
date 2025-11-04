@@ -48,7 +48,7 @@ func (vs *VariantServiceImpl) GetVariant(name string) (*types.Variant, error) {
 
 	_, seg, err := vs.storage.FetchSegment(name)
 	if err != nil {
-		clog.Errorf("Variant service get value: %#v", err)
+		clog.Errorf("Variant service get value: %v", err)
 		return nil, err
 	}
 
@@ -62,7 +62,7 @@ func (vs *VariantServiceImpl) SetVariant(name string, value *types.Variant, ttl 
 
 	seg, err := vfs.AcquirePoolSegment(name, value, ttl)
 	if err != nil {
-		clog.Errorf("Variant service set value: %#v", err)
+		clog.Errorf("Variant service set value: %v", err)
 		return err
 	}
 
@@ -78,13 +78,13 @@ func (vs *VariantServiceImpl) Increment(name string, delta float64) (float64, er
 
 	_, seg, err := vs.storage.FetchSegment(name)
 	if err != nil {
-		clog.Errorf("Variant service incremnt: %#v", err)
+		clog.Errorf("Variant service incremnt: %v", err)
 		return 0, err
 	}
 
 	variant, err := seg.ToVariant()
 	if err != nil {
-		clog.Errorf("Variant service incremnt: %#v", err)
+		clog.Errorf("Variant service incremnt: %v", err)
 		return 0, err
 	}
 
@@ -104,13 +104,13 @@ func (vs *VariantServiceImpl) Increment(name string, delta float64) (float64, er
 
 	seg, err = vfs.AcquirePoolSegment(name, variant, ttl)
 	if err != nil {
-		clog.Errorf("Variant service incremnt: %#v", err)
+		clog.Errorf("Variant service incremnt: %v", err)
 		return 0, err
 	}
 
 	err = vs.storage.PutSegment(name, seg)
 	if err != nil {
-		clog.Errorf("Variant service incremnt: %#v", err)
+		clog.Errorf("Variant service incremnt: %v", err)
 		return 0, err
 	}
 
@@ -126,7 +126,7 @@ func (vs *VariantServiceImpl) DeleteVariant(name string) error {
 
 	err := vs.storage.DeleteSegment(name)
 	if err != nil {
-		clog.Errorf("Variant service delete: %#v", err)
+		clog.Errorf("Variant service delete: %v", err)
 		return err
 	}
 
