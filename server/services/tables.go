@@ -111,7 +111,7 @@ func (s *TablesServiceImpl) RemoveRows(name string, condtitons map[string]any) e
 }
 
 func (s *TablesServiceImpl) CreateTable(name string, table *types.Table, ttl int64) error {
-	if s.storage.HasSegment(name) {
+	if s.storage.IsActive(name) {
 		return ErrTableAlreadyExists
 	}
 
