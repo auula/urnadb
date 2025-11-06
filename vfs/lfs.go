@@ -191,7 +191,7 @@ func (lfs *LogStructuredFS) DeleteSegment(key string) error {
 	return nil
 }
 
-func (lfs *LogStructuredFS) HasSegment(key string) bool {
+func (lfs *LogStructuredFS) IsActive(key string) bool {
 	inum := inodeNum(key)
 	imap := lfs.indexs[inum%uint64(shard)]
 	if imap == nil {
@@ -205,7 +205,7 @@ func (lfs *LogStructuredFS) HasSegment(key string) bool {
 		return false
 	}
 
-	return inode != nil && time.Now().UnixMicro() < inode.ExpiredAt
+	return (inode != nil && inode.ExpiredAt == ImmortalTTL) || (inode.ExpiredAt > 0 && time.Now().UnixMicro() < inode.ExpiredAt)
 }
 
 func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
