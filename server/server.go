@@ -58,7 +58,7 @@ func init() {
 	}
 
 	// const local IPv4 address
-	ipv4, err = getIPv4Address(addrs)
+	ipv4, err = detectIPv4(addrs)
 	if err != nil {
 		clog.Errorf("Get server IPv4 address failed: %s", err)
 	}
@@ -204,8 +204,9 @@ func closeStorage() error {
 	return nil
 }
 
-func getIPv4Address(addrs []net.Interface) (string, error) {
+func detectIPv4(addrs []net.Interface) (string, error) {
 	ip := ""
+
 	for _, face := range addrs {
 		adders, err := face.Addrs()
 		if err != nil {
@@ -213,14 +214,15 @@ func getIPv4Address(addrs []net.Interface) (string, error) {
 		}
 
 		for _, addr := range adders {
-			if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
+			ipNet, ok := addr.(*net.IPNet)
+			if ok && !ipNet.IP.IsLoopback() {
 				if ipNet.IP.To4() != nil {
 					ip = ipNet.IP.String()
 					break
 				}
 			}
-
 		}
 	}
+
 	return ip, nil
 }

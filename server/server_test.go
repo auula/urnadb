@@ -164,14 +164,14 @@ func TestHttpServer_Shutdown(t *testing.T) {
 
 // 测试 getIPv4Address 函数
 func TestGetIPv4Address_EmptyInterfaces(t *testing.T) {
-	result, err := getIPv4Address([]net.Interface{})
+	result, err := detectIPv4([]net.Interface{})
 	assert.NoError(t, err)
 	assert.Equal(t, "", result)
 }
 
 func TestGetIPv4Address_RealInterfaces(t *testing.T) {
 	interfaces, _ := net.Interfaces()
-	result, err := getIPv4Address(interfaces)
+	result, err := detectIPv4(interfaces)
 	assert.NoError(t, err)
 	// 结果可能为空字符串
 	if result != "" {
@@ -192,7 +192,7 @@ func TestInitIPv4Logic(t *testing.T) {
 	// 测试正常情况
 	interfaces, err := net.Interfaces()
 	if err == nil {
-		result, err := getIPv4Address(interfaces)
+		result, err := detectIPv4(interfaces)
 		assert.NoError(t, err)
 		// 验证结果是有效的 IP 地址或空字符串
 		if result != "" {

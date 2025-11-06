@@ -4,13 +4,16 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/auula/urnadb/clog"
 	"github.com/auula/urnadb/types"
+	"github.com/auula/urnadb/utils"
 	"github.com/auula/urnadb/vfs"
 )
 
 var (
 	ErrRecordUpdateFailed = errors.New("failed to update record")
 	ErrRecordNotFound     = errors.New("record not found")
+	ErrRecordExpired      = errors.New("record ttl is invalid or expired")
 )
 
 // Record 通常直接映射编程语言中的 class 的一条记录，
@@ -24,7 +27,7 @@ type RecordsService interface {
 	// 删除一条名为 name 的记录
 	DeleteRecord(name string) error
 	// 根据记录名获取到这条记录
-	QueryRecord(name string) (*types.Record, error)
+	GetRecord(name string) (*types.Record, error)
 	// Record 一段创建就不可以更改其内容，要更改直接 PUT 新 Record 和 RUW 操作
 	// // 更新记录中的某个字段
 	// PatchRows(name string, data map[string]any) error
@@ -33,7 +36,7 @@ type RecordsService interface {
 	// 创建一条名为 name 的记录
 	CreateRecord(name string, record *types.Record, ttl int64) error
 	// 根据字段搜索一条记录下的某个字段
-	SearchRows(name string, column string) (map[string]any, error)
+	SearchRows(name string, column string) (any, error)
 }
 
 type RecordsServiceImpl struct {
@@ -49,25 +52,86 @@ func (rs *RecordsServiceImpl) acquireRecordLock(name string) *sync.RWMutex {
 
 // 创建记录
 func (rs *RecordsServiceImpl) CreateRecord(name string, record *types.Record, ttl int64) error {
-	return nil
+	rs.acquireRecordLock(name).Lock()
+	defer rs.acquireRecordLock(name).Unlock()
+
+	seg, err := vfs.AcquirePoolSegment(name, record, ttl)
+	if err != nil {
+		clog.Errorf("[RecordsService.CreateRecord] %v", err)
+		return err
+	}
+
+	defer seg.ReleaseToPool()
+
+	return rs.storage.PutSegment(name, seg)
 }
 
 // 查询记录
-func (rs *RecordsServiceImpl) QueryRecord(name string) (*types.Record, error) {
-	return nil, nil
+func (rs *RecordsServiceImpl) GetRecord(name string) (*types.Record, error) {
+	if !rs.storage.IsActive(name) {
+		return nil, ErrRecordNotFound
+	}
+
+	rs.acquireRecordLock(name).Lock()
+	defer rs.acquireRecordLock(name).Unlock()
+
+	_, seg, err := rs.storage.FetchSegment(name)
+	if err != nil {
+		clog.Errorf("[RecordsService.GetRecord] %v", err)
+		return nil, err
+	}
+
+	return seg.ToRecord()
 }
 
 // 删除记录
 func (rs *RecordsServiceImpl) DeleteRecord(name string) error {
+	if !rs.storage.IsActive(name) {
+		return ErrRecordNotFound
+	}
+
+	rs.acquireRecordLock(name).Lock()
+
+	err := rs.storage.DeleteSegment(name)
+	if err != nil {
+		rs.acquireRecordLock(name).Unlock()
+		clog.Errorf("[RecordsService.DeleteRecord] %v", err)
+		return err
+	}
+
+	rs.acquireRecordLock(name).Unlock()
+	rs.rlock.Delete(name)
+
 	return nil
 }
 
 // 根据条件查询字段（简单示例，只支持一层 map）
-func (rs *RecordsServiceImpl) SearchRows(name string, column string) (map[string]any, error) {
+func (rs *RecordsServiceImpl) SearchRows(name string, column string) (any, error) {
+	if !rs.storage.IsActive(name) {
+		return nil, ErrRecordNotFound
+	}
+
 	rs.acquireRecordLock(name).RLock()
 	defer rs.acquireRecordLock(name).RUnlock()
 
-	return nil, nil
+	_, seg, err := rs.storage.FetchSegment(name)
+	if err != nil {
+		clog.Errorf("[RecordsService.SearchRows] %v", err)
+		return nil, err
+	}
+
+	record, err := seg.ToRecord()
+	if err != nil {
+		clog.Errorf("[RecordsService.SearchRows] %v", err)
+		return nil, err
+	}
+
+	defer utils.ReleaseToPool(seg, record)
+
+	// 递归深度搜索
+	result := record.SearchItem(column)
+
+	return result, nil
 }
 
 func NewRecordsService(storage *vfs.LogStructuredFS) RecordsService {

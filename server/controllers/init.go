@@ -11,7 +11,7 @@ var (
 	qs services.QueryService
 	ls services.LocksService
 	rs services.RecordsService
-	vs services.VariantService
+	vs services.VariantsService
 	hs *services.HealthService
 )
 
@@ -25,6 +25,6 @@ func InitAllComponents(storage *vfs.LogStructuredFS) error {
 	ls = services.NewLocksServiceImpl(storage)
 	qs = services.NewQueryServiceImpl(storage)
 	ts = services.NewTablesServiceImpl(storage)
-	vs = services.NewVariantServiceImpl(storage)
+	vs = services.NewVariantsServiceImpl(storage)
 	return nil
 }

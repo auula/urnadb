@@ -53,7 +53,7 @@ func (t *TablesServiceImpl) GetTable(name string) (*types.Table, error) {
 
 	_, seg, err := t.storage.FetchSegment(name)
 	if err != nil {
-		clog.Errorf("Tables service get: %v", err)
+		clog.Errorf("[TablesService.GetTable] %v", err)
 		return nil, ErrTableNotFound
 	}
 
@@ -66,7 +66,7 @@ func (t *TablesServiceImpl) DeleteTable(name string) error {
 	err := t.storage.DeleteSegment(name)
 	if err != nil {
 		t.acquireTablesLock(name).Unlock()
-		clog.Errorf("Tables service delete: %v", err)
+		clog.Errorf("[TablesService.DeleteTable] %v", err)
 		return err
 	}
 
@@ -87,7 +87,7 @@ func (s *TablesServiceImpl) RemoveRows(name string, condtitons map[string]any) e
 
 	tab, err := seg.ToTable()
 	if err != nil {
-		clog.Errorf("Tables service remove rows: %v", err)
+		clog.Errorf("[TablesService.RemoveRows] %v", err)
 		return err
 	}
 
@@ -103,7 +103,7 @@ func (s *TablesServiceImpl) RemoveRows(name string, condtitons map[string]any) e
 
 	seg, err = vfs.AcquirePoolSegment(name, tab, ttl)
 	if err != nil {
-		clog.Errorf("Tables service remove rows: %v", err)
+		clog.Errorf("[TablesService.RemoveRows] %v", err)
 		return err
 	}
 
@@ -120,7 +120,7 @@ func (s *TablesServiceImpl) CreateTable(name string, table *types.Table, ttl int
 
 	seg, err := vfs.AcquirePoolSegment(name, table, ttl)
 	if err != nil {
-		clog.Errorf("Tables service create: %v", err)
+		clog.Errorf("[TablesService.CreateTable] %v", err)
 		return err
 	}
 
@@ -140,7 +140,7 @@ func (s *TablesServiceImpl) InsertRows(name string, rows map[string]any) (uint32
 
 	tab, err := seg.ToTable()
 	if err != nil {
-		clog.Errorf("Tables service insert rows: %v", err)
+		clog.Errorf("[TablesService.InsertRows] %v", err)
 		return 0, err
 	}
 
@@ -156,13 +156,13 @@ func (s *TablesServiceImpl) InsertRows(name string, rows map[string]any) (uint32
 
 	seg, err = vfs.AcquirePoolSegment(name, tab, ttl)
 	if err != nil {
-		clog.Errorf("Tables service insert rows: %v", err)
+		clog.Errorf("[TablesService.InsertRows] %v", err)
 		return 0, err
 	}
 
 	err = s.storage.PutSegment(name, seg)
 	if err != nil {
-		clog.Errorf("Tables service insert rows: %v", err)
+		clog.Errorf("[TablesService.InsertRows] %v", err)
 		return 0, err
 	}
 
@@ -180,7 +180,7 @@ func (s *TablesServiceImpl) PatchRows(name string, conditions, data map[string]a
 
 	tab, err := seg.ToTable()
 	if err != nil {
-		clog.Errorf("Tables service patch rows: %v", err)
+		clog.Errorf("[TablesService.PatchRows] %v", err)
 		return err
 	}
 
@@ -189,7 +189,7 @@ func (s *TablesServiceImpl) PatchRows(name string, conditions, data map[string]a
 	// 根据条件来更新，可以是基于默认的 t_id 和类似于 SQL 条件的
 	err = tab.UpdateRows(conditions, data)
 	if err != nil {
-		clog.Errorf("Tables service patch rows: %v", err)
+		clog.Errorf("[TablesService.PatchRows] %v", err)
 		return err
 	}
 
@@ -200,7 +200,7 @@ func (s *TablesServiceImpl) PatchRows(name string, conditions, data map[string]a
 
 	seg, err = vfs.AcquirePoolSegment(name, tab, ttl)
 	if err != nil {
-		clog.Errorf("Tables service patch rows: %v", err)
+		clog.Errorf("[TablesService.PatchRows] %v", err)
 		return err
 	}
 
@@ -213,13 +213,13 @@ func (s *TablesServiceImpl) QueryRows(name string, wheres map[string]any) ([]map
 
 	_, seg, err := s.storage.FetchSegment(name)
 	if err != nil {
-		clog.Errorf("Tables service query rows: %v", err)
+		clog.Errorf("[TablesService.QueryRows] %v", err)
 		return nil, err
 	}
 
 	tab, err := seg.ToTable()
 	if err != nil {
-		clog.Errorf("Tables service query rows: %v", err)
+		clog.Errorf("[TablesService.QueryRows] %v", err)
 		return nil, err
 	}
 
