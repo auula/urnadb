@@ -205,7 +205,7 @@ func (lfs *LogStructuredFS) IsActive(key string) bool {
 		return false
 	}
 
-	return inode != nil && time.Now().UnixMicro() < inode.ExpiredAt
+	return (inode != nil && inode.ExpiredAt == ImmortalTTL) || (inode.ExpiredAt > 0 && time.Now().UnixMicro() < inode.ExpiredAt)
 }
 
 func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
