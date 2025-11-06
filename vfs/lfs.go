@@ -191,7 +191,7 @@ func (lfs *LogStructuredFS) DeleteSegment(key string) error {
 	return nil
 }
 
-func (lfs *LogStructuredFS) HasSegment(key string) bool {
+func (lfs *LogStructuredFS) IsActive(key string) bool {
 	inum := inodeNum(key)
 	imap := lfs.indexs[inum%uint64(shard)]
 	if imap == nil {

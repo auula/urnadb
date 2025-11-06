@@ -73,6 +73,10 @@ func (vs *VariantServiceImpl) SetVariant(name string, value *types.Variant, ttl 
 
 // Increment 增量操作 - 只对数值类型有效
 func (vs *VariantServiceImpl) Increment(name string, delta float64) (float64, error) {
+	if !vs.storage.IsActive(name) {
+		return 0, ErrVariantNotFound
+	}
+
 	vs.acquireVariantLock(name).Lock()
 	defer vs.acquireVariantLock(name).Unlock()
 
@@ -118,7 +122,7 @@ func (vs *VariantServiceImpl) Increment(name string, delta float64) (float64, er
 }
 
 func (vs *VariantServiceImpl) DeleteVariant(name string) error {
-	if !vs.storage.HasSegment(name) {
+	if !vs.storage.IsActive(name) {
 		return ErrVariantNotFound
 	}
 
