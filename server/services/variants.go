@@ -17,38 +17,38 @@ var (
 
 // 如果 Number 类型要完成类似于 redis 的 increment 的操作，
 // 客户端只需要发生算数运输的偏移量即可，最终操作中服务器端完成运算和持久化。
-type VariantService interface {
+type VariantsService interface {
 	GetVariant(name string) (*types.Variant, error)
 	SetVariant(name string, value *types.Variant, ttl int64) error
 	Increment(name string, delta float64) (float64, error)
 	DeleteVariant(name string) error
 }
 
-func (vs *VariantServiceImpl) acquireVariantLock(key string) *sync.RWMutex {
+func (vs *VariantsServiceImpl) acquireVariantLock(key string) *sync.RWMutex {
 	actual, _ := vs.vlock.LoadOrStore(key, new(sync.RWMutex))
 	return actual.(*sync.RWMutex)
 }
 
-type VariantServiceImpl struct {
+type VariantsServiceImpl struct {
 	storage *vfs.LogStructuredFS
 	vlock   sync.Map
 }
 
 // 构造函数 - 需要指定类型参数
-func NewVariantServiceImpl(storage *vfs.LogStructuredFS) VariantService {
-	return &VariantServiceImpl{
+func NewVariantsServiceImpl(storage *vfs.LogStructuredFS) VariantsService {
+	return &VariantsServiceImpl{
 		storage: storage,
 	}
 }
 
 // GetVariant 获取变量值
-func (vs *VariantServiceImpl) GetVariant(name string) (*types.Variant, error) {
+func (vs *VariantsServiceImpl) GetVariant(name string) (*types.Variant, error) {
 	vs.acquireVariantLock(name).RLock()
 	defer vs.acquireVariantLock(name).RUnlock()
 
 	_, seg, err := vs.storage.FetchSegment(name)
 	if err != nil {
-		clog.Errorf("Variant service get value: %v", err)
+		clog.Errorf("[VariantsService.GetVariant] %v", err)
 		return nil, err
 	}
 
@@ -56,13 +56,13 @@ func (vs *VariantServiceImpl) GetVariant(name string) (*types.Variant, error) {
 }
 
 // SetVariant 设置变量值
-func (vs *VariantServiceImpl) SetVariant(name string, value *types.Variant, ttl int64) error {
+func (vs *VariantsServiceImpl) SetVariant(name string, value *types.Variant, ttl int64) error {
 	vs.acquireVariantLock(name).Lock()
 	defer vs.acquireVariantLock(name).Unlock()
 
 	seg, err := vfs.AcquirePoolSegment(name, value, ttl)
 	if err != nil {
-		clog.Errorf("Variant service set value: %v", err)
+		clog.Errorf("[VariantsService.SetVariant] %v", err)
 		return err
 	}
 
@@ -72,7 +72,7 @@ func (vs *VariantServiceImpl) SetVariant(name string, value *types.Variant, ttl 
 }
 
 // Increment 增量操作 - 只对数值类型有效
-func (vs *VariantServiceImpl) Increment(name string, delta float64) (float64, error) {
+func (vs *VariantsServiceImpl) Increment(name string, delta float64) (float64, error) {
 	if !vs.storage.IsActive(name) {
 		return 0, ErrVariantNotFound
 	}
@@ -82,13 +82,13 @@ func (vs *VariantServiceImpl) Increment(name string, delta float64) (float64, er
 
 	_, seg, err := vs.storage.FetchSegment(name)
 	if err != nil {
-		clog.Errorf("Variant service incremnt: %v", err)
+		clog.Errorf("[VariantsService.Increment] %v", err)
 		return 0, err
 	}
 
 	variant, err := seg.ToVariant()
 	if err != nil {
-		clog.Errorf("Variant service incremnt: %v", err)
+		clog.Errorf("[VariantsService.Increment] %v", err)
 		return 0, err
 	}
 
@@ -108,20 +108,20 @@ func (vs *VariantServiceImpl) Increment(name string, delta float64) (float64, er
 
 	seg, err = vfs.AcquirePoolSegment(name, variant, ttl)
 	if err != nil {
-		clog.Errorf("Variant service incremnt: %v", err)
+		clog.Errorf("[VariantsService.Increment] %v", err)
 		return 0, err
 	}
 
 	err = vs.storage.PutSegment(name, seg)
 	if err != nil {
-		clog.Errorf("Variant service incremnt: %v", err)
+		clog.Errorf("[VariantsService.Increment] %v", err)
 		return 0, err
 	}
 
 	return res_num, nil
 }
 
-func (vs *VariantServiceImpl) DeleteVariant(name string) error {
+func (vs *VariantsServiceImpl) DeleteVariant(name string) error {
 	if !vs.storage.IsActive(name) {
 		return ErrVariantNotFound
 	}
@@ -130,7 +130,7 @@ func (vs *VariantServiceImpl) DeleteVariant(name string) error {
 
 	err := vs.storage.DeleteSegment(name)
 	if err != nil {
-		clog.Errorf("Variant service delete: %v", err)
+		clog.Errorf("[VariantsService.DeleteVariant] %v", err)
 		return err
 	}
 

@@ -57,6 +57,7 @@ func SetupRoutes() *gin.Engine {
 	{
 		records.GET("/:key", controllers.GetRecordsController)
 		records.PUT("/:key", controllers.PutRecordsController)
+		records.POST("/:key", controllers.SearchRecordsController)
 		records.DELETE("/:key", controllers.DeleteRecordsController)
 	}
 

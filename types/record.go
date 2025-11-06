@@ -87,17 +87,17 @@ func (rc *Record) DeepMerge(news map[string]interface{}) {
 }
 
 // 从 Tables 查找出键为目标 key 的值，包括所有值中值
-// func (tab *Table) SearchItem(key string) any {
-// 	var results []any
-// 	if items, exists := tab.Table[key]; exists {
-// 		results = append(results, items)
-// 	}
+func (rc *Record) SearchItem(key string) any {
+	var results []any
+	if items, exists := rc.Record[key]; exists {
+		results = append(results, items)
+	}
 
-// 	for _, item := range tab.Table {
-// 		if innerMap, ok := item.(map[string]any); ok {
-// 			results = append(results, utils.SearchInMap(innerMap, key)...)
-// 		}
-// 	}
+	for _, item := range rc.Record {
+		if innerMap, ok := item.(map[string]any); ok {
+			results = append(results, utils.SearchInMap(innerMap, key)...)
+		}
+	}
 
-// 	return results
-// }
+	return results
+}
