@@ -14,8 +14,11 @@ type HealthService struct {
 
 func NewHealthService(storage *vfs.LogStructuredFS) *HealthService {
 	mem, _ := mem.VirtualMemory()
-	disk, _ := disk.Usage(storage.GetDirectory())
-	return &HealthService{mem: mem, disk: disk, storage: storage}
+	var diskUsage *disk.UsageStat
+	if storage != nil {
+		diskUsage, _ = disk.Usage(storage.GetDirectory())
+	}
+	return &HealthService{mem: mem, disk: diskUsage, storage: storage}
 }
 
 func (h *HealthService) RegionCompactStatus() uint8 {

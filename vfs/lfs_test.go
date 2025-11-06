@@ -530,7 +530,7 @@ func TestVFSOpertions(t *testing.T) {
 	err = fss.PutSegment("key-01", seg)
 	assert.NoError(t, err)
 
-	assert.NotEqual(t, fss.IsActive("key-01"), true)
+	assert.Equal(t, fss.IsActive("key-01"), true)
 
 	assert.Equal(t, fss.RefreshInodeCount(), uint64(1))
 
