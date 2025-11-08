@@ -30,7 +30,7 @@ func TestRecord_AddRecord(t *testing.T) {
 	record := NewRecord()
 	record.AddRecord("key1", "value1")
 	record.AddRecord("key2", 123)
-	
+
 	if record.Record["key1"] != "value1" {
 		t.Errorf("Expected value1, got %v", record.Record["key1"])
 	}
@@ -44,12 +44,12 @@ func TestRecord_Size(t *testing.T) {
 	if record.Size() != 0 {
 		t.Errorf("Expected size 0, got %d", record.Size())
 	}
-	
+
 	record.AddRecord("key1", "value1")
 	if record.Size() != 1 {
 		t.Errorf("Expected size 1, got %d", record.Size())
 	}
-	
+
 	record.AddRecord("key2", "value2")
 	if record.Size() != 2 {
 		t.Errorf("Expected size 2, got %d", record.Size())
@@ -60,7 +60,7 @@ func TestRecord_Clear(t *testing.T) {
 	record := NewRecord()
 	record.AddRecord("key1", "value1")
 	record.AddRecord("key2", "value2")
-	
+
 	record.Clear()
 	if record.Size() != 0 {
 		t.Errorf("Expected size 0 after clear, got %d", record.Size())
@@ -71,18 +71,18 @@ func TestRecord_ToJSON(t *testing.T) {
 	record := NewRecord()
 	record.AddRecord("name", "John")
 	record.AddRecord("age", 30)
-	
+
 	data, err := record.ToJSON()
 	if err != nil {
 		t.Errorf("ToJSON failed: %v", err)
 	}
-	
+
 	var result map[string]any
 	err = json.Unmarshal(data, &result)
 	if err != nil {
 		t.Errorf("JSON unmarshal failed: %v", err)
 	}
-	
+
 	if result["name"] != "John" || result["age"].(float64) != 30 {
 		t.Errorf("JSON data mismatch: %v", result)
 	}
@@ -92,7 +92,7 @@ func TestRecord_ToBytes(t *testing.T) {
 	record := NewRecord()
 	record.AddRecord("name", "John")
 	record.AddRecord("age", 30)
-	
+
 	data, err := record.ToBytes()
 	if err != nil {
 		t.Errorf("ToBytes failed: %v", err)
@@ -108,7 +108,7 @@ func TestRecord_DeepMerge(t *testing.T) {
 		"name": "John",
 		"age":  30,
 	})
-	
+
 	newData := map[string]interface{}{
 		"user": map[string]interface{}{
 			"age":   31,
@@ -116,9 +116,9 @@ func TestRecord_DeepMerge(t *testing.T) {
 		},
 		"status": "active",
 	}
-	
+
 	record.DeepMerge(newData)
-	
+
 	user := record.Record["user"].(map[string]interface{})
 	if user["name"] != "John" {
 		t.Errorf("Expected name John, got %v", user["name"])
@@ -136,15 +136,15 @@ func TestRecord_DeepMerge(t *testing.T) {
 
 func TestRecord_SearchItem(t *testing.T) {
 	record := NewRecord()
-	
+
 	record.AddRecord("name", "John")
 	record.AddRecord("age", 30)
-	
+
 	result := record.SearchItem("name")
 	if len(result.([]any)) != 1 || result.([]any)[0] != "John" {
 		t.Errorf("Expected [John], got %v", result)
 	}
-	
+
 	record.AddRecord("user", map[string]any{
 		"name": "Alice",
 		"profile": map[string]any{
@@ -152,18 +152,18 @@ func TestRecord_SearchItem(t *testing.T) {
 			"age":  25,
 		},
 	})
-	
+
 	result = record.SearchItem("name")
 	results := result.([]any)
 	if len(results) != 3 {
 		t.Errorf("Expected 3 results, got %d", len(results))
 	}
-	
+
 	result = record.SearchItem("nonexistent")
 	if len(result.([]any)) != 0 {
 		t.Errorf("Expected empty result, got %v", result)
 	}
-	
+
 	emptyRecord := NewRecord()
 	result = emptyRecord.SearchItem("any")
 	if len(result.([]any)) != 0 {
@@ -174,9 +174,9 @@ func TestRecord_SearchItem(t *testing.T) {
 func TestRecord_ReleaseToPool(t *testing.T) {
 	record := AcquireRecord()
 	record.AddRecord("test", "value")
-	
+
 	record.ReleaseToPool()
-	
+
 	if record.Size() != 0 {
 		t.Error("Record should be cleared after release to pool")
 	}
