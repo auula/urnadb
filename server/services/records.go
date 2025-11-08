@@ -57,7 +57,7 @@ func (rs *RecordsServiceImpl) CreateRecord(name string, record *types.Record, tt
 
 	seg, err := vfs.AcquirePoolSegment(name, record, ttl)
 	if err != nil {
-		clog.Errorf("[RecordService.CreateRecord] %v", err)
+		clog.Errorf("[RecordsService.CreateRecord] %v", err)
 		return err
 	}
 
@@ -77,7 +77,7 @@ func (rs *RecordsServiceImpl) QueryRecord(name string) (*types.Record, error) {
 
 	_, seg, err := rs.storage.FetchSegment(name)
 	if err != nil {
-		clog.Errorf("[RecordService.QueryRecord] %v", err)
+		clog.Errorf("[RecordsService.QueryRecord] %v", err)
 		return nil, err
 	}
 
@@ -95,7 +95,7 @@ func (rs *RecordsServiceImpl) DeleteRecord(name string) error {
 	err := rs.storage.DeleteSegment(name)
 	if err != nil {
 		rs.acquireRecordLock(name).Unlock()
-		clog.Errorf("[RecordService.DeleteRecord] %v", err)
+		clog.Errorf("[RecordsService.DeleteRecord] %v", err)
 		return err
 	}
 
@@ -116,13 +116,13 @@ func (rs *RecordsServiceImpl) SearchRows(name string, column string) (any, error
 
 	_, seg, err := rs.storage.FetchSegment(name)
 	if err != nil {
-		clog.Errorf("[RecordService.SearchRows] %v", err)
+		clog.Errorf("[RecordsService.SearchRows] %v", err)
 		return nil, err
 	}
 
 	record, err := seg.ToRecord()
 	if err != nil {
-		clog.Errorf("[RecordService.SearchRows] %v", err)
+		clog.Errorf("[RecordsService.SearchRows] %v", err)
 		return nil, err
 	}
 
