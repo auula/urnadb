@@ -1,28 +1,36 @@
+// Copyright 2022 Leon Ding <ding_ms@outlook.com> https://urnadb.github.io
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package types
 
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewRecord(t *testing.T) {
 	record := NewRecord()
-	if record == nil {
-		t.Error("NewRecord should not return nil")
-	}
-	if record.Record == nil {
-		t.Error("Record.Record should be initialized")
-	}
-	if len(record.Record) != 0 {
-		t.Error("New record should be empty")
-	}
+	assert.NotNil(t, record)
+	assert.NotNil(t, record.Record)
+	assert.Equal(t, 0, len(record.Record))
 }
 
 func TestAcquireRecord(t *testing.T) {
 	record := AcquireRecord()
-	if record == nil {
-		t.Error("AcquireRecord should not return nil")
-	}
+	assert.NotNil(t, record)
 	record.ReleaseToPool()
 }
 
@@ -30,76 +38,54 @@ func TestRecord_AddRecord(t *testing.T) {
 	record := NewRecord()
 	record.AddRecord("key1", "value1")
 	record.AddRecord("key2", 123)
-	
-	if record.Record["key1"] != "value1" {
-		t.Errorf("Expected value1, got %v", record.Record["key1"])
-	}
-	if record.Record["key2"] != 123 {
-		t.Errorf("Expected 123, got %v", record.Record["key2"])
-	}
+
+	assert.Equal(t, "value1", record.Record["key1"])
+	assert.Equal(t, 123, record.Record["key2"])
 }
 
 func TestRecord_Size(t *testing.T) {
 	record := NewRecord()
-	if record.Size() != 0 {
-		t.Errorf("Expected size 0, got %d", record.Size())
-	}
-	
+	assert.Equal(t, 0, record.Size())
+
 	record.AddRecord("key1", "value1")
-	if record.Size() != 1 {
-		t.Errorf("Expected size 1, got %d", record.Size())
-	}
-	
+	assert.Equal(t, 1, record.Size())
+
 	record.AddRecord("key2", "value2")
-	if record.Size() != 2 {
-		t.Errorf("Expected size 2, got %d", record.Size())
-	}
+	assert.Equal(t, 2, record.Size())
 }
 
 func TestRecord_Clear(t *testing.T) {
 	record := NewRecord()
 	record.AddRecord("key1", "value1")
 	record.AddRecord("key2", "value2")
-	
+
 	record.Clear()
-	if record.Size() != 0 {
-		t.Errorf("Expected size 0 after clear, got %d", record.Size())
-	}
+	assert.Equal(t, 0, record.Size())
 }
 
 func TestRecord_ToJSON(t *testing.T) {
 	record := NewRecord()
 	record.AddRecord("name", "John")
 	record.AddRecord("age", 30)
-	
+
 	data, err := record.ToJSON()
-	if err != nil {
-		t.Errorf("ToJSON failed: %v", err)
-	}
-	
+	assert.NoError(t, err)
+
 	var result map[string]any
 	err = json.Unmarshal(data, &result)
-	if err != nil {
-		t.Errorf("JSON unmarshal failed: %v", err)
-	}
-	
-	if result["name"] != "John" || result["age"].(float64) != 30 {
-		t.Errorf("JSON data mismatch: %v", result)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "John", result["name"])
+	assert.Equal(t, float64(30), result["age"])
 }
 
 func TestRecord_ToBytes(t *testing.T) {
 	record := NewRecord()
 	record.AddRecord("name", "John")
 	record.AddRecord("age", 30)
-	
+
 	data, err := record.ToBytes()
-	if err != nil {
-		t.Errorf("ToBytes failed: %v", err)
-	}
-	if len(data) == 0 {
-		t.Error("ToBytes should return non-empty data")
-	}
+	assert.NoError(t, err)
+	assert.NotEmpty(t, data)
 }
 
 func TestRecord_DeepMerge(t *testing.T) {
@@ -108,7 +94,7 @@ func TestRecord_DeepMerge(t *testing.T) {
 		"name": "John",
 		"age":  30,
 	})
-	
+
 	newData := map[string]interface{}{
 		"user": map[string]interface{}{
 			"age":   31,
@@ -116,35 +102,27 @@ func TestRecord_DeepMerge(t *testing.T) {
 		},
 		"status": "active",
 	}
-	
+
 	record.DeepMerge(newData)
-	
+
 	user := record.Record["user"].(map[string]interface{})
-	if user["name"] != "John" {
-		t.Errorf("Expected name John, got %v", user["name"])
-	}
-	if user["age"] != 31 {
-		t.Errorf("Expected age 31, got %v", user["age"])
-	}
-	if user["email"] != "john@example.com" {
-		t.Errorf("Expected email john@example.com, got %v", user["email"])
-	}
-	if record.Record["status"] != "active" {
-		t.Errorf("Expected status active, got %v", record.Record["status"])
-	}
+	assert.Equal(t, "John", user["name"])
+	assert.Equal(t, 31, user["age"])
+	assert.Equal(t, "john@example.com", user["email"])
+	assert.Equal(t, "active", record.Record["status"])
 }
 
 func TestRecord_SearchItem(t *testing.T) {
 	record := NewRecord()
-	
+
 	record.AddRecord("name", "John")
 	record.AddRecord("age", 30)
-	
+
 	result := record.SearchItem("name")
-	if len(result.([]any)) != 1 || result.([]any)[0] != "John" {
-		t.Errorf("Expected [John], got %v", result)
-	}
-	
+	results := result.([]any)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "John", results[0])
+
 	record.AddRecord("user", map[string]any{
 		"name": "Alice",
 		"profile": map[string]any{
@@ -152,32 +130,25 @@ func TestRecord_SearchItem(t *testing.T) {
 			"age":  25,
 		},
 	})
-	
+
 	result = record.SearchItem("name")
-	results := result.([]any)
-	if len(results) != 3 {
-		t.Errorf("Expected 3 results, got %d", len(results))
-	}
-	
+	results = result.([]any)
+	assert.Len(t, results, 3)
+
 	result = record.SearchItem("nonexistent")
-	if len(result.([]any)) != 0 {
-		t.Errorf("Expected empty result, got %v", result)
-	}
-	
+	results = result.([]any)
+	assert.Empty(t, results)
+
 	emptyRecord := NewRecord()
 	result = emptyRecord.SearchItem("any")
-	if len(result.([]any)) != 0 {
-		t.Errorf("Expected empty result for empty record, got %v", result)
-	}
+	results = result.([]any)
+	assert.Empty(t, results)
 }
 
 func TestRecord_ReleaseToPool(t *testing.T) {
 	record := AcquireRecord()
 	record.AddRecord("test", "value")
-	
+
 	record.ReleaseToPool()
-	
-	if record.Size() != 0 {
-		t.Error("Record should be cleared after release to pool")
-	}
+	assert.Equal(t, 0, record.Size())
 }
