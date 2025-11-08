@@ -27,7 +27,7 @@ type RecordsService interface {
 	// 删除一条名为 name 的记录
 	DeleteRecord(name string) error
 	// 根据记录名获取到这条记录
-	QueryRecord(name string) (*types.Record, error)
+	GetRecord(name string) (*types.Record, error)
 	// Record 一段创建就不可以更改其内容，要更改直接 PUT 新 Record 和 RUW 操作
 	// // 更新记录中的某个字段
 	// PatchRows(name string, data map[string]any) error
@@ -67,7 +67,7 @@ func (rs *RecordsServiceImpl) CreateRecord(name string, record *types.Record, tt
 }
 
 // 查询记录
-func (rs *RecordsServiceImpl) QueryRecord(name string) (*types.Record, error) {
+func (rs *RecordsServiceImpl) GetRecord(name string) (*types.Record, error) {
 	if !rs.storage.IsActive(name) {
 		return nil, ErrRecordNotFound
 	}
@@ -77,7 +77,7 @@ func (rs *RecordsServiceImpl) QueryRecord(name string) (*types.Record, error) {
 
 	_, seg, err := rs.storage.FetchSegment(name)
 	if err != nil {
-		clog.Errorf("[RecordsService.QueryRecord] %v", err)
+		clog.Errorf("[RecordsService.GetRecord] %v", err)
 		return nil, err
 	}
 
