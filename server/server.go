@@ -205,14 +205,12 @@ func closeStorage() error {
 }
 
 func detectIPv4(addrs []net.Interface) (string, error) {
-	ip := ""
-
+	var ip string
 	for _, face := range addrs {
 		adders, err := face.Addrs()
 		if err != nil {
 			return ip, err
 		}
-
 		for _, addr := range adders {
 			ipNet, ok := addr.(*net.IPNet)
 			if ok && !ipNet.IP.IsLoopback() {
@@ -223,6 +221,5 @@ func detectIPv4(addrs []net.Interface) (string, error) {
 			}
 		}
 	}
-
 	return ip, nil
 }

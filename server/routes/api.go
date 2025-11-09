@@ -66,7 +66,7 @@ func SetupRoutes() *gin.Engine {
 		locks.DELETE("/:key", controllers.DeleteLockController)
 	}
 
-	// // records 路由
+	// records 路由
 	records := router.Group("/records")
 	{
 		records.GET("/:key", controllers.GetRecordsController)
@@ -75,6 +75,7 @@ func SetupRoutes() *gin.Engine {
 		records.DELETE("/:key", controllers.DeleteRecordsController)
 	}
 
+	// Variants 路由
 	variants := router.Group("/variants")
 	{
 		variants.GET("/:key", controllers.GetVariantController)

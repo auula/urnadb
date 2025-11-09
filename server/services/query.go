@@ -19,7 +19,7 @@ import (
 )
 
 type QueryService interface {
-	GetSegment(name string) (version uint64, seg *vfs.Segment, err error)
+	QuerySegment(name string) (version uint64, seg *vfs.Segment, err error)
 }
 
 type QueryServiceImpl struct {
@@ -32,6 +32,6 @@ func NewQueryServiceImpl(storage *vfs.LogStructuredFS) QueryService {
 	}
 }
 
-func (q *QueryServiceImpl) GetSegment(name string) (version uint64, seg *vfs.Segment, err error) {
+func (q *QueryServiceImpl) QuerySegment(name string) (version uint64, seg *vfs.Segment, err error) {
 	return q.storage.FetchSegment(name)
 }

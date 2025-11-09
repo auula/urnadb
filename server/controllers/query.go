@@ -29,7 +29,7 @@ func QueryController(ctx *gin.Context) {
 		return
 	}
 
-	version, seg, err := qs.GetSegment(name)
+	version, seg, err := qs.QuerySegment(name)
 	if err != nil {
 		ctx.IndentedJSON(http.StatusNotFound, response.Fail(err.Error()))
 		return
