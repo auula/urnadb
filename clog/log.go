@@ -35,10 +35,10 @@ var (
 	infoColor   = color.New(color.Bold, color.FgGreen)
 	redColor    = color.New(color.Bold, color.FgRed)
 	debugColor  = color.New(color.Bold, color.FgBlue)
-	errorPrefix = redColor.Sprintf("[ERROR] ")
+	errorPrefix = redColor.Sprintf("[ERRO] ")
 	warnPrefix  = warnColor.Sprintf("[WARN] ")
 	infoPrefix  = infoColor.Sprintf("[INFO] ")
-	debugPrefix = debugColor.Sprintf("[DEBUG] ")
+	debugPrefix = debugColor.Sprintf("[DBUG] ")
 
 	IsDebug = false
 )
