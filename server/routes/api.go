@@ -53,9 +53,10 @@ func SetupRoutes() *gin.Engine {
 	{
 		tables.GET("/:key", controllers.QueryTableController)
 		tables.PUT("/:key", controllers.CreateTableController)
-		tables.POST("/:key", controllers.RemoveRowsTabelController)
-		tables.PATCH("/:key", controllers.PatchRowsTableController)
 		tables.DELETE("/:key", controllers.DeleteTableController)
+		tables.PATCH("/:key", controllers.PatchRowsTableController)
+		tables.POST("/:key/rows", controllers.InsertRowsTableController)
+		tables.DELETE("/:key/rows", controllers.RemoveRowsTabelController)
 	}
 
 	// Lock 路由

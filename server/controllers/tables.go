@@ -91,7 +91,7 @@ func QueryTableController(ctx *gin.Context) {
 	}
 
 	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"table": tab,
+		"table": tab.Table,
 	}))
 }
 
