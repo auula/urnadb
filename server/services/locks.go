@@ -170,20 +170,18 @@ func (s *LeaseLockService) DoLeaseLock(name string, token string) (*types.LeaseL
 	}
 
 	// 持久化这把新租期锁
-	newseg, err := vfs.AcquirePoolSegment(name, newlease, newttl)
+	seg, err = vfs.AcquirePoolSegment(name, newlease, newttl)
 	if err != nil {
 		utils.ReleaseToPool(newlease)
 		clog.Errorf("[LocksService.DoLeaseLock] %v", err)
 		return nil, err
 	}
 
-	err = s.storage.PutSegment(name, newseg)
+	err = s.storage.PutSegment(name, seg)
 	if err != nil {
 		clog.Errorf("[LocksService.DoLeaseLock] %v", err)
 		return nil, err
 	}
-
-	newseg.ReleaseToPool()
 
 	return newlease, nil
 }

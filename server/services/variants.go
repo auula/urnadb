@@ -66,6 +66,8 @@ func (vs *VariantsServiceImpl) GetVariant(name string) (*types.Variant, error) {
 		return nil, err
 	}
 
+	defer seg.ReleaseToPool()
+
 	return seg.ToVariant()
 }
 

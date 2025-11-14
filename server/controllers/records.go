@@ -32,15 +32,17 @@ func GetRecordsController(ctx *gin.Context) {
 		return
 	}
 
-	record, err := rs.GetRecord(name)
+	rd, err := rs.GetRecord(name)
 	if err != nil {
 		ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(
 			err.Error(),
 		))
 	}
 
+	defer rd.ReleaseToPool()
+
 	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"record": record,
+		"record": rd,
 	}))
 }
 

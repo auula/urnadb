@@ -71,6 +71,8 @@ func (t *TablesServiceImpl) GetTable(name string) (*types.Table, error) {
 		return nil, ErrTableNotFound
 	}
 
+	defer seg.ReleaseToPool()
+
 	return seg.ToTable()
 }
 

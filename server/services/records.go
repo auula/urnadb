@@ -95,6 +95,8 @@ func (rs *RecordsServiceImpl) GetRecord(name string) (*types.Record, error) {
 		return nil, err
 	}
 
+	defer seg.ReleaseToPool()
+
 	return seg.ToRecord()
 }
 
