@@ -283,15 +283,27 @@ func (s *Segment) ToLeaseLock() (*types.LeaseLock, error) {
 // 剩下的情况是返回剩下的存活时间，并且 ok = true 表示这个 segment 没有过期。
 func (s *Segment) ExpiresIn() (int64, bool) {
 	now := time.Now().UnixMicro()
-	if s.ExpiredAt > 0 && s.ExpiredAt > now {
-		aliveTTL := int64(s.ExpiredAt-now) / int64(time.Second)
-		if aliveTTL > 0 {
-			return aliveTTL, true
-		} else {
-			return 0, false
-		}
+
+	// 永不过期
+	if s.ExpiredAt == 0 {
+		return -1, true
 	}
-	return -1, true
+
+	// 已过期
+	if s.ExpiredAt <= now {
+		return 0, false
+	}
+
+	// 未过期
+	ttlMicro := s.ExpiredAt - now
+	ttl := ttlMicro / 1_000_000
+
+	// 如果还有剩余时间，但不足 1 秒，也应该返回 1 秒，而不是 0
+	if ttlMicro > 0 && ttl == 0 {
+		ttl = 1
+	}
+
+	return ttl, true
 }
 
 // 将类型映射为 kind 的辅助函数
