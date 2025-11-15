@@ -285,8 +285,8 @@ func (s *Segment) ExpiresIn() (int64, bool) {
 	now := time.Now().UnixMicro()
 
 	// 永不过期
-	if s.ExpiredAt == 0 {
-		return -1, true
+	if s.ExpiredAt == ImmortalTTL {
+		return ImmortalTTL, true
 	}
 
 	// 已过期
