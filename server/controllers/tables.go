@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"errors"
+	"io"
 	"net/http"
 
 	"github.com/auula/urnadb/server/response"
@@ -38,7 +39,7 @@ func CreateTableController(ctx *gin.Context) {
 
 	var req CreateTableRequest
 	err := ctx.ShouldBindJSON(&req)
-	if err != nil {
+	if err != nil && !errors.Is(err, io.EOF) {
 		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
 		return
 	}
