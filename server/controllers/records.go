@@ -42,7 +42,7 @@ func GetRecordsController(ctx *gin.Context) {
 	defer rd.ReleaseToPool()
 
 	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"record": rd,
+		"record": rd.Record,
 	}))
 }
 
