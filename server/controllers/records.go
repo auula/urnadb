@@ -28,7 +28,7 @@ import (
 func GetRecordsController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -54,7 +54,7 @@ type CreateRecordRequest struct {
 func PutRecordsController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -84,7 +84,7 @@ func PutRecordsController(ctx *gin.Context) {
 func DeleteRecordsController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -106,7 +106,7 @@ type SearchRecordRequest struct {
 func SearchRecordsController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 

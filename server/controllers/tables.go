@@ -33,7 +33,7 @@ type CreateTableRequest struct {
 func CreateTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -63,7 +63,7 @@ func CreateTableController(ctx *gin.Context) {
 func DeleteTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -81,7 +81,7 @@ func DeleteTableController(ctx *gin.Context) {
 func QueryTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -104,7 +104,7 @@ type PatchRowsRequest struct {
 func PatchRowsTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -133,7 +133,7 @@ type QueryRowsRequest struct {
 func QueryRowsTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -158,7 +158,7 @@ func QueryRowsTableController(ctx *gin.Context) {
 func RemoveRowsTabelController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -187,7 +187,7 @@ type InsertRowsRequest struct {
 func InsertRowsTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 

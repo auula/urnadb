@@ -35,7 +35,7 @@ type LeaseLockRequest struct {
 func NewLockController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -62,7 +62,7 @@ func NewLockController(ctx *gin.Context) {
 func DeleteLockController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -85,7 +85,7 @@ func DeleteLockController(ctx *gin.Context) {
 func DoLeaseLockController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 

@@ -28,7 +28,7 @@ import (
 func DeleteVariantController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -46,7 +46,7 @@ func DeleteVariantController(ctx *gin.Context) {
 func GetVariantController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -71,7 +71,7 @@ type CreateVariantRequest struct {
 func CreateVariantController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
@@ -114,7 +114,7 @@ type MathVarianrRequest struct {
 func MathVariantController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 

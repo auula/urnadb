@@ -25,7 +25,7 @@ import (
 func QueryController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missingKeyParam)
+		ctx.IndentedJSON(http.StatusBadRequest, missKey)
 		return
 	}
 
