@@ -54,7 +54,7 @@ const (
 	_GC_ACTIVE
 	_GC_INACTIVE
 	_SEGMENT_PADDING    = 26
-	_INDEX_SEGMENT_SIZE = 49
+	_INDEX_SEGMENT_SIZE = 48
 )
 
 var (
@@ -79,7 +79,6 @@ type inode struct {
 	CreatedAt int64  // Creation time of the inode (UNIX timestamp in nano seconds)
 	mvcc      uint64 // Multi-version concurrency ID
 	Length    int32  // Data record length
-	Type      kind   // Data record type
 }
 
 type indexMap struct {
@@ -140,7 +139,6 @@ func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
 		CreatedAt: seg.CreatedAt,
 		ExpiredAt: seg.ExpiredAt,
 		mvcc:      0,
-		Type:      seg.Type,
 	}
 	imap.mu.Unlock()
 
@@ -548,13 +546,13 @@ func (lfs *LogStructuredFS) scanAndRecoverIndexs() error {
 	filePath := filepath.Join(lfs.directory, indexFileName)
 	if utils.IsExist(filePath) {
 		// If the index file exists, restore it
-		file, err := os.Open(filePath)
+		reader, err := mmap.Open(filePath)
 		if err != nil {
-			return fmt.Errorf("failed to open index file: %w", err)
+			return fmt.Errorf("failed to mmap index file: %w", err)
 		}
-		defer file.Close()
+		defer reader.Close()
 
-		err = recoveryIndex(file, lfs.indexs)
+		err = recoveryIndex(reader, lfs.indexs)
 		if err != nil {
 			return fmt.Errorf("failed to recover index mapping: %w", err)
 		}
@@ -892,20 +890,15 @@ func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
 	return nil
 }
 
-func recoveryIndex(fd *os.File, indexs []*indexMap) error {
+func recoveryIndex(reader *mmap.ReaderAt, indexs []*indexMap) error {
 	offset := int64(len(dataFileMetadata))
-
-	finfo, err := fd.Stat()
-	if err != nil {
-		return err
-	}
 
 	type index struct {
 		inum  uint64
 		inode *inode
 	}
 
-	nqueue := make(chan index, (finfo.Size()-offset)/_INDEX_SEGMENT_SIZE)
+	nqueue := make(chan index, (int64(reader.Len())-offset)/_INDEX_SEGMENT_SIZE)
 	equeue := make(chan error, 1)
 
 	var wg sync.WaitGroup
@@ -916,8 +909,8 @@ func recoveryIndex(fd *os.File, indexs []*indexMap) error {
 		defer close(nqueue)
 
 		buf := make([]byte, _INDEX_SEGMENT_SIZE)
-		for offset < finfo.Size() && len(equeue) == 0 {
-			_, err := fd.ReadAt(buf, offset)
+		for offset < int64(reader.Len()) && len(equeue) == 0 {
+			_, err := reader.ReadAt(buf, offset)
 			if err != nil {
 				equeue <- fmt.Errorf("failed to read index node: %w", err)
 				return
@@ -1309,7 +1302,6 @@ func serializedIndex(buf *bytes.Buffer, inum uint64, inode *inode) ([]byte, erro
 	binary.Write(buf, binary.LittleEndian, inode.Length)
 	binary.Write(buf, binary.LittleEndian, inode.ExpiredAt)
 	binary.Write(buf, binary.LittleEndian, inode.CreatedAt)
-	binary.Write(buf, binary.LittleEndian, inode.Type)
 
 	// Calculate CRC32 checksum
 	checksum := crc32.ChecksumIEEE(buf.Bytes())
@@ -1354,11 +1346,6 @@ func deserializedIndex(data []byte) (uint64, *inode, error) {
 	}
 
 	err = binary.Read(buf, binary.LittleEndian, &inode.CreatedAt)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	err = binary.Read(buf, binary.LittleEndian, &inode.Type)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -1641,13 +1628,13 @@ func scanAndRecoverCheckpoint(files []string, regions map[int64]*Region, indexs 
 		}
 	}
 
-	file, err := os.Open(path)
+	reader, err := mmap.Open(path)
 	if err != nil {
-		return fmt.Errorf("failed to open checkpoint file: %w", err)
+		return fmt.Errorf("failed to mmap checkpoint file: %w", err)
 	}
-	defer file.Close()
+	defer reader.Close()
 
-	err = recoveryIndex(file, indexs)
+	err = recoveryIndex(reader, indexs)
 	if err != nil {
 		return fmt.Errorf("failed to recover data from checkpoint: %w", err)
 	}
