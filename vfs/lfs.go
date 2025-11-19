@@ -1454,6 +1454,15 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 
 		// find 40% dirty regions
 		for i := 0; i < 4 && i < len(regionIds); i++ {
+			lfs.mu.RLock()
+			exclude := regionIds[i] == lfs.regionID
+			lfs.mu.RUnlock()
+
+			// 排除活跃的文件
+			if exclude {
+				continue
+			}
+
 			dirtyIds = append(dirtyIds, regionIds[i])
 			lfs.dirtyRegions = append(lfs.dirtyRegions, lfs.regions[regionIds[i]])
 		}
