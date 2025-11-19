@@ -39,7 +39,6 @@ func TestSerializedIndex(t *testing.T) {
 		Length:    100,
 		ExpiredAt: 1617181723,
 		CreatedAt: 1617181623,
-		Type:      table,
 	}
 
 	buf := new(bytes.Buffer)
@@ -51,7 +50,7 @@ func TestSerializedIndex(t *testing.T) {
 	}
 
 	// 检查返回的字节切片长度
-	assert.Equal(t, len(result), 49)
+	assert.Equal(t, len(result), 48)
 
 	// 验证内容字段进行反序列化并检查
 	inum, dnode, err := deserializedIndex(result)
@@ -77,9 +76,6 @@ func TestSerializedIndex(t *testing.T) {
 	}
 	if dnode.CreatedAt != in.CreatedAt {
 		t.Errorf("expected CreatedAt %d, got %d", in.CreatedAt, dnode.CreatedAt)
-	}
-	if dnode.Type != in.Type {
-		t.Errorf("expected Type %d, got %d", in.Type, dnode.Type)
 	}
 
 }
