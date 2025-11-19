@@ -241,18 +241,11 @@ func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
 
 	// 如果是 Active Region 它的 ReaderAt 为 nil，直接读取不需要使用 mmap
 	if region.ReaderAt == nil {
-		lfs.mu.RLock()
-		isActive := (atomic.LoadInt64(&inode.RegionID) == lfs.regionID)
-		lfs.mu.RUnlock()
-
-		// 从 Active Region 直接读取
-		if isActive {
-			_, segment, err := readSegment(region.Fd, atomic.LoadInt64(&inode.Position), _SEGMENT_PADDING)
-			if err != nil {
-				return 0, nil, fmt.Errorf("failed to read segment from active region: %w", err)
-			}
-			return atomic.LoadUint64(&inode.mvcc), segment, nil
+		_, segment, err := readSegment(region.Fd, atomic.LoadInt64(&inode.Position), _SEGMENT_PADDING)
+		if err != nil {
+			return 0, nil, fmt.Errorf("failed to read segment from active region: %w", err)
 		}
+		return atomic.LoadUint64(&inode.mvcc), segment, nil
 	}
 
 	_, segment, err := readSegmentMmap(region.ReaderAt, atomic.LoadInt64(&inode.Position), _SEGMENT_PADDING)
