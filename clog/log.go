@@ -57,7 +57,7 @@ func init() {
 	// [UrnaDB:D] 为辅助记录器记录为 Debug 模式下的日志信息
 	clog = newLogger(os.Stdout, "["+processName+":C] ", log.Ldate|log.Ltime)
 	// [UrnaDB:D] 只能输出日志信息到标准输出中
-	dlog = newLogger(os.Stdout, "["+processName+":D] ", log.Ldate|log.Ltime|log.Lshortfile)
+	dlog = newLogger(os.Stdout, "["+processName+":D] ", log.Ldate|log.Ltime)
 }
 
 func newLogger(out io.Writer, prefix string, flag int) *log.Logger {
@@ -110,7 +110,7 @@ func Debug(v ...interface{}) {
 
 		shortFn := filepath.Base(file) + ":" + strconv.Itoa(line)
 
-		message := fmt.Sprintf("[%s %s()] %s",
+		message := fmt.Sprintf("[%s::%s()] %s",
 			shortFn,
 			path.Base(fn.Name()),
 			fmt.Sprint(v...),
@@ -127,7 +127,7 @@ func Debugf(format string, v ...interface{}) {
 
 		shortFn := filepath.Base(file) + ":" + strconv.Itoa(line)
 
-		message := fmt.Sprintf("[%s %s()] %s",
+		message := fmt.Sprintf("[%s::%s()] %s",
 			shortFn,
 			path.Base(fn.Name()),
 			fmt.Sprintf(format, v...),
@@ -144,7 +144,7 @@ func Failed(v ...interface{}) {
 
 	shortFn := filepath.Base(file) + ":" + strconv.Itoa(line)
 
-	message := fmt.Sprintf("[%s %s()] %s",
+	message := fmt.Sprintf("[%s::%s()] %s",
 		shortFn,
 		path.Base(fn.Name()), // 只取函数名
 		fmt.Sprint(v...),
@@ -163,7 +163,7 @@ func Failedf(format string, v ...interface{}) {
 
 	shortFn := filepath.Base(file) + ":" + strconv.Itoa(line)
 
-	message := fmt.Sprintf("[%s %s()] %s",
+	message := fmt.Sprintf("[%s::%s()] %s",
 		shortFn,
 		path.Base(fn.Name()), // 只取函数名
 		fmt.Sprintf(format, v...),
