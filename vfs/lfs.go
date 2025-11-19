@@ -1106,7 +1106,7 @@ func checkFileSystem(path string, fsPerm fs.FileMode) error {
 	return nil
 }
 
-func readSegment(fd *os.File, offset int64, bufsize int64) (uint64, *Segment, error) {
+func readSegment(fd *os.File, offset, bufsize int64) (uint64, *Segment, error) {
 	buf := make([]byte, bufsize)
 
 	_, err := fd.ReadAt(buf, offset)
@@ -1179,7 +1179,7 @@ func readSegment(fd *os.File, offset int64, bufsize int64) (uint64, *Segment, er
 }
 
 // | DEL 1 | KIND 1 | EAT 8 | CAT 8 | KLEN 4 | VLEN 4 | KEY ? | VALUE ? | CRC32 4 |
-func readSegmentMmap(reader *mmap.ReaderAt, offset int64, bufsize int64) (uint64, *Segment, error) {
+func readSegmentMmap(reader *mmap.ReaderAt, offset, bufsize int64) (uint64, *Segment, error) {
 	buf := make([]byte, bufsize)
 
 	_, err := reader.ReadAt(buf, offset)
