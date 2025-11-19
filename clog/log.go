@@ -19,7 +19,10 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
+	"path/filepath"
 	"runtime"
+	"strconv"
 
 	"github.com/fatih/color"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -102,29 +105,72 @@ func Infof(format string, v ...interface{}) {
 
 func Debug(v ...interface{}) {
 	if IsDebug {
-		dlog.Output(2, debugPrefix+fmt.Sprint(v...))
+		pc, file, line, _ := runtime.Caller(1)
+		fn := runtime.FuncForPC(pc)
+
+		shortFn := filepath.Base(file) + ":" + strconv.Itoa(line)
+
+		message := fmt.Sprintf("[%s %s()] %s",
+			shortFn,
+			path.Base(fn.Name()),
+			fmt.Sprint(v...),
+		)
+
+		dlog.Output(2, debugPrefix+message)
 	}
 }
 
 func Debugf(format string, v ...interface{}) {
 	if IsDebug {
-		dlog.Output(2, debugPrefix+fmt.Sprintf(format, v...))
+		pc, file, line, _ := runtime.Caller(1)
+		fn := runtime.FuncForPC(pc)
+
+		shortFn := filepath.Base(file) + ":" + strconv.Itoa(line)
+
+		message := fmt.Sprintf("[%s %s()] %s",
+			shortFn,
+			path.Base(fn.Name()),
+			fmt.Sprintf(format, v...),
+		)
+
+		dlog.Output(2, debugPrefix+message)
 	}
 }
 
 func Failed(v ...interface{}) {
+	// skip=1 表示跳过 fatalf 和 clog.Output 两层
 	pc, file, line, _ := runtime.Caller(1)
-	function := runtime.FuncForPC(pc)
-	message := fmt.Sprintf("%s:%d %s() %s", file, line, function.Name(), fmt.Sprint(v...))
-	clog.Output(2, errorPrefix+message)
+	fn := runtime.FuncForPC(pc)
+
+	shortFn := filepath.Base(file) + ":" + strconv.Itoa(line)
+
+	message := fmt.Sprintf("[%s %s()] %s",
+		shortFn,
+		path.Base(fn.Name()), // 只取函数名
+		fmt.Sprint(v...),
+	)
+
+	// 让日志定位到实际调用者
+	clog.Output(2, message)
+
 	panic(message)
 }
 
 func Failedf(format string, v ...interface{}) {
+	// skip=1 表示跳过 fatalf 和 clog.Output 两层
 	pc, file, line, _ := runtime.Caller(1)
-	function := runtime.FuncForPC(pc)
-	message := fmt.Sprintf("%s:%d %s() %s", file, line, function.Name(), fmt.Sprint(v...))
-	// 输出日志并触发 panic
-	clog.Output(2, errorPrefix+message)
+	fn := runtime.FuncForPC(pc)
+
+	shortFn := filepath.Base(file) + ":" + strconv.Itoa(line)
+
+	message := fmt.Sprintf("[%s %s()] %s",
+		shortFn,
+		path.Base(fn.Name()), // 只取函数名
+		fmt.Sprintf(format, v...),
+	)
+
+	// 让日志定位到实际调用者
+	clog.Output(2, message)
+
 	panic(message)
 }
