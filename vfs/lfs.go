@@ -248,7 +248,7 @@ func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
 		return atomic.LoadUint64(&inode.mvcc), segment, nil
 	}
 
-	_, segment, err := readSegmentMmap(region.ReaderAt, atomic.LoadInt64(&inode.Position), _SEGMENT_PADDING)
+	_, segment, err := readSegment(region.ReaderAt, atomic.LoadInt64(&inode.Position), _SEGMENT_PADDING)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to read segment from mmap: %w", err)
 	}
@@ -1092,80 +1092,8 @@ func checkFileSystem(path string, fsPerm fs.FileMode) error {
 	return nil
 }
 
-func readSegment(fd *os.File, offset, bufsize int64) (uint64, *Segment, error) {
-	buf := make([]byte, bufsize)
-
-	_, err := fd.ReadAt(buf, offset)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	var seg Segment
-	readOffset := 0
-
-	seg.Tombstone = int8(buf[readOffset])
-	readOffset++
-
-	seg.Type = kind(buf[readOffset])
-	readOffset++
-
-	seg.ExpiredAt = int64(binary.LittleEndian.Uint64(buf[readOffset : readOffset+8]))
-	readOffset += 8
-
-	seg.CreatedAt = int64(binary.LittleEndian.Uint64(buf[readOffset : readOffset+8]))
-	readOffset += 8
-
-	seg.KeySize = int32(binary.LittleEndian.Uint32(buf[readOffset : readOffset+4]))
-	readOffset += 4
-
-	seg.ValueSize = int32(binary.LittleEndian.Uint32(buf[readOffset : readOffset+4]))
-	readOffset += 4
-
-	if seg.KeySize < 0 || seg.ValueSize < 0 {
-		return 0, nil, fmt.Errorf("invalid segment size: keySize=%d, valueSize=%d", seg.KeySize, seg.ValueSize)
-	}
-
-	keybuf := make([]byte, seg.KeySize)
-	_, err = fd.ReadAt(keybuf, int64(offset)+int64(readOffset))
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to parse key in segment: %w", err)
-	}
-	readOffset += int(seg.KeySize)
-
-	valuebuf := make([]byte, seg.ValueSize)
-	_, err = fd.ReadAt(valuebuf, int64(offset)+int64(readOffset))
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to parse value in segment: %w", err)
-	}
-	readOffset += int(seg.ValueSize)
-
-	checksumBuf := make([]byte, 4)
-	_, err = fd.ReadAt(checksumBuf, int64(offset)+int64(readOffset))
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to read checksum in segment: %w", err)
-	}
-
-	checksum := binary.LittleEndian.Uint32(checksumBuf)
-	buf = append(buf, keybuf...)
-	buf = append(buf, valuebuf...)
-
-	if checksum != crc32.ChecksumIEEE(buf) {
-		return 0, nil, fmt.Errorf("crc32 checksum mismatch: %d", checksum)
-	}
-
-	decodedData, err := transformer.Decode(valuebuf)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to transformer decode value in segment: %w", err)
-	}
-
-	seg.Key = keybuf
-	seg.Value = decodedData
-
-	return inodeNum(string(keybuf)), &seg, nil
-}
-
 // | DEL 1 | KIND 1 | EAT 8 | CAT 8 | KLEN 4 | VLEN 4 | KEY ? | VALUE ? | CRC32 4 |
-func readSegmentMmap(reader *mmap.ReaderAt, offset, bufsize int64) (uint64, *Segment, error) {
+func readSegment(reader io.ReaderAt, offset, bufsize int64) (uint64, *Segment, error) {
 	buf := make([]byte, bufsize)
 
 	_, err := reader.ReadAt(buf, offset)
@@ -1462,7 +1390,7 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 			readOffset := int64(len(dataFileMetadata))
 
 			for readOffset < finfo.Size() {
-				inum, segment, err := readSegmentMmap(reg.ReaderAt, readOffset, _SEGMENT_PADDING)
+				inum, segment, err := readSegment(reg.ReaderAt, readOffset, _SEGMENT_PADDING)
 				if err != nil {
 					return err
 				}
