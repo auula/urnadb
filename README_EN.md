@@ -3,7 +3,7 @@
     <h1>🏺️</h1>
 </div>
 
-<p align="center">UrnaDB is a NoSQL that supports multiple data types based on Log-structured file system.</p>
+<p align="center">UrnaDB is a NoSQL database support diverse data types and transactions.</p>
 
 
 ---
