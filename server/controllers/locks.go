@@ -79,7 +79,9 @@ func DeleteLockController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("deleted lock successfully."))
+	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+		"message": "deleted lock successfully.",
+	}))
 }
 
 func DoLeaseLockController(ctx *gin.Context) {
