@@ -19,6 +19,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/auula/urnadb/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -59,6 +60,7 @@ func TestLeaseLockClear(t *testing.T) {
 
 func TestLeaseLockReleaseToPool(t *testing.T) {
 	ll := AcquireLeaseLock()
+	ll.Token = utils.NewULID()
 	originalToken := ll.Token
 
 	assert.NotEmpty(t, originalToken)
@@ -68,6 +70,7 @@ func TestLeaseLockReleaseToPool(t *testing.T) {
 
 	// 验证对象被放回池中
 	ll2 := AcquireLeaseLock()
+	ll2.Token = utils.NewULID()
 	assert.NotNil(t, ll2)
 	assert.NotEmpty(t, ll2.Token)
 	assert.NotEqual(t, originalToken, ll2.Token) // 新的 Token 应该不同
@@ -139,6 +142,7 @@ func TestLeaseLockPoolFunctionality(t *testing.T) {
 	// 获取多个锁
 	for i := 0; i < 10; i++ {
 		locks[i] = AcquireLeaseLock()
+		locks[i].Token = utils.NewULID()
 		tokens[i] = locks[i].Token
 		assert.NotEmpty(t, tokens[i])
 	}
@@ -159,6 +163,7 @@ func TestLeaseLockPoolFunctionality(t *testing.T) {
 	newLocks := make([]*LeaseLock, 5)
 	for i := 0; i < 5; i++ {
 		newLocks[i] = AcquireLeaseLock()
+		newLocks[i].Token = utils.NewULID()
 		assert.NotEmpty(t, newLocks[i].Token)
 		// 新 token 应该与之前的都不同
 		for j := 0; j < 10; j++ {

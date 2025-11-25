@@ -56,15 +56,12 @@ func NewLeaseLock() *LeaseLock {
 
 // 从对象池获取一个 LeaseLock ，内存被复用但是锁 Token 不会被复用
 func AcquireLeaseLock() *LeaseLock {
-	ll := leaseLockPools.Get().(*LeaseLock)
-	ll.Token = utils.NewULID()
-	return ll
+	return leaseLockPools.Get().(*LeaseLock)
 }
 
 // 放回对象池，清理数据
 func (ll *LeaseLock) Clear() {
 	ll.Token = nullString
-	leaseLockPools.Put(ll)
 }
 
 // 其实这样里方便的是 utils.ReleaseToPool 可以直接调用，

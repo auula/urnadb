@@ -111,6 +111,8 @@ func (s *LeaseLockService) AcquireLock(name string, ttl int64) (*types.LeaseLock
 
 	// 创建一把新租期锁并且设置锁的租期
 	lease := types.AcquireLeaseLock()
+	lease.Token = utils.NewULID()
+
 	// 尝试创建 segment
 	seg, err := vfs.AcquirePoolSegment(name, lease, ttl)
 	if err != nil {
@@ -163,6 +165,9 @@ func (s *LeaseLockService) DoLeaseLock(name string, token string) (*types.LeaseL
 
 	// 创建一把新租期锁并且设置锁的租期，租期锁一定有存活时间的，默认是续租期 10s 秒
 	newlease := types.AcquireLeaseLock()
+	// 更换新的 Token 凭证
+	newlease.Token = utils.NewULID()
+
 	newttl := int64(10)
 	if seg.ExpiredAt > 0 {
 		// 类似于滑动窗口，把锁到期时间向后移动，续租是时间和前一个租期时间一致
