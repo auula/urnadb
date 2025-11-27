@@ -17,11 +17,10 @@ package controllers
 import (
 	"net/http"
 
+	"github.com/auula/urnadb/server/response"
 	"github.com/gin-gonic/gin"
 )
 
 func Error404Handler(ctx *gin.Context) {
-	ctx.JSON(http.StatusNotFound, gin.H{
-		"message": "Oops! 404 Not Found!",
-	})
+	ctx.JSON(http.StatusNotFound, response.Fail("Oops! 404 Not Found!"))
 }
