@@ -601,9 +601,8 @@ func (lfs *LogStructuredFS) RunCheckpoint(second uint32) {
 			// 只有数据文件大于 2 个，才生成快速恢复的检查点
 			if len(lfs.regions) >= 2 {
 				ckpt := checkpointFileName(lfs.regionID)
-				path := filepath.Join(lfs.directory, ckpt)
 
-				fd, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, lfs.fsPerm)
+				fd, err := os.OpenFile(filepath.Join(lfs.directory, ckpt), os.O_CREATE|os.O_WRONLY, lfs.fsPerm)
 				if err != nil {
 					clog.Errorf("failed to generate index checkpoint file: %v", err)
 					chkptState = !chkptState
