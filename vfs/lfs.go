@@ -61,6 +61,7 @@ var (
 	shard            = 10
 	transformer      = NewTransformer()
 	fileExtension    = ".db"
+	ckptExtension    = ".ckpt"
 	indexFileName    = "index.db"
 	dataFileMetadata = []byte{0xDB, 0x00, 0x01, 0x01}
 )
@@ -554,7 +555,7 @@ func (lfs *LogStructuredFS) scanAndRecoverIndexs() error {
 	}
 
 	// 只有数据文件大于 2 并且有检查点文件才加快启动恢复
-	ckpts, _ := filepath.Glob(filepath.Join(lfs.directory, "*.ids"))
+	ckpts, _ := filepath.Glob(filepath.Join(lfs.directory, ckptExtension))
 	if len(lfs.regions) >= 2 && len(ckpts) > 0 {
 		return scanAndRecoverCheckpoint(ckpts, lfs.regions, lfs.indexs)
 	}
@@ -655,8 +656,8 @@ func (lfs *LogStructuredFS) RunCheckpoint(second uint32) {
 					continue
 				}
 
-				// 使用 strings.TrimSuffix 去掉 .tmp 后缀，然后加上 .ids 后缀
-				newckpt := strings.TrimSuffix(ckpt, ".tmp") + ".ids"
+				// 使用 strings.TrimSuffix 去掉 .tmp 后缀，然后加上 .ckpt 后缀
+				newckpt := strings.TrimSuffix(ckpt, ".tmp") + ckptExtension
 				err = os.Rename(filepath.Join(lfs.directory, ckpt), filepath.Join(lfs.directory, newckpt))
 				if err != nil {
 					clog.Errorf("failed to rename checkpoint temp file: %v", err)
@@ -1207,7 +1208,7 @@ func formatDataFileName(number int64) string {
 }
 
 func checkpointFileName(regionID int64) string {
-	return fmt.Sprintf("ckpt.%d.%d.tmp", time.Now().Unix(), regionID)
+	return fmt.Sprintf("mem.%d.%d.tmp", time.Now().Unix(), regionID)
 }
 
 // serializedIndex serializes the index to a recoverable file snapshot record format:
@@ -1493,7 +1494,7 @@ func appendToActiveRegion(fd *os.File, bytes []byte) error {
 }
 
 func cleanupDirtyCheckpoint(directory, newCheckpoint string) error {
-	files, err := filepath.Glob(filepath.Join(directory, "*.ids"))
+	files, err := filepath.Glob(filepath.Join(directory, ckptExtension))
 	if err != nil {
 		return err
 	}
