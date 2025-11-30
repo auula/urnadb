@@ -45,7 +45,7 @@ func CreateTableController(ctx *gin.Context) {
 	}
 
 	if req.TTLSeconds < 0 {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail("ttl cannot be negative."))
+		ctx.IndentedJSON(http.StatusBadRequest, response.Fail("ttl cannot be negative"))
 		return
 	}
 
@@ -55,9 +55,7 @@ func CreateTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"message": "table created successfully.",
-	}))
+	ctx.IndentedJSON(http.StatusOK, response.Ok("table created successfully", nil))
 }
 
 func DeleteTableController(ctx *gin.Context) {
@@ -73,9 +71,7 @@ func DeleteTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"message": "table deleted successfully.",
-	}))
+	ctx.IndentedJSON(http.StatusOK, response.Ok("table deleted successfully", nil))
 }
 
 func QueryTableController(ctx *gin.Context) {
@@ -91,7 +87,7 @@ func QueryTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+	ctx.IndentedJSON(http.StatusOK, response.Ok("table queried successfully", gin.H{
 		"table": tab.Table,
 	}))
 }
@@ -121,9 +117,7 @@ func PatchRowsTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"message": "table rows updated successfully.",
-	}))
+	ctx.IndentedJSON(http.StatusOK, response.Ok("table rows patched successfully", nil))
 }
 
 type QueryRowsRequest struct {
@@ -150,7 +144,7 @@ func QueryRowsTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+	ctx.IndentedJSON(http.StatusOK, response.Ok("table queried rows successfully", gin.H{
 		"rows": rows,
 	}))
 }
@@ -175,9 +169,7 @@ func RemoveRowsTabelController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"message": "table rows remove successfully.",
-	}))
+	ctx.IndentedJSON(http.StatusOK, response.Ok("table rows remove successfully", nil))
 }
 
 type InsertRowsRequest struct {
@@ -204,9 +196,8 @@ func InsertRowsTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"t_id":    id,
-		"message": "table rows insert successfully.",
+	ctx.IndentedJSON(http.StatusOK, response.Ok("table rows insert successfully", gin.H{
+		"t_id": id,
 	}))
 }
 
