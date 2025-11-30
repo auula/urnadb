@@ -54,7 +54,7 @@ func NewLockController(ctx *gin.Context) {
 
 	defer slock.ReleaseToPool()
 
-	ctx.IndentedJSON(http.StatusCreated, response.Ok(gin.H{
+	ctx.IndentedJSON(http.StatusCreated, response.Ok("lock created successfully", gin.H{
 		"token": slock.Token,
 	}))
 }
@@ -79,9 +79,7 @@ func DeleteLockController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"message": "deleted lock successfully.",
-	}))
+	ctx.IndentedJSON(http.StatusOK, response.Ok("lock deleted successfully", nil))
 }
 
 func DoLeaseLockController(ctx *gin.Context) {
@@ -106,7 +104,7 @@ func DoLeaseLockController(ctx *gin.Context) {
 
 	defer slock.ReleaseToPool()
 
-	ctx.IndentedJSON(http.StatusCreated, response.Ok(gin.H{
+	ctx.IndentedJSON(http.StatusCreated, response.Ok("lease acquired successfully", gin.H{
 		"token": slock.Token,
 	}))
 }

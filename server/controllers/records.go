@@ -41,7 +41,7 @@ func GetRecordsController(ctx *gin.Context) {
 
 	defer rd.ReleaseToPool()
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+	ctx.IndentedJSON(http.StatusOK, response.Ok("record queried successfully", gin.H{
 		"record": rd.Record,
 	}))
 }
@@ -76,9 +76,7 @@ func PutRecordsController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"message": "record created successfully.",
-	}))
+	ctx.IndentedJSON(http.StatusOK, response.Ok("record created successfully", nil))
 }
 
 func DeleteRecordsController(ctx *gin.Context) {
@@ -94,9 +92,7 @@ func DeleteRecordsController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"message": "record deleted successfully.",
-	}))
+	ctx.IndentedJSON(http.StatusOK, response.Ok("record deleted successfully", nil))
 }
 
 type SearchRecordRequest struct {
@@ -123,7 +119,7 @@ func SearchRecordsController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+	ctx.IndentedJSON(http.StatusOK, response.Ok("search completed successfully", gin.H{
 		"column": res,
 	}))
 }

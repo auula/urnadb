@@ -21,10 +21,11 @@ type ResponseEntity struct {
 }
 
 // 返回成功响应
-func Ok(data interface{}) *ResponseEntity {
+func Ok(message string, data interface{}) *ResponseEntity {
 	return &ResponseEntity{
-		Status: "success",
-		Data:   data,
+		Status:  "success",
+		Message: message,
+		Data:    data,
 	}
 }
 
@@ -33,5 +34,6 @@ func Fail(message string) *ResponseEntity {
 	return &ResponseEntity{
 		Status:  "error",
 		Message: message,
+		Data:    nil,
 	}
 }

@@ -38,9 +38,7 @@ func DeleteVariantController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
-		"message": "variant deleted successfully.",
-	}))
+	ctx.IndentedJSON(http.StatusOK, response.Ok("variant deleted successfully", nil))
 }
 
 func GetVariantController(ctx *gin.Context) {
@@ -58,7 +56,7 @@ func GetVariantController(ctx *gin.Context) {
 
 	defer variant.ReleaseToPool()
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+	ctx.IndentedJSON(http.StatusOK, response.Ok("variant queried successfully", gin.H{
 		"variant": variant.Value,
 	}))
 }
@@ -101,7 +99,7 @@ func CreateVariantController(ctx *gin.Context) {
 	}
 
 	// 成功响应
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+	ctx.IndentedJSON(http.StatusOK, response.Ok("", gin.H{
 		"variant": new_variant.Value,
 	}))
 }
@@ -131,7 +129,7 @@ func MathVariantController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok(gin.H{
+	ctx.IndentedJSON(http.StatusOK, response.Ok("variant incremented successfully", gin.H{
 		"variant": res_num,
 	}))
 }
