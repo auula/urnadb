@@ -87,9 +87,7 @@ func QueryTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("table queried successfully", gin.H{
-		"table": tab.Table,
-	}))
+	ctx.IndentedJSON(http.StatusOK, response.Ok("table queried successfully", tab.Table))
 }
 
 type PatchRowsRequest struct {
@@ -144,9 +142,7 @@ func QueryRowsTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("table queried rows successfully", gin.H{
-		"rows": rows,
-	}))
+	ctx.IndentedJSON(http.StatusOK, response.Ok("table queried rows successfully", rows))
 }
 
 func RemoveRowsTabelController(ctx *gin.Context) {
