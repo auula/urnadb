@@ -41,9 +41,7 @@ func GetRecordsController(ctx *gin.Context) {
 
 	defer rd.ReleaseToPool()
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("record queried successfully", gin.H{
-		"record": rd.Record,
-	}))
+	ctx.IndentedJSON(http.StatusOK, response.Ok("record queried successfully", rd.Record))
 }
 
 type CreateRecordRequest struct {
@@ -119,9 +117,7 @@ func SearchRecordsController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("search completed successfully", gin.H{
-		"column": res,
-	}))
+	ctx.IndentedJSON(http.StatusOK, response.Ok("search completed successfully", res))
 }
 
 func handlerRecordsError(ctx *gin.Context, err error) {

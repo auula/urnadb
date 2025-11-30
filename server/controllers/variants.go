@@ -99,7 +99,7 @@ func CreateVariantController(ctx *gin.Context) {
 	}
 
 	// 成功响应
-	ctx.IndentedJSON(http.StatusOK, response.Ok("", gin.H{
+	ctx.IndentedJSON(http.StatusOK, response.Ok("variant created successfully", gin.H{
 		"variant": new_variant.Value,
 	}))
 }
