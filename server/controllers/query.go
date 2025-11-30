@@ -38,11 +38,11 @@ func QueryController(ctx *gin.Context) {
 	defer utils.ReleaseToPool(seg)
 	ttl, _ := seg.ExpiresIn()
 
-	ctx.IndentedJSON(http.StatusOK, &gin.H{
+	ctx.IndentedJSON(http.StatusOK, response.Ok("Key metadata query completed successfully", gin.H{
 		"type":  seg.GetTypeString(),
 		"key":   seg.GetKeyString(),
 		"value": seg.Value,
 		"ttl":   ttl,
 		"mvcc":  version,
-	})
+	}))
 }
