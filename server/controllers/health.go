@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/auula/urnadb/server/response"
 	"github.com/auula/urnadb/utils"
 	"github.com/gin-gonic/gin"
 )
@@ -35,7 +36,7 @@ type SystemInfo struct {
 }
 
 func GetHealthController(ctx *gin.Context) {
-	ctx.IndentedJSON(http.StatusOK, SystemInfo{
+	ctx.IndentedJSON(http.StatusOK, response.Ok("server is healthy", SystemInfo{
 		GCState:        hs.RegionCompactStatus(),
 		KeyCount:       hs.RegionInodeCount(),
 		DiskFree:       fmt.Sprintf("%.2fGB", utils.BytesToGB(hs.GetFreeDisk())),
@@ -45,5 +46,5 @@ func GetHealthController(ctx *gin.Context) {
 		MemoryTotal:    fmt.Sprintf("%.2fGB", utils.BytesToGB(hs.GetTotalMemory())),
 		SpaceTotalUsed: fmt.Sprintf("%.2fGB", utils.BytesToGB(hs.GetTotalSpaceUsed())),
 		DiskPercent:    fmt.Sprintf("%.2f%%", hs.GetDiskPercent()),
-	})
+	}))
 }

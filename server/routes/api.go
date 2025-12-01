@@ -40,7 +40,7 @@ func SetupRoutes() *gin.Engine {
 	router.NoMethod(controllers.Error404Handler)
 
 	// 健康检查
-	router.GET("/", controllers.GetHealthController)
+	router.GET("/health", controllers.GetHealthController)
 
 	// 查询路由
 	query := router.Group("/query")
