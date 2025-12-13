@@ -1211,7 +1211,7 @@ func checkpointFileName(regionID int64) string {
 }
 
 // serializedIndex serializes the index to a recoverable file snapshot record format:
-// | INUM 8 | RID 8  | POS 8 | LEN 4 | EAT 8 | CAT 8 | T 1 | CRC32 4 | = len(48 bytes)
+// | INUM 8 | RID 8  | POS 8 | EAT 8 | CAT 8 |  LEN 4 | CRC32 4 | = len(48 bytes)
 func serializedIndex(buf *bytes.Buffer, inum uint64, inode *inode) ([]byte, error) {
 	// reset a byte buffer
 	buf.Reset()
@@ -1220,9 +1220,9 @@ func serializedIndex(buf *bytes.Buffer, inum uint64, inode *inode) ([]byte, erro
 	binary.Write(buf, binary.LittleEndian, inum)
 	binary.Write(buf, binary.LittleEndian, inode.RegionID)
 	binary.Write(buf, binary.LittleEndian, inode.Position)
-	binary.Write(buf, binary.LittleEndian, inode.Length)
 	binary.Write(buf, binary.LittleEndian, inode.ExpiredAt)
 	binary.Write(buf, binary.LittleEndian, inode.CreatedAt)
+	binary.Write(buf, binary.LittleEndian, inode.Length)
 
 	// Calculate CRC32 checksum
 	checksum := crc32.ChecksumIEEE(buf.Bytes())
@@ -1235,7 +1235,7 @@ func serializedIndex(buf *bytes.Buffer, inum uint64, inode *inode) ([]byte, erro
 }
 
 // deserializedIndex restores the index file snapshot to an in-memory struct:
-// | INUM 8 | RID 8  | OFS 8 | LEN 4 | EAT 8 | CAT 8 | CRC32 4 | = len(48 bytes)
+// | INUM 8 | RID 8  | OFS 8 | EAT 8 | CAT 8 |  LEN 4 | CRC32 4 | = len(48 bytes)
 func deserializedIndex(data []byte) (uint64, *inode, error) {
 	buf := bytes.NewReader(data)
 	var inum uint64
@@ -1256,17 +1256,17 @@ func deserializedIndex(data []byte) (uint64, *inode, error) {
 		return 0, nil, err
 	}
 
-	err = binary.Read(buf, binary.LittleEndian, &inode.Length)
-	if err != nil {
-		return 0, nil, err
-	}
-
 	err = binary.Read(buf, binary.LittleEndian, &inode.ExpiredAt)
 	if err != nil {
 		return 0, nil, err
 	}
 
 	err = binary.Read(buf, binary.LittleEndian, &inode.CreatedAt)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	err = binary.Read(buf, binary.LittleEndian, &inode.Length)
 	if err != nil {
 		return 0, nil, err
 	}

@@ -36,9 +36,9 @@ func TestSerializedIndex(t *testing.T) {
 	in := &inode{
 		RegionID:  1234,
 		Position:  5678,
-		Length:    100,
 		ExpiredAt: 1617181723,
 		CreatedAt: 1617181623,
+		Length:    100,
 	}
 
 	buf := new(bytes.Buffer)
@@ -68,14 +68,14 @@ func TestSerializedIndex(t *testing.T) {
 	if dnode.Position != in.Position {
 		t.Errorf("expected Offset %d, got %d", in.Position, dnode.RegionID)
 	}
-	if dnode.Length != in.Length {
-		t.Errorf("expected Length %d, got %d", in.Length, dnode.Length)
-	}
 	if dnode.ExpiredAt != in.ExpiredAt {
 		t.Errorf("expected ExpiredAt %d, got %d", in.ExpiredAt, dnode.ExpiredAt)
 	}
 	if dnode.CreatedAt != in.CreatedAt {
 		t.Errorf("expected CreatedAt %d, got %d", in.CreatedAt, dnode.CreatedAt)
+	}
+	if dnode.Length != in.Length {
+		t.Errorf("expected Length %d, got %d", in.Length, dnode.Length)
 	}
 
 }
