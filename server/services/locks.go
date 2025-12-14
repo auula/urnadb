@@ -34,8 +34,8 @@ var (
 
 type LocksService interface {
 	ReleaseLock(name string, token string) error
-	AcquireLock(name string, ttl int64) (lock *types.LeaseLock, err error)
-	DoLeaseLock(name string, token string) (lock *types.LeaseLock, err error)
+	AcquireLock(name string, ttl int64) (*types.LeaseLock, error)
+	DoLeaseLock(name string, token string) (*types.LeaseLock, error)
 }
 
 type LeaseLockService struct {
