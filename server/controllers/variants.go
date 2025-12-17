@@ -104,7 +104,7 @@ func CreateVariantController(ctx *gin.Context) {
 	}))
 }
 
-type MathVarianrRequest struct {
+type MathVariantRequest struct {
 	Delta float64 `json:"delta" bingding:"required"`
 }
 
@@ -116,7 +116,7 @@ func MathVariantController(ctx *gin.Context) {
 		return
 	}
 
-	var req MathVarianrRequest
+	var req MathVariantRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
 		ctx.IndentedJSON(http.StatusBadRequest, response.Fail("delta must be a float or int type"))
