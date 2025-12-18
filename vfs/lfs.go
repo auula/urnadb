@@ -625,7 +625,7 @@ func (lfs *LogStructuredFS) RunCheckpoint(second uint32) {
 				}
 
 				// 创建一个 buf 缓冲区方便服用内存
-				buf := new(bytes.Buffer)
+				buf := bytes.NewBuffer(make([]byte, 0, 48))
 
 				// 遍历 indexs 确保锁的粒度更小
 				for _, imap := range lfs.indexs {
