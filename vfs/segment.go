@@ -327,33 +327,41 @@ func (s *Segment) Payload() ([]byte, uint32) {
 	return s.Value, uint32(len(s.Value))
 }
 
-func (s *Segment) ToJSON() ([]byte, error) {
-	switch s.Type {
-	case record:
+var jsonHandlers = map[kind]func(*Segment) ([]byte, error){
+	record: func(s *Segment) ([]byte, error) {
 		num, err := s.ToRecord()
 		if err != nil {
 			return nil, err
 		}
 		return num.ToJSON()
-	case table:
+	},
+	table: func(s *Segment) ([]byte, error) {
 		tab, err := s.ToTable()
 		if err != nil {
 			return nil, err
 		}
 		return tab.ToJSON()
-	case variant:
+	},
+	variant: func(s *Segment) ([]byte, error) {
 		variants, err := s.ToVariant()
 		if err != nil {
 			return nil, err
 		}
 		return variants.ToJSON()
-	case leaselock:
+	},
+	leaselock: func(s *Segment) ([]byte, error) {
 		leaseLock, err := s.ToLeaseLock()
 		if err != nil {
 			return nil, err
 		}
 		return leaseLock.ToJSON()
-	}
+	},
+}
 
-	return nil, errors.New("unknown data type")
+func (s *Segment) ToJSON() ([]byte, error) {
+	castfn, ok := jsonHandlers[s.Type]
+	if !ok {
+		return nil, errors.New("unknown data type")
+	}
+	return castfn(s)
 }
