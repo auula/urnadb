@@ -327,7 +327,7 @@ func (s *Segment) Payload() ([]byte, uint32) {
 	return s.Value, uint32(len(s.Value))
 }
 
-var jsonHandlers = map[kind]func(*Segment) ([]byte, error){
+var segmentJsonEncoders = map[kind]func(*Segment) ([]byte, error){
 	record: func(s *Segment) ([]byte, error) {
 		num, err := s.ToRecord()
 		if err != nil {
@@ -359,9 +359,9 @@ var jsonHandlers = map[kind]func(*Segment) ([]byte, error){
 }
 
 func (s *Segment) ToJSON() ([]byte, error) {
-	castfn, ok := jsonHandlers[s.Type]
+	cast, ok := segmentJsonEncoders[s.Type]
 	if !ok {
 		return nil, errors.New("unknown data type")
 	}
-	return castfn(s)
+	return cast(s)
 }
