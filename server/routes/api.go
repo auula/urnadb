@@ -35,7 +35,7 @@ func SetupRoutes() *gin.Engine {
 	// 全局中间件
 	router.Use(middlewares.AuthMiddleware())
 
-	// 404处理
+	// 404 处理
 	router.NoRoute(controllers.Error404Handler)
 	router.NoMethod(controllers.Error404Handler)
 
@@ -68,7 +68,7 @@ func SetupRoutes() *gin.Engine {
 		locks.DELETE("/:key", controllers.DeleteLockController)
 	}
 
-	// records 路由
+	// Record 路由
 	records := router.Group("/records")
 	{
 		records.GET("/:key", controllers.GetRecordsController)
@@ -77,7 +77,7 @@ func SetupRoutes() *gin.Engine {
 		records.DELETE("/:key", controllers.DeleteRecordsController)
 	}
 
-	// Variants 路由
+	// Variant 路由
 	variants := router.Group("/variants")
 	{
 		variants.GET("/:key", controllers.GetVariantController)
