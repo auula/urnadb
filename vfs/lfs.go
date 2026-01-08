@@ -905,16 +905,22 @@ func recoveryIndex(reader *mmap.ReaderAt, indexs []*indexMap) error {
 		for offset < int64(reader.Len()) && len(equeue) == 0 {
 			_, err := reader.ReadAt(buf, offset)
 			if err != nil {
-				equeue <- fmt.Errorf("failed to read index node: %w", err)
-				return
+				select {
+				case equeue <- fmt.Errorf("failed to read index node: %w", err):
+				default:
+					return
+				}
 			}
 
 			offset += _INDEX_SEGMENT_SIZE
 
 			inum, inode, err := deserializedIndex(buf)
 			if err != nil {
-				equeue <- fmt.Errorf("failed to deserialize index (inum: %d): %w", inum, err)
-				return
+				select {
+				case equeue <- fmt.Errorf("failed to deserialize index (inum: %d): %w", inum, err):
+				default:
+					return
+				}
 			}
 
 			if inode.ExpiredAt > 0 && inode.ExpiredAt <= time.Now().UnixMicro() {
@@ -939,8 +945,11 @@ func recoveryIndex(reader *mmap.ReaderAt, indexs []*indexMap) error {
 				// As a result, it avoids delaying the execution of defer wg.Done(), which would perform meaningless work.
 				// The goal is to resume the blocked wg.Wait() as quickly as possible,
 				// Allowing the main goroutine to return promptly.
-				equeue <- errors.New("no corresponding index shard")
-				return
+				select {
+				case equeue <- errors.New("no corresponding index shard"):
+				default:
+					return
+				}
 			}
 		}
 	}()
