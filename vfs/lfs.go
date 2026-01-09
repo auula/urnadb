@@ -16,6 +16,7 @@ package vfs
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -891,7 +892,10 @@ func recoveryIndex(reader *mmap.ReaderAt, indexs []*indexMap) error {
 		inode *inode
 	}
 
-	nqueue := make(chan index, (int64(reader.Len())-offset)/_INDEX_SEGMENT_SIZE)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	nqueue := make(chan index, 128)
 	equeue := make(chan error, 1)
 
 	var wg sync.WaitGroup
@@ -902,14 +906,22 @@ func recoveryIndex(reader *mmap.ReaderAt, indexs []*indexMap) error {
 		defer close(nqueue)
 
 		buf := make([]byte, _INDEX_SEGMENT_SIZE)
-		for offset < int64(reader.Len()) && len(equeue) == 0 {
+
+		for offset < int64(reader.Len()) {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			_, err := reader.ReadAt(buf, offset)
 			if err != nil {
 				select {
 				case equeue <- fmt.Errorf("failed to read index node: %w", err):
 				default:
-					return
 				}
+				cancel()
+				return
 			}
 
 			offset += _INDEX_SEGMENT_SIZE
@@ -919,37 +931,47 @@ func recoveryIndex(reader *mmap.ReaderAt, indexs []*indexMap) error {
 				select {
 				case equeue <- fmt.Errorf("failed to deserialize index (inum: %d): %w", inum, err):
 				default:
-					return
 				}
+				cancel()
+				return
 			}
 
 			if inode.ExpiredAt > 0 && inode.ExpiredAt <= time.Now().UnixMicro() {
 				continue
 			}
 
-			nqueue <- index{inum: inum, inode: inode}
+			select {
+			case nqueue <- index{inum: inum, inode: inode}:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for node := range nqueue {
-			imap := indexs[node.inum%uint64(shard)]
-			if imap != nil {
-				imap.index[node.inum] = node.inode
-			} else {
-				// This corresponds to the condition len(queue) == 0 in the for loop.
-				// It prevents a situation where the consumer goroutine has encountered an error and stopped,
-				// But the producer goroutine is still reading and deserializing the index.
-				// As a result, it avoids delaying the execution of defer wg.Done(), which would perform meaningless work.
-				// The goal is to resume the blocked wg.Wait() as quickly as possible,
-				// Allowing the main goroutine to return promptly.
-				select {
-				case equeue <- errors.New("no corresponding index shard"):
-				default:
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case node, ok := <-nqueue:
+				if !ok {
 					return
 				}
+
+				imap := indexs[node.inum%uint64(shard)]
+				if imap == nil {
+					select {
+					case equeue <- errors.New("no corresponding index shard"):
+					default:
+					}
+					cancel()
+					return
+				}
+
+				imap.index[node.inum] = node.inode
 			}
 		}
 	}()
@@ -958,10 +980,8 @@ func recoveryIndex(reader *mmap.ReaderAt, indexs []*indexMap) error {
 
 	select {
 	case err := <-equeue:
-		close(equeue)
 		return err
 	default:
-		close(equeue)
 		return nil
 	}
 }
