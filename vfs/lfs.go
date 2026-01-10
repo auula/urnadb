@@ -556,7 +556,7 @@ func (lfs *LogStructuredFS) scanAndRecoverIndexs() error {
 	}
 
 	// 只有数据文件大于 2 并且有检查点文件才加快启动恢复
-	ckpts, _ := filepath.Glob(filepath.Join(lfs.directory, ckptExtension))
+	ckpts, _ := filepath.Glob(filepath.Join(lfs.directory, "*.ckpt"))
 	if len(lfs.regions) >= 2 && len(ckpts) > 0 {
 		return scanAndRecoverCheckpoint(ckpts, lfs.regions, lfs.indexs)
 	}
@@ -838,8 +838,8 @@ func (lfs *LogStructuredFS) GetDirectory() string {
 // as it consumes a significant amount of virtual memory space and may lead to
 // swapping memory pages to disk.
 func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
-	filePath := filepath.Join(lfs.directory, indexFileName)
-	fd, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, lfs.fsPerm)
+	tmpIndexFile := filepath.Join(lfs.directory, "index.tmp")
+	fd, err := os.OpenFile(tmpIndexFile, os.O_CREATE|os.O_RDWR|os.O_TRUNC, lfs.fsPerm)
 	if err != nil {
 		return fmt.Errorf("failed to generate index snapshot file: %w", err)
 	}
@@ -879,6 +879,13 @@ func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
 		}(); err != nil {
 			return fmt.Errorf("failed to export snapshot index file: %w", err)
 		}
+	}
+
+	// 防止 index.db 写入不完整，导致二次启动使用脏数据构建的索引
+	err = os.Rename(tmpIndexFile, filepath.Join(lfs.directory, indexFileName))
+	if err != nil {
+		_ = os.Remove(tmpIndexFile)
+		return fmt.Errorf("failed to rename index snapshot file: %w", err)
 	}
 
 	return nil
@@ -1522,7 +1529,7 @@ func appendToActiveRegion(fd *os.File, bytes []byte) error {
 }
 
 func cleanupDirtyCheckpoint(directory, newCheckpoint string) error {
-	files, err := filepath.Glob(filepath.Join(directory, ckptExtension))
+	files, err := filepath.Glob(filepath.Join(directory, "*.ckpt"))
 	if err != nil {
 		return err
 	}
