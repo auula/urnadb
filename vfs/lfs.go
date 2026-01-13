@@ -64,6 +64,7 @@ var (
 	fileExtension    = ".db"
 	ckptExtension    = ".ckpt"
 	indexFileName    = "index.db"
+	indexTmpFileName = "index.tmp"
 	dataFileMetadata = []byte{0xDB, 0x00, 0x01, 0x01}
 )
 
@@ -838,7 +839,7 @@ func (lfs *LogStructuredFS) GetDirectory() string {
 // as it consumes a significant amount of virtual memory space and may lead to
 // swapping memory pages to disk.
 func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
-	tmpIndexFile := filepath.Join(lfs.directory, "index.tmp")
+	tmpIndexFile := filepath.Join(lfs.directory, indexTmpFileName)
 	fd, err := os.OpenFile(tmpIndexFile, os.O_CREATE|os.O_RDWR|os.O_TRUNC, lfs.fsPerm)
 	if err != nil {
 		return fmt.Errorf("failed to generate index snapshot file: %w", err)
@@ -1549,6 +1550,9 @@ func cleanupDirtyCheckpoint(directory, newCheckpoint string) error {
 	}
 
 	for _, file := range tmps {
+		if filepath.Base(file) == indexTmpFileName {
+			continue
+		}
 		err := os.Remove(file)
 		if err != nil {
 			return fmt.Errorf("deleted old temp checkpoint file: %s", err)
