@@ -42,7 +42,7 @@ type state int32
 
 const (
 	minPort = uint16(1024)
-	maxPort = uint16(1<<16 - 1)
+	maxPort = uint16((1 << 16) - 1)
 	timeout = time.Second * 3
 
 	idle state = iota
