@@ -511,11 +511,6 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 			}
 			lfs.active = active.Fd
 			lfs.offset = offset
-			// Active region 不使用 mmap，只有当它成为旧的 region 文件时才 mmap
-			if lfs.regions[lfs.regionID].ReaderAt != nil {
-				lfs.regions[lfs.regionID].ReaderAt.Close()
-				lfs.regions[lfs.regionID].ReaderAt = nil
-			}
 		}
 	} else {
 		// If it is an empty directory, create a writable data file
@@ -790,6 +785,12 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 	err = instance.scanAndRecoverIndexs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover regions index: %w", err)
+	}
+
+	// Active region 不使用 mmap，只有当它成为旧的 region 文件时才 mmap
+	if instance.regions[instance.regionID].ReaderAt != nil {
+		instance.regions[instance.regionID].ReaderAt.Close()
+		instance.regions[instance.regionID].ReaderAt = nil
 	}
 
 	go expireLoop(instance.indexs, instance.expireLoopWorker)
