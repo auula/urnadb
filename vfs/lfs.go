@@ -392,12 +392,12 @@ func (lfs *LogStructuredFS) changeRegions() error {
 	lfs.mu.Lock()
 	defer lfs.mu.Unlock()
 
-	err := lfs.active.Sync()
+	err := utils.FlushToDisk(lfs.active)
 	if err != nil {
 		return fmt.Errorf("failed to change active regions: %w", err)
 	}
 
-	// 重新以只读的方式打开这个文件，并且开发 mmap 映射
+	// 重新以只读的方式打开这个文件，并且设置 mmap 映射
 	fileName, err := toStringFileName(lfs.regionID)
 	if err != nil {
 		return fmt.Errorf("failed to active region name to string: %w", err)
