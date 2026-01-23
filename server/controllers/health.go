@@ -35,7 +35,7 @@ type SystemInfo struct {
 	SpaceTotalUsed string `json:"space_total"`
 }
 
-func GetHealthController(ctx *gin.Context) {
+func HealthController(ctx *gin.Context) {
 	ctx.IndentedJSON(http.StatusOK, response.Ok("server is healthy", SystemInfo{
 		GCState:        hs.RegionCompactStatus(),
 		KeyCount:       hs.RegionInodeCount(),

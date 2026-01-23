@@ -40,7 +40,7 @@ func SetupRoutes() *gin.Engine {
 	router.NoMethod(controllers.Error404Handler)
 
 	// 健康检查
-	router.GET("/health", controllers.GetHealthController)
+	router.GET("/health", controllers.HealthController)
 
 	// 查询路由
 	query := router.Group("/query")
@@ -71,10 +71,10 @@ func SetupRoutes() *gin.Engine {
 	// Record 路由
 	records := router.Group("/records")
 	{
-		records.GET("/:key", controllers.GetRecordsController)
-		records.PUT("/:key", controllers.PutRecordsController)
-		records.POST("/:key", controllers.SearchRecordsController)
-		records.DELETE("/:key", controllers.DeleteRecordsController)
+		records.GET("/:key", controllers.GetRecordController)
+		records.PUT("/:key", controllers.PutRecordController)
+		records.POST("/:key", controllers.SearchRecordController)
+		records.DELETE("/:key", controllers.DeleteRecordController)
 	}
 
 	// Variant 路由
