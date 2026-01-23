@@ -343,7 +343,7 @@ func TestValidated(t *testing.T) {
 
 	err = invalidConfig.Validated()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "port range must be between 1025 and 65534")
+	assert.Contains(t, err.Error(), "port range must be between 1025 and 65535")
 
 	// Invalid configuration: empty path
 	invalidConfig = &ServerOptions{

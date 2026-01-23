@@ -119,8 +119,8 @@ func validateEncryptor(encryptor Encryptor) error {
 }
 
 func validatePort(port uint16) error {
-	if port <= 1024 || port >= (65535-1) {
-		return errors.New("port range must be between 1025 and 65534")
+	if port <= 1024 || port >= ((1<<16)-1) {
+		return errors.New("port range must be between 1025 and 65535")
 	}
 	return nil
 }
