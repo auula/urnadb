@@ -504,14 +504,16 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 
 		if stat.Size() >= lfs.regionThreshold {
 			return lfs.createActiveRegion()
-		} else {
-			offset, err := active.Fd.Seek(0, io.SeekEnd)
-			if err != nil {
-				return fmt.Errorf("failed to get region file offset: %w", err)
-			}
-			lfs.active = active.Fd
-			lfs.offset = offset
 		}
+
+		// 直接服用上一次的未写满的 active 文件
+		offset, err := active.Fd.Seek(0, io.SeekEnd)
+		if err != nil {
+			return fmt.Errorf("failed to get region file offset: %w", err)
+		}
+		lfs.active = active.Fd
+		lfs.offset = offset
+
 	} else {
 		// If it is an empty directory, create a writable data file
 		return lfs.createActiveRegion()
