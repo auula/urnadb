@@ -25,7 +25,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func GetRecordsController(ctx *gin.Context) {
+func GetRecordController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
 		ctx.IndentedJSON(http.StatusBadRequest, missKey)
@@ -49,7 +49,7 @@ type CreateRecordRequest struct {
 	TTLSeconds int64          `json:"ttl" binding:"omitempty"`
 }
 
-func PutRecordsController(ctx *gin.Context) {
+func PutRecordController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
 		ctx.IndentedJSON(http.StatusBadRequest, missKey)
@@ -59,7 +59,7 @@ func PutRecordsController(ctx *gin.Context) {
 	var req CreateRecordRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
-		handlerRecordsError(ctx, err)
+		handlerRecordError(ctx, err)
 		return
 	}
 
@@ -70,14 +70,14 @@ func PutRecordsController(ctx *gin.Context) {
 
 	err = rs.CreateRecord(name, rd, req.TTLSeconds)
 	if err != nil {
-		handlerRecordsError(ctx, err)
+		handlerRecordError(ctx, err)
 		return
 	}
 
 	ctx.IndentedJSON(http.StatusOK, response.Ok("record created successfully", nil))
 }
 
-func DeleteRecordsController(ctx *gin.Context) {
+func DeleteRecordController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
 		ctx.IndentedJSON(http.StatusBadRequest, missKey)
@@ -86,7 +86,7 @@ func DeleteRecordsController(ctx *gin.Context) {
 
 	err := rs.DeleteRecord(name)
 	if err != nil {
-		handlerRecordsError(ctx, err)
+		handlerRecordError(ctx, err)
 		return
 	}
 
@@ -97,7 +97,7 @@ type SearchRecordRequest struct {
 	Column string `json:"column" binding:"required"`
 }
 
-func SearchRecordsController(ctx *gin.Context) {
+func SearchRecordController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
 		ctx.IndentedJSON(http.StatusBadRequest, missKey)
@@ -107,20 +107,20 @@ func SearchRecordsController(ctx *gin.Context) {
 	var req SearchRecordRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
-		handlerRecordsError(ctx, err)
+		handlerRecordError(ctx, err)
 		return
 	}
 
 	res, err := rs.SearchRows(name, req.Column)
 	if err != nil {
-		handlerRecordsError(ctx, err)
+		handlerRecordError(ctx, err)
 		return
 	}
 
 	ctx.IndentedJSON(http.StatusOK, response.Ok("search completed successfully", res))
 }
 
-func handlerRecordsError(ctx *gin.Context, err error) {
+func handlerRecordError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, services.ErrRecordUpdateFailed):
 		ctx.IndentedJSON(http.StatusConflict, response.Fail(err.Error()))
