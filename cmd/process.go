@@ -204,12 +204,19 @@ type flags struct {
 
 func parseFlags() (fl *flags) {
 	fl = new(flags)
+
 	flag.StringVar(&fl.auth, "auth", conf.Defaults.Password, "--auth the server authentication password.")
 	flag.StringVar(&fl.path, "path", conf.Defaults.Path, "--path the data storage directory.")
 	flag.BoolVar(&fl.debug, "debug", conf.Defaults.Debug, "--debug enable debug mode.")
 	flag.StringVar(&fl.config, "config", "", "--config the configuration file path.")
 	flag.IntVar(&fl.port, "port", int(conf.Defaults.Port), "--port the HTTP server port.")
 	flag.BoolVar(&daemon, "daemon", false, "--daemon run with a daemon.")
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [options]\n", os.Args[0])
+		flag.PrintDefaults()
+	}
+
 	flag.Parse()
 	return
 }
