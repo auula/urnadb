@@ -40,8 +40,8 @@ const (
 
 var (
 	//go:embed banner.txt
-	logo   string
-	banner = fmt.Sprintf(logo, version, website)
+	text   string
+	banner = fmt.Sprintf(text, version, website)
 	daemon = false
 )
 
