@@ -301,6 +301,15 @@ func (lfs *LogStructuredFS) StopExpireLoop() {
 	}
 }
 
+func (lfs *LogStructuredFS) StopFlushDiskLoop() {
+	lfs.mu.Lock()
+	defer lfs.mu.Unlock()
+
+	if lfs.flushDiskLoopWorker != nil {
+		lfs.flushDiskLoopWorker.Stop()
+	}
+}
+
 func (lfs *LogStructuredFS) expireKeysLoop() {
 	for range lfs.expireLoopWorker.C {
 		for _, imap := range lfs.indexs {
