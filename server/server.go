@@ -195,8 +195,8 @@ func closeStorage() error {
 		// 先停止垃圾回收线程和检查点生成线程
 		storage.StopExpireLoop()
 		storage.StopCheckpoint()
-		storage.StopFlushDiskLoop()
 		storage.StopCompactRegion()
+		storage.StopBackgroundFlush()
 		err := storage.CloseFS()
 		if err != nil {
 			return err
