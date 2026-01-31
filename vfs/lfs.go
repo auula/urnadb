@@ -96,20 +96,21 @@ type Region struct {
 
 // LogStructuredFS represents the virtual file storage system.
 type LogStructuredFS struct {
-	mu               sync.RWMutex
-	offset           int64
-	regionID         int64
-	directory        string
-	fsPerm           os.FileMode
-	indexs           []*indexMap
-	active           *os.File
-	regions          map[int64]*Region
-	gcstate          _GC_STATE
-	compactTask      *cron.Cron
-	dirtyRegions     []*Region
-	regionThreshold  int64
-	checkpointWorker *time.Ticker
-	expireLoopWorker *time.Ticker
+	mu                  sync.RWMutex
+	offset              int64
+	regionID            int64
+	directory           string
+	fsPerm              os.FileMode
+	indexs              []*indexMap
+	active              *os.File
+	regions             map[int64]*Region
+	gcstate             _GC_STATE
+	compactTask         *cron.Cron
+	dirtyRegions        []*Region
+	regionThreshold     int64
+	checkpointWorker    *time.Ticker
+	expireLoopWorker    *time.Ticker
+	flushDiskLoopWorker *time.Ticker
 }
 
 // PutSegment inserts a Segment record into the LogStructuredFS virtual file system.
@@ -315,8 +316,7 @@ func (lfs *LogStructuredFS) expireKeysLoop() {
 }
 
 func (lfs *LogStructuredFS) flushDiskLoop() {
-	for {
-		time.Sleep(time.Duration(3) * time.Second)
+	for range lfs.flushDiskLoopWorker.C {
 		// 添加日志记录打印，才用 waring 级别
 		lfs.mu.RLock()
 		err := lfs.active.Sync()
@@ -780,10 +780,11 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 		gcstate:   _GC_INIT,
 		fsPerm:    opt.FSPerm,
 		// Single region max size = 255GB
-		regionThreshold:  int64(opt.Threshold) * gb,
-		compactTask:      nil,
-		checkpointWorker: nil,
-		expireLoopWorker: time.NewTicker(time.Duration(120) * time.Second),
+		regionThreshold:     int64(opt.Threshold) * gb,
+		compactTask:         nil,
+		checkpointWorker:    nil,
+		expireLoopWorker:    time.NewTicker(time.Duration(120) * time.Second),
+		flushDiskLoopWorker: time.NewTicker(time.Duration(3) * time.Second),
 	}
 
 	for i := 0; i < shard; i++ {
