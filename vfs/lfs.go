@@ -96,21 +96,21 @@ type Region struct {
 
 // LogStructuredFS represents the virtual file storage system.
 type LogStructuredFS struct {
-	mu                  sync.RWMutex
-	offset              int64
-	regionID            int64
-	directory           string
-	fsPerm              os.FileMode
-	indexs              []*indexMap
-	active              *os.File
-	regions             map[int64]*Region
-	gcstate             _GC_STATE
-	compactTask         *cron.Cron
-	dirtyRegions        []*Region
-	regionThreshold     int64
-	checkpointWorker    *time.Ticker
-	expireLoopWorker    *time.Ticker
-	flushDiskLoopWorker *time.Ticker
+	mu                   sync.RWMutex
+	offset               int64
+	regionID             int64
+	directory            string
+	fsPerm               os.FileMode
+	indexs               []*indexMap
+	active               *os.File
+	regions              map[int64]*Region
+	gcstate              _GC_STATE
+	compactTask          *cron.Cron
+	dirtyRegions         []*Region
+	regionThreshold      int64
+	checkpointWorker     *time.Ticker
+	expireLoopWorker     *time.Ticker
+	backgroundSyncWorker *time.Ticker
 }
 
 // PutSegment inserts a Segment record into the LogStructuredFS virtual file system.
@@ -301,12 +301,12 @@ func (lfs *LogStructuredFS) StopExpireLoop() {
 	}
 }
 
-func (lfs *LogStructuredFS) StopFlushDiskLoop() {
+func (lfs *LogStructuredFS) StopBackgroundSync() {
 	lfs.mu.Lock()
 	defer lfs.mu.Unlock()
 
-	if lfs.flushDiskLoopWorker != nil {
-		lfs.flushDiskLoopWorker.Stop()
+	if lfs.backgroundSyncWorker != nil {
+		lfs.backgroundSyncWorker.Stop()
 	}
 }
 
@@ -324,8 +324,8 @@ func (lfs *LogStructuredFS) expireKeysLoop() {
 	}
 }
 
-func (lfs *LogStructuredFS) flushDiskLoop() {
-	for range lfs.flushDiskLoopWorker.C {
+func (lfs *LogStructuredFS) backgroundSync() {
+	for range lfs.backgroundSyncWorker.C {
 		// 添加日志记录打印，才用 waring 级别
 		lfs.mu.RLock()
 		err := lfs.active.Sync()
@@ -789,11 +789,11 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 		gcstate:   _GC_INIT,
 		fsPerm:    opt.FSPerm,
 		// Single region max size = 255GB
-		regionThreshold:     int64(opt.Threshold) * gb,
-		compactTask:         nil,
-		checkpointWorker:    nil,
-		expireLoopWorker:    time.NewTicker(time.Duration(120) * time.Second),
-		flushDiskLoopWorker: time.NewTicker(time.Duration(3) * time.Second),
+		regionThreshold:      int64(opt.Threshold) * gb,
+		compactTask:          nil,
+		checkpointWorker:     nil,
+		expireLoopWorker:     time.NewTicker(time.Duration(120) * time.Second),
+		backgroundSyncWorker: time.NewTicker(time.Duration(3) * time.Second),
 	}
 
 	for i := 0; i < shard; i++ {
@@ -823,7 +823,7 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 	go instance.expireKeysLoop()
 
 	// 3 秒强制刷盘一次 WAL 防止数据在 OS Pages Cache 中
-	go instance.flushDiskLoop()
+	go instance.backgroundSync()
 
 	// Singleton pattern, but other packages can still create an instance with new(LogStructuredFS), which makes this ineffective
 	return instance, nil
