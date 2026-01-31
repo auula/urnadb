@@ -295,11 +295,11 @@ func (s *Segment) ExpiresIn() (int64, bool) {
 	}
 
 	// 未过期
-	ttlMicro := s.ExpiredAt - now
-	ttl := ttlMicro / 1_000_000
+	ttl_micro := s.ExpiredAt - now
+	ttl := ttl_micro / 1_000_000
 
 	// 如果还有剩余时间，但不足 1 秒，也应该返回 1 秒，而不是 0
-	if ttlMicro > 0 && ttl == 0 {
+	if ttl_micro > 0 && ttl == 0 {
 		ttl = 1
 	}
 
