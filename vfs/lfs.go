@@ -300,9 +300,9 @@ func (lfs *LogStructuredFS) StopExpireLoop() {
 	}
 }
 
-func expireLoop(indexs []*indexMap, ticker *time.Ticker) {
-	for range ticker.C {
-		for _, imap := range indexs {
+func (lfs *LogStructuredFS) expireKeysLoop() {
+	for range lfs.expireLoopWorker.C {
+		for _, imap := range lfs.indexs {
 			imap.mu.Lock()
 			for key, inode := range imap.index {
 				if inode.ExpiredAt > 0 && inode.ExpiredAt <= time.Now().UnixMicro() {
@@ -314,10 +314,16 @@ func expireLoop(indexs []*indexMap, ticker *time.Ticker) {
 	}
 }
 
-func flushLoop(fd *os.File, second uint16) {
+func (lfs *LogStructuredFS) flushDiskLoop() {
 	for {
-		time.Sleep(time.Duration(second) * time.Second)
-		_ = fd.Sync()
+		time.Sleep(time.Duration(3) * time.Second)
+		// 添加日志记录打印，才用 waring 级别
+		lfs.mu.RLock()
+		err := lfs.active.Sync()
+		lfs.mu.RUnlock()
+		if err != nil {
+			clog.Warnf("failed to flush active region loop: %v", err)
+		}
 	}
 }
 
@@ -803,10 +809,11 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 		instance.regions[instance.regionID].ReaderAt = nil
 	}
 
-	go expireLoop(instance.indexs, instance.expireLoopWorker)
+	// 120 秒执行一次过期 keys 的检查，防止已经过期 key 一直存储在内存中
+	go instance.expireKeysLoop()
 
 	// 3 秒强制刷盘一次 WAL 防止数据在 OS Pages Cache 中
-	go flushLoop(instance.active, 3)
+	go instance.flushDiskLoop()
 
 	// Singleton pattern, but other packages can still create an instance with new(LogStructuredFS), which makes this ineffective
 	return instance, nil
