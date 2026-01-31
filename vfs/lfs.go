@@ -331,7 +331,7 @@ func (lfs *LogStructuredFS) backgroundFlush() {
 		err := lfs.active.Sync()
 		lfs.mu.RUnlock()
 		if err != nil {
-			clog.Warnf("failed to flush active region loop: %v", err)
+			clog.Warnf("failed to background flush active region: %v", err)
 		}
 	}
 }
