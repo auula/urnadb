@@ -314,6 +314,13 @@ func expireLoop(indexs []*indexMap, ticker *time.Ticker) {
 	}
 }
 
+func flushLoop(fd *os.File, second uint16) {
+	for {
+		time.Sleep(time.Duration(second) * time.Second)
+		_ = fd.Sync()
+	}
+}
+
 func inodeNum(key string) uint64 {
 	return murmur3.Sum64([]byte(key))
 }
@@ -797,6 +804,9 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 	}
 
 	go expireLoop(instance.indexs, instance.expireLoopWorker)
+
+	// 3 秒强制刷盘一次 WAL 防止数据在 OS Pages Cache 中
+	go flushLoop(instance.active, 3)
 
 	// Singleton pattern, but other packages can still create an instance with new(LogStructuredFS), which makes this ineffective
 	return instance, nil
