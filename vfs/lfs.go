@@ -511,6 +511,7 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 		if err != nil {
 			return fmt.Errorf("failed to get region file offset: %w", err)
 		}
+
 		lfs.active = active.Fd
 		lfs.offset = offset
 
