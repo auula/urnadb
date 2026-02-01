@@ -579,7 +579,7 @@ func (lfs *LogStructuredFS) scanAndRecoverIndexs() error {
 	// 只有数据文件大于 2 并且有检查点文件才加快启动恢复
 	ckpts, _ := filepath.Glob(filepath.Join(lfs.directory, "*.ckpt"))
 	if len(lfs.regions) >= 2 && len(ckpts) > 0 {
-		return scanAndRecoverCheckpoint(ckpts, lfs.regions, lfs.indexs)
+		return scanAndRecoveryCheckpoint(ckpts, lfs.regions, lfs.indexs)
 	}
 
 	// If the index file does not exist, recover by globally scanning the regions files
@@ -1593,7 +1593,7 @@ func cleanupDirtyCheckpoint(directory, newCheckpoint string) error {
 	return nil
 }
 
-func scanAndRecoverCheckpoint(files []string, regions map[int64]*Region, indexs []*indexMap) error {
+func scanAndRecoveryCheckpoint(files []string, regions map[int64]*Region, indexs []*indexMap) error {
 	var (
 		ckpt    int
 		path    string
