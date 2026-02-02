@@ -1557,6 +1557,8 @@ func appendToActiveRegion(fd *os.File, bytes []byte) error {
 		return fmt.Errorf("partial write error: expected %d bytes, but wrote %d bytes", len(bytes), n)
 	}
 
+	// Flush pages cache to disk
+	// return fd.Sync()
 	return nil
 }
 
