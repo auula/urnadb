@@ -196,7 +196,6 @@ func closeStorage() error {
 		storage.StopExpireLoop()
 		storage.StopCheckpoint()
 		storage.StopCompactRegion()
-		storage.StopBackgroundFlush()
 		err := storage.CloseFS()
 		if err != nil {
 			return err
