@@ -844,8 +844,8 @@ func (lfs *LogStructuredFS) GetDirectory() string {
 // as it consumes a significant amount of virtual memory space and may lead to
 // swapping memory pages to disk.
 func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
-	tmpIndexFile := filepath.Join(lfs.directory, tempIndexFile)
-	fd, err := os.OpenFile(tmpIndexFile, os.O_CREATE|os.O_RDWR|os.O_TRUNC, lfs.fsPerm)
+	tmpIndexPath := filepath.Join(lfs.directory, tempIndexFile)
+	fd, err := os.OpenFile(tmpIndexPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, lfs.fsPerm)
 	if err != nil {
 		return fmt.Errorf("failed to generate index snapshot file: %w", err)
 	}
@@ -888,9 +888,9 @@ func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
 	}
 
 	// 防止 index.db 写入不完整，导致二次启动使用脏数据构建的索引
-	err = os.Rename(tmpIndexFile, filepath.Join(lfs.directory, mainIndexFile))
+	err = os.Rename(tmpIndexPath, filepath.Join(lfs.directory, mainIndexFile))
 	if err != nil {
-		_ = os.Remove(tmpIndexFile)
+		_ = os.Remove(tmpIndexPath)
 		return fmt.Errorf("failed to rename index snapshot file: %w", err)
 	}
 
@@ -1557,7 +1557,7 @@ func cleanupDirtyCheckpoint(directory, nckpt string) error {
 	}
 
 	for _, file := range tmps {
-		if filepath.Base(file) == mainIndexFile {
+		if filepath.Base(file) == tempIndexFile {
 			continue
 		}
 		err := os.Remove(file)
