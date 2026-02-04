@@ -63,8 +63,8 @@ var (
 	transformer      = NewTransformer()
 	fileExtension    = ".db"
 	ckptExtension    = ".ckpt"
-	indexFileName    = "index.db"
-	indexTmpFileName = "index.tmp"
+	mainIndexFile    = "index.db"
+	tempIndexFile    = "index.tmp"
 	dataFileMetadata = []byte{0xDB, 0x00, 0x01, 0x01}
 )
 
@@ -537,7 +537,7 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 //     to reconstruct the index file.
 func (lfs *LogStructuredFS) scanAndRecoverIndexs() error {
 	// Construct the full file path
-	filePath := filepath.Join(lfs.directory, indexFileName)
+	filePath := filepath.Join(lfs.directory, mainIndexFile)
 	if utils.IsExist(filePath) {
 		// If the index file exists, restore it
 		reader, err := mmap.Open(filePath)
@@ -844,7 +844,7 @@ func (lfs *LogStructuredFS) GetDirectory() string {
 // as it consumes a significant amount of virtual memory space and may lead to
 // swapping memory pages to disk.
 func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
-	tmpIndexFile := filepath.Join(lfs.directory, indexTmpFileName)
+	tmpIndexFile := filepath.Join(lfs.directory, tempIndexFile)
 	fd, err := os.OpenFile(tmpIndexFile, os.O_CREATE|os.O_RDWR|os.O_TRUNC, lfs.fsPerm)
 	if err != nil {
 		return fmt.Errorf("failed to generate index snapshot file: %w", err)
@@ -888,7 +888,7 @@ func (lfs *LogStructuredFS) ExportSnapshotIndex() error {
 	}
 
 	// 防止 index.db 写入不完整，导致二次启动使用脏数据构建的索引
-	err = os.Rename(tmpIndexFile, filepath.Join(lfs.directory, indexFileName))
+	err = os.Rename(tmpIndexFile, filepath.Join(lfs.directory, mainIndexFile))
 	if err != nil {
 		_ = os.Remove(tmpIndexFile)
 		return fmt.Errorf("failed to rename index snapshot file: %w", err)
@@ -1116,7 +1116,7 @@ func checkFileSystem(path string, fsPerm fs.FileMode) error {
 				}
 			}
 
-			if !file.IsDir() && file.Name() == indexFileName {
+			if !file.IsDir() && file.Name() == mainIndexFile {
 				file, err := os.Open(filepath.Join(path, file.Name()))
 				if err != nil {
 					return fmt.Errorf("failed to check index file: %w", err)
@@ -1536,14 +1536,14 @@ func appendToActiveRegion(fd *os.File, bytes []byte) error {
 	return nil
 }
 
-func cleanupDirtyCheckpoint(directory, newCheckpoint string) error {
+func cleanupDirtyCheckpoint(directory, nckpt string) error {
 	files, err := filepath.Glob(filepath.Join(directory, "*.ckpt"))
 	if err != nil {
 		return err
 	}
 
 	for _, file := range files {
-		if filepath.Base(file) != newCheckpoint {
+		if filepath.Base(file) != nckpt {
 			err := os.Remove(file)
 			if err != nil {
 				return fmt.Errorf("deleted old checkpoint file: %s", err)
@@ -1557,7 +1557,7 @@ func cleanupDirtyCheckpoint(directory, newCheckpoint string) error {
 	}
 
 	for _, file := range tmps {
-		if filepath.Base(file) == indexTmpFileName {
+		if filepath.Base(file) == mainIndexFile {
 			continue
 		}
 		err := os.Remove(file)
