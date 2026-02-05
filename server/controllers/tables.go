@@ -40,12 +40,12 @@ func CreateTableController(ctx *gin.Context) {
 	var req CreateTableRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil && !errors.Is(err, io.EOF) {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusBadRequest, response.FailJSON(err.Error()))
 		return
 	}
 
 	if req.TTLSeconds < 0 {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail("ttl cannot be negative"))
+		ctx.IndentedJSON(http.StatusBadRequest, response.FailJSON("ttl cannot be negative"))
 		return
 	}
 
@@ -55,7 +55,7 @@ func CreateTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("table created successfully", nil))
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("table created successfully", nil))
 }
 
 func DeleteTableController(ctx *gin.Context) {
@@ -71,7 +71,7 @@ func DeleteTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("table deleted successfully", nil))
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("table deleted successfully", nil))
 }
 
 func QueryTableController(ctx *gin.Context) {
@@ -87,7 +87,7 @@ func QueryTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("table queried successfully", tab.Table))
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("table queried successfully", tab.Table))
 }
 
 type PatchRowsRequest struct {
@@ -105,7 +105,7 @@ func PatchRowsTableController(ctx *gin.Context) {
 	var req PatchRowsRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusBadRequest, response.FailJSON(err.Error()))
 		return
 	}
 
@@ -115,7 +115,7 @@ func PatchRowsTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("table rows patched successfully", nil))
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("table rows patched successfully", nil))
 }
 
 type QueryRowsRequest struct {
@@ -132,7 +132,7 @@ func QueryRowsTableController(ctx *gin.Context) {
 	var req QueryRowsRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusBadRequest, response.FailJSON(err.Error()))
 		return
 	}
 
@@ -142,7 +142,7 @@ func QueryRowsTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("table queried rows successfully", rows))
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("table queried rows successfully", rows))
 }
 
 func RemoveRowsTabelController(ctx *gin.Context) {
@@ -155,7 +155,7 @@ func RemoveRowsTabelController(ctx *gin.Context) {
 	var req QueryRowsRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusBadRequest, response.FailJSON(err.Error()))
 		return
 	}
 
@@ -165,7 +165,7 @@ func RemoveRowsTabelController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("table rows remove successfully", nil))
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("table rows remove successfully", nil))
 }
 
 type InsertRowsRequest struct {
@@ -182,7 +182,7 @@ func InsertRowsTableController(ctx *gin.Context) {
 	var req InsertRowsRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusBadRequest, response.FailJSON(err.Error()))
 		return
 	}
 
@@ -192,7 +192,7 @@ func InsertRowsTableController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("table rows insert successfully", gin.H{
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("table rows insert successfully", gin.H{
 		"t_id": id,
 	}))
 }
@@ -200,13 +200,13 @@ func InsertRowsTableController(ctx *gin.Context) {
 func handlerTablesError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, services.ErrTableAlreadyExists):
-		ctx.IndentedJSON(http.StatusConflict, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusConflict, response.FailJSON(err.Error()))
 	case errors.Is(err, services.ErrTableNotFound):
-		ctx.IndentedJSON(http.StatusNotFound, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusNotFound, response.FailJSON(err.Error()))
 	case errors.Is(err, services.ErrTableExpired):
-		ctx.IndentedJSON(http.StatusGone, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusGone, response.FailJSON(err.Error()))
 	default:
 		// 所有其他错误都统一返回 500 内部服务器错误
-		ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusInternalServerError, response.FailJSON(err.Error()))
 	}
 }

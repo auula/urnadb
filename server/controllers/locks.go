@@ -42,7 +42,7 @@ func NewLockController(ctx *gin.Context) {
 	var req AcquireLockRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusBadRequest, response.FailJSON(err.Error()))
 		return
 	}
 
@@ -54,7 +54,7 @@ func NewLockController(ctx *gin.Context) {
 
 	defer slock.ReleaseToPool()
 
-	ctx.IndentedJSON(http.StatusCreated, response.Ok("lock created successfully", gin.H{
+	ctx.IndentedJSON(http.StatusCreated, response.OkJSON("lock created successfully", gin.H{
 		"token": slock.Token,
 	}))
 }
@@ -69,7 +69,7 @@ func DeleteLockController(ctx *gin.Context) {
 	var req LeaseLockRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusBadRequest, response.FailJSON(err.Error()))
 		return
 	}
 
@@ -79,7 +79,7 @@ func DeleteLockController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("lock deleted successfully", nil))
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("lock deleted successfully", nil))
 }
 
 func DoLeaseLockController(ctx *gin.Context) {
@@ -92,7 +92,7 @@ func DoLeaseLockController(ctx *gin.Context) {
 	var req LeaseLockRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusBadRequest, response.FailJSON(err.Error()))
 		return
 	}
 
@@ -104,7 +104,7 @@ func DoLeaseLockController(ctx *gin.Context) {
 
 	defer slock.ReleaseToPool()
 
-	ctx.IndentedJSON(http.StatusCreated, response.Ok("lease acquired successfully", gin.H{
+	ctx.IndentedJSON(http.StatusCreated, response.OkJSON("lease acquired successfully", gin.H{
 		"token": slock.Token,
 	}))
 }
@@ -112,12 +112,12 @@ func DoLeaseLockController(ctx *gin.Context) {
 func handlerLocksError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, services.ErrInvalidToken):
-		ctx.IndentedJSON(http.StatusForbidden, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusForbidden, response.FailJSON(err.Error()))
 	case errors.Is(err, services.ErrLockNotFound):
-		ctx.IndentedJSON(http.StatusNotFound, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusNotFound, response.FailJSON(err.Error()))
 	case errors.Is(err, services.ErrAlreadyLocked):
-		ctx.IndentedJSON(http.StatusLocked, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusLocked, response.FailJSON(err.Error()))
 	default:
-		ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusInternalServerError, response.FailJSON(err.Error()))
 	}
 }

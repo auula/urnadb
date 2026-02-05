@@ -34,14 +34,14 @@ func GetRecordController(ctx *gin.Context) {
 
 	rd, err := rs.GetRecord(name)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(
+		ctx.IndentedJSON(http.StatusInternalServerError, response.FailJSON(
 			err.Error(),
 		))
 	}
 
 	defer rd.ReleaseToPool()
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("record queried successfully", rd.Record))
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("record queried successfully", rd.Record))
 }
 
 type CreateRecordRequest struct {
@@ -74,7 +74,7 @@ func PutRecordController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("record created successfully", nil))
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("record created successfully", nil))
 }
 
 func DeleteRecordController(ctx *gin.Context) {
@@ -90,7 +90,7 @@ func DeleteRecordController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("record deleted successfully", nil))
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("record deleted successfully", nil))
 }
 
 type SearchRecordRequest struct {
@@ -117,19 +117,19 @@ func SearchRecordController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("search completed successfully", res))
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("search completed successfully", res))
 }
 
 func handlerRecordError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, services.ErrRecordUpdateFailed):
-		ctx.IndentedJSON(http.StatusConflict, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusConflict, response.FailJSON(err.Error()))
 	case errors.Is(err, services.ErrRecordNotFound):
-		ctx.IndentedJSON(http.StatusNotFound, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusNotFound, response.FailJSON(err.Error()))
 	case errors.Is(err, services.ErrRecordExpired):
-		ctx.IndentedJSON(http.StatusGone, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusGone, response.FailJSON(err.Error()))
 	default:
 		// 所有其他错误都统一返回 500 内部服务器错误
-		ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusInternalServerError, response.FailJSON(err.Error()))
 	}
 }

@@ -36,7 +36,7 @@ type SystemInfo struct {
 }
 
 func HealthController(ctx *gin.Context) {
-	ctx.IndentedJSON(http.StatusOK, response.Ok("server is healthy", SystemInfo{
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("server is healthy", SystemInfo{
 		GCState:        hs.RegionCompactStatus(),
 		KeyCount:       hs.RegionInodeCount(),
 		DiskFree:       fmt.Sprintf("%.2fGB", utils.BytesToGB(hs.GetFreeDisk())),

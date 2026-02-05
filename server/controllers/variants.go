@@ -38,7 +38,7 @@ func DeleteVariantController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("variant deleted successfully", nil))
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("variant deleted successfully", nil))
 }
 
 func GetVariantController(ctx *gin.Context) {
@@ -56,7 +56,7 @@ func GetVariantController(ctx *gin.Context) {
 
 	defer variant.ReleaseToPool()
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("variant queried successfully", gin.H{
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("variant queried successfully", gin.H{
 		"variant": variant.Value,
 	}))
 }
@@ -76,7 +76,7 @@ func CreateVariantController(ctx *gin.Context) {
 	var req CreateVariantRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusBadRequest, response.FailJSON(err.Error()))
 		return
 	}
 
@@ -84,7 +84,7 @@ func CreateVariantController(ctx *gin.Context) {
 	new_variant.Value = req.Value
 
 	if !new_variant.IsVariant() {
-		ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(
+		ctx.IndentedJSON(http.StatusInternalServerError, response.FailJSON(
 			"only allow string, int, and float types",
 		))
 		return
@@ -99,7 +99,7 @@ func CreateVariantController(ctx *gin.Context) {
 	}
 
 	// 成功响应
-	ctx.IndentedJSON(http.StatusOK, response.Ok("variant created successfully", gin.H{
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("variant created successfully", gin.H{
 		"variant": new_variant.Value,
 	}))
 }
@@ -119,7 +119,7 @@ func MathVariantController(ctx *gin.Context) {
 	var req MathVariantRequest
 	err := ctx.ShouldBindJSON(&req)
 	if err != nil {
-		ctx.IndentedJSON(http.StatusBadRequest, response.Fail("delta must be a float or int type"))
+		ctx.IndentedJSON(http.StatusBadRequest, response.FailJSON("delta must be a float or int type"))
 		return
 	}
 
@@ -129,7 +129,7 @@ func MathVariantController(ctx *gin.Context) {
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, response.Ok("variant incremented successfully", gin.H{
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("variant incremented successfully", gin.H{
 		"variant": res_num,
 	}))
 }
@@ -137,11 +137,11 @@ func MathVariantController(ctx *gin.Context) {
 func handlerVariantsError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, services.ErrVariantNotFound):
-		ctx.IndentedJSON(http.StatusNotFound, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusNotFound, response.FailJSON(err.Error()))
 	case errors.Is(err, services.ErrVariantExpired):
-		ctx.IndentedJSON(http.StatusGone, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusGone, response.FailJSON(err.Error()))
 	default:
 		// 所有其他错误都统一返回 500 内部服务器错误
-		ctx.IndentedJSON(http.StatusInternalServerError, response.Fail(err.Error()))
+		ctx.IndentedJSON(http.StatusInternalServerError, response.FailJSON(err.Error()))
 	}
 }

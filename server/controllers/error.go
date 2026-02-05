@@ -22,5 +22,5 @@ import (
 )
 
 func Error404Handler(ctx *gin.Context) {
-	ctx.JSON(http.StatusNotFound, response.Fail("Oops! 404 Not Found!"))
+	ctx.JSON(http.StatusNotFound, response.FailJSON("Oops! 404 Not Found!"))
 }
