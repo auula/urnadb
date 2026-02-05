@@ -48,69 +48,68 @@ type Encryptor interface {
 	Decrypt(secret, ciphertext []byte) ([]byte, error)
 }
 
-type Transformer struct {
+type Pipeline struct {
 	Encryptor
 	Compressor
 	flags  int
 	secret []byte
 }
 
-func NewTransformer() *Transformer {
-	return &Transformer{
+func NewPipeline() *Pipeline {
+	return &Pipeline{
 		flags:      0,
 		Encryptor:  nil,
 		Compressor: nil,
 	}
 }
 
-func (t *Transformer) EnableEncryption() {
-	t.flags |= EnabledEncryption
+func (p *Pipeline) EnableEncryption() {
+	p.flags |= EnabledEncryption
+}
+func (p *Pipeline) EnableCompression() {
+	p.flags |= EnabledCompression
 }
 
-func (t *Transformer) EnableCompression() {
-	t.flags |= EnabledCompression
+func (p *Pipeline) DisableEncryption() {
+	p.flags &^= EnabledEncryption
 }
 
-func (t *Transformer) DisableEncryption() {
-	t.flags &^= EnabledEncryption
+func (p *Pipeline) DisableCompression() {
+	p.flags &^= EnabledCompression
 }
 
-func (t *Transformer) DisableCompression() {
-	t.flags &^= EnabledCompression
+func (p *Pipeline) IsEncryptionEnabled() bool {
+	return p.flags&EnabledEncryption != 0
 }
 
-func (t *Transformer) IsEncryptionEnabled() bool {
-	return t.flags&EnabledEncryption != 0
+func (p *Pipeline) IsCompressionEnabled() bool {
+	return p.flags&EnabledCompression != 0
 }
 
-func (t *Transformer) IsCompressionEnabled() bool {
-	return t.flags&EnabledCompression != 0
+func (p *Pipeline) DisableAll() {
+	p.flags = 0
 }
 
-func (t *Transformer) DisableAll() {
-	t.flags = 0
-}
-
-func (t *Transformer) SetEncryptor(encryptor Encryptor, secret []byte) error {
+func (p *Pipeline) SetEncryptor(encryptor Encryptor, secret []byte) error {
 	if len(secret) < 16 {
 		return errors.New("secret key char length too short")
 	}
-	t.secret = secret
-	t.Encryptor = encryptor
-	t.EnableEncryption()
+	p.secret = secret
+	p.Encryptor = encryptor
+	p.EnableEncryption()
 	return nil
 }
 
-func (t *Transformer) SetCompressor(compressor Compressor) {
-	t.Compressor = compressor
-	t.EnableCompression()
+func (p *Pipeline) SetCompressor(compressor Compressor) {
+	p.Compressor = compressor
+	p.EnableCompression()
 }
 
-func (t *Transformer) Encode(data []byte) ([]byte, error) {
+func (p *Pipeline) Encode(data []byte) ([]byte, error) {
 	var err error
 	// 压缩数据
-	if t.IsCompressionEnabled() && t.Compressor != nil {
-		data, err = t.Compress(data)
+	if p.IsCompressionEnabled() && p.Compressor != nil {
+		data, err = p.Compressor.Compress(data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compress data: %w", err)
 		}
@@ -118,8 +117,8 @@ func (t *Transformer) Encode(data []byte) ([]byte, error) {
 	}
 
 	// 加密数据
-	if t.IsEncryptionEnabled() && t.Encryptor != nil {
-		data, err = t.Encrypt(t.secret, data)
+	if p.IsEncryptionEnabled() && p.Encryptor != nil {
+		data, err = p.Encrypt(p.secret, data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encrypt data: %w", err)
 		}
@@ -129,19 +128,19 @@ func (t *Transformer) Encode(data []byte) ([]byte, error) {
 }
 
 // fd 必须实现 io.ReadWriteCloser 接口
-func (t *Transformer) Decode(data []byte) ([]byte, error) {
+func (p *Pipeline) Decode(data []byte) ([]byte, error) {
 	var err error
 	// 解密数据
-	if t.IsEncryptionEnabled() && t.Encryptor != nil {
-		data, err = t.Decrypt(t.secret, data)
+	if p.IsEncryptionEnabled() && p.Encryptor != nil {
+		data, err = p.Decrypt(p.secret, data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decrypt data: %w", err)
 		}
 	}
 
 	// 解压缩数据
-	if t.IsCompressionEnabled() && t.Compressor != nil {
-		data, err = t.Decompress(data)
+	if p.IsCompressionEnabled() && p.Compressor != nil {
+		data, err = p.Compressor.Decompress(data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decompress data: %w", err)
 		}

@@ -544,7 +544,7 @@ func TestVFSOpertions(t *testing.T) {
 
 	fss.SetCompressor(SnappyCompressor)
 
-	transformer = NewTransformer()
+	pipeline = NewPipeline()
 
 	os.RemoveAll(conf.Settings.Path)
 }

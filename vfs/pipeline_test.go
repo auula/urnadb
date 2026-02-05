@@ -19,25 +19,25 @@ import (
 )
 
 // 测试 Transformer 类的压缩、加密和解密功能
-func TestTransformerWithComplexData(t *testing.T) {
-	// 创建一个新的 Transformer
-	transformer := NewTransformer()
+func TestPipelineWithComplexData(t *testing.T) {
+	// 创建一个新的 Pipeline
+	pipeline := NewPipeline()
 
 	// 构造复杂数据结构，包括 uint 和字符串
 	originalString := "example-data"
 
 	// 启用压缩
-	transformer.SetCompressor(&Snappy{})
-	transformer.SetEncryptor(AESCryptor, []byte("1234567890123456"))
+	pipeline.SetCompressor(&Snappy{})
+	pipeline.SetEncryptor(AESCryptor, []byte("1234567890123456"))
 
 	// 对数据进行编码（压缩 + 加密）
-	encodedData, err := transformer.Encode([]byte(originalString))
+	encodedData, err := pipeline.Encode([]byte(originalString))
 	if err != nil {
 		t.Fatalf("failed to encode data: %v", err)
 	}
 
 	// 解码数据
-	decodedData, err := transformer.Decode(encodedData)
+	decodedData, err := pipeline.Decode(encodedData)
 	if err != nil {
 		t.Fatalf("failed to decode data: %v", err)
 	}
