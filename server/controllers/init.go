@@ -30,7 +30,7 @@ var (
 )
 
 var (
-	missKey = response.Fail("missing key in request path")
+	missKey = response.FailJSON("missing key in request path")
 )
 
 func InitAllComponents(storage *vfs.LogStructuredFS) error {

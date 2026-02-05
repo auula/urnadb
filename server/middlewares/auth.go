@@ -63,7 +63,7 @@ func AuthMiddleware() gin.HandlerFunc {
 				clog.Warnf("Unauthorized IP address: %s", ip)
 				c.IndentedJSON(
 					http.StatusUnauthorized,
-					response.Fail(fmt.Sprintf("client IP %s is not allowed!", ip)))
+					response.FailJSON(fmt.Sprintf("client IP %s is not allowed!", ip)))
 				c.Abort()
 				return
 			}
@@ -71,7 +71,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		if auth != authPassword {
 			clog.Warnf("Unauthorized access attempt from client %s", ip)
-			c.IndentedJSON(http.StatusUnauthorized, response.Fail("access not authorised!"))
+			c.IndentedJSON(http.StatusUnauthorized, response.FailJSON("access not authorised!"))
 			c.Abort()
 			return
 		}

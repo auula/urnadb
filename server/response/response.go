@@ -21,7 +21,7 @@ type ResponseEntity struct {
 }
 
 // 返回成功响应
-func Ok(message string, data interface{}) *ResponseEntity {
+func OkJSON(message string, data interface{}) *ResponseEntity {
 	return &ResponseEntity{
 		Status:  "success",
 		Message: message,
@@ -30,7 +30,7 @@ func Ok(message string, data interface{}) *ResponseEntity {
 }
 
 // 返回失败响应
-func Fail(message string) *ResponseEntity {
+func FailJSON(message string) *ResponseEntity {
 	return &ResponseEntity{
 		Status:  "error",
 		Message: message,
