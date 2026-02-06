@@ -51,7 +51,7 @@ type Encryptor interface {
 type Pipeline struct {
 	Encryptor
 	Compressor
-	flags  int
+	flags  int8
 	secret []byte
 }
 
