@@ -25,8 +25,9 @@ import (
 )
 
 var (
-	ErrVariantNotFound = errors.New("variant not found")
-	ErrVariantExpired  = errors.New("variant ttl is invalid or expired")
+	ErrVariantNotFound      = errors.New("variant not found")
+	ErrVariantExpired       = errors.New("variant ttl is invalid or expired")
+	ErrVariantAlreadyExists = errors.New("variant already exists")
 )
 
 // 如果 Number 类型要完成类似于 redis 的 increment 的操作，
@@ -73,6 +74,10 @@ func (vs *VariantsServiceImpl) GetVariant(name string) (*types.Variant, error) {
 
 // SetVariant 设置变量值
 func (vs *VariantsServiceImpl) SetVariant(name string, value *types.Variant, ttl int64) error {
+	if vs.storage.IsActive(name) {
+		return ErrVariantAlreadyExists
+	}
+
 	vs.acquireVariantLock(name).Lock()
 	defer vs.acquireVariantLock(name).Unlock()
 
