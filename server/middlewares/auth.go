@@ -25,12 +25,12 @@ import (
 )
 
 var (
-	authPassword string
-	allowIpList  []string
+	authToken   string
+	allowIpList []string
 )
 
 func SetAuthPassword(password string) {
-	authPassword = password
+	authToken = password
 }
 
 func SetAllowIpList(ipList []string) {
@@ -69,7 +69,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			}
 		}
 
-		if auth != authPassword {
+		if auth != authToken {
 			clog.Warnf("Unauthorized access attempt from client %s", ip)
 			c.IndentedJSON(http.StatusUnauthorized, response.FailJSON("access not authorised!"))
 			c.Abort()
