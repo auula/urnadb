@@ -1424,10 +1424,10 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 
 		for _, reg := range lfs.dirtyRegions {
 
-			readOffset := int64(len(dataFileMetadata))
+			offset := int64(len(dataFileMetadata))
 
-			for readOffset < int64(reg.Len()) {
-				inum, segment, err := readSegment(reg.ReaderAt, readOffset, _SEGMENT_PADDING)
+			for offset < int64(reg.Len()) {
+				inum, segment, err := readSegment(reg.ReaderAt, offset, _SEGMENT_PADDING)
 				if err != nil {
 					return err
 				}
@@ -1468,11 +1468,12 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 							return err
 						}
 
-						readOffset += int64(segment.Size())
+						// next segment
+						offset += int64(segment.Size())
 
 					} else {
 						// next segment
-						readOffset += int64(segment.Size())
+						offset += int64(segment.Size())
 						continue
 					}
 
