@@ -319,10 +319,13 @@ func inodeNum(key string) uint64 {
 }
 
 // UpdateSegmentWithCAS 通过类似于 MVCC 来实现更新操作数据一致性
-func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, newseg *Segment) error {
+func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected_cas uint64, newseg *Segment) error {
+	// 在基于已有的 segment 更新时，检查是否过期，
+	//  如果在更新过程中过期就直接拒绝基于原有的更新请求。
+	if _, ok := newseg.ExpiresIn(); !ok {
+		return errors.New("cannot insert expired segment")
+	}
 
-	// 在基于已有的 segment 更新时，检查是否过期。
-	// 如果在更新过程中过期就直接拒绝基于原有的更新请求。
 	if _, ok := newseg.ExpiresIn(); !ok {
 		return errors.New("cannot insert expired segment")
 	}
@@ -333,7 +336,6 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 		return fmt.Errorf("inode index shard for %d not found", inum)
 	}
 
-	// 加 inode 写锁，保护 MVCC 检查 + inode 更新的一致性
 	imap.mu.Lock()
 	defer imap.mu.Unlock()
 
@@ -342,48 +344,45 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, ne
 		return fmt.Errorf("inode index for %d not found", inum)
 	}
 
-	// 快速检测 MVCC 版本号，被修改则快速失败
-	if atomic.LoadUint64(&inode.mvcc) != expected {
-		return errors.New("failed to update data due to version conflict")
-	}
-
-	// 序列化新数据
-	bytes, err := serializedSegment(newseg)
-	if err != nil {
-		return err
-	}
-
-	// 写 active region 时用全局锁，写前就锁防止 offset 不一致
-	lfs.mu.Lock()
-	err = appendToActiveRegion(lfs.active, bytes)
-	if err != nil {
-		lfs.mu.Unlock()
-		return fmt.Errorf("failed to update CAS region data: %w", err)
-	}
-	lfs.mu.Unlock()
-
-	// 更新 inode 字段在 imap.mu 锁 和 atomic 保护下进行原子操作，
-	// 不使用 &inode{...} 来替代是因为降低垃圾回收器负载。
-	// imap.index[inum] = &inde{...}
-	// 新 inode 的 CreatedAt 这个时间应该是使用原始的 inode 的 CreatedAt，
-	// 理论上应该添加一个 UpdatedAt 字段来适用于 CAS 操作。
-	atomic.StoreInt64(&inode.CreatedAt, newseg.CreatedAt)
-	atomic.StoreInt64(&inode.ExpiredAt, newseg.ExpiredAt)
-	atomic.StoreInt64(&inode.RegionID, lfs.regionID)
-	atomic.StoreInt32(&inode.Length, newseg.Size())
-	atomic.StoreInt64(&inode.Position, lfs.offset)
-
-	// 我的设计是没有问题的，问题是很多客户端不支持 long 或者 uint64 类型的版本号。
+	// 我的设计是没有问题的，问题是很多客户端不支持 long 或者 uint64 类型的版本号，
 	// 长时间运行可能会出现 MVCC 版本号溢出的问题，对溢出进行检查。
 	if atomic.LoadUint64(&inode.mvcc) == math.MaxUint64 {
 		return errors.New("failed to CAS number version overflow")
 	}
 
-	// 更新 MVCC 版本号，如果使用的 atomic.StoreUint64 只能保证原子地写入内存，不能保证算数运算过程也是原子。
-	_ = atomic.AddUint64(&inode.mvcc, 1)
+	// 真 CAS 进行更新
+	if !atomic.CompareAndSwapUint64(&inode.mvcc, expected_cas, expected_cas+1) {
+		return errors.New("version conflict")
+	}
 
-	// 更新全局 offset 原子操作保证并发安全
-	_ = atomic.AddInt64(&lfs.offset, int64(newseg.Size()))
+	bytes, err := serializedSegment(newseg)
+	if err != nil {
+		return err
+	}
+
+	// 先写 active region 再更新 inode 索引
+	lfs.mu.Lock()
+	err = appendToActiveRegion(lfs.active, bytes)
+	if err != nil {
+		lfs.mu.Unlock()
+		return err
+	}
+
+	// 原子读取 offset 和 region id 用于更新 inode
+	value_pos := atomic.LoadInt64(&lfs.offset)
+	region_id := lfs.regionID
+
+	// 更新 offset 方便下一条数据正确写入
+	atomic.AddInt64(&lfs.offset, int64(newseg.Size()))
+
+	lfs.mu.Unlock()
+
+	// 基于上面的元数据信息更新 inode 索引
+	atomic.StoreInt64(&inode.CreatedAt, newseg.CreatedAt)
+	atomic.StoreInt64(&inode.ExpiredAt, newseg.ExpiredAt)
+	atomic.StoreInt64(&inode.RegionID, region_id)
+	atomic.StoreInt32(&inode.Length, newseg.Size())
+	atomic.StoreInt64(&inode.Position, value_pos)
 
 	return nil
 }
