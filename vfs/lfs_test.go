@@ -34,7 +34,7 @@ import (
 func TestSerializedIndex(t *testing.T) {
 	// 创建一个测试的 inode
 	in := &inode{
-		RegionID:  1234,
+		regionId:  1234,
 		Position:  5678,
 		ExpiredAt: 1617181723,
 		CreatedAt: 1617181623,
@@ -62,11 +62,11 @@ func TestSerializedIndex(t *testing.T) {
 	if inum != 1001 {
 		t.Errorf("expected inum %d, got %d", 1001, inum)
 	}
-	if dnode.RegionID != in.RegionID {
-		t.Errorf("expected RegionID %d, got %d", in.RegionID, dnode.RegionID)
+	if dnode.regionId != in.regionId {
+		t.Errorf("expected regionId %d, got %d", in.regionId, dnode.regionId)
 	}
 	if dnode.Position != in.Position {
-		t.Errorf("expected Offset %d, got %d", in.Position, dnode.RegionID)
+		t.Errorf("expected Offset %d, got %d", in.Position, dnode.regionId)
 	}
 	if dnode.ExpiredAt != in.ExpiredAt {
 		t.Errorf("expected ExpiredAt %d, got %d", in.ExpiredAt, dnode.ExpiredAt)

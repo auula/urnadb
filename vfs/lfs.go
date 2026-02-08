@@ -23,7 +23,6 @@ import (
 	"hash/crc32"
 	"io"
 	"io/fs"
-	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -76,7 +75,7 @@ type Options struct {
 
 // inode represents a file system node with metadata.
 type inode struct {
-	RegionID  int64  // Unique identifier for the region
+	regionId  int64  // Unique identifier for the region
 	Position  int64  // Position within the file
 	ExpiredAt int64  // Expiration time of the inode (UNIX timestamp in nano seconds)
 	CreatedAt int64  // Creation time of the inode (UNIX timestamp in nano seconds)
@@ -98,7 +97,7 @@ type Region struct {
 type LogStructuredFS struct {
 	mu               sync.RWMutex
 	offset           int64
-	regionID         int64
+	regionId         int64
 	directory        string
 	fsPerm           os.FileMode
 	indexs           []*indexMap
@@ -136,7 +135,7 @@ func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
 	imap.mu.Lock()
 	// Update the inode metadata within a critical section.
 	imap.index[inum] = &inode{
-		RegionID:  lfs.regionID,
+		regionId:  lfs.regionId,
 		Position:  lfs.offset,
 		Length:    seg.Size(),
 		CreatedAt: seg.CreatedAt,
@@ -237,9 +236,9 @@ func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
 		return 0, nil, fmt.Errorf("inode index for %d has expired", inum)
 	}
 
-	region, ok := lfs.regions[atomic.LoadInt64(&inode.RegionID)]
+	region, ok := lfs.regions[atomic.LoadInt64(&inode.regionId)]
 	if !ok {
-		return 0, nil, fmt.Errorf("data region with ID %d not found", inode.RegionID)
+		return 0, nil, fmt.Errorf("data region with ID %d not found", inode.regionId)
 	}
 
 	// 如果是 Active Region 它的 ReaderAt 为 nil，直接读取不需要使用 mmap
@@ -318,14 +317,8 @@ func inodeNum(key string) uint64 {
 	return murmur3.Sum64([]byte(key))
 }
 
-// UpdateSegmentWithCAS 通过类似于 MVCC 来实现更新操作数据一致性
-func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected_cas uint64, newseg *Segment) error {
-	// 在基于已有的 segment 更新时，检查是否过期，
-	//  如果在更新过程中过期就直接拒绝基于原有的更新请求。
-	if _, ok := newseg.ExpiresIn(); !ok {
-		return errors.New("cannot insert expired segment")
-	}
-
+func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected uint64, newseg *Segment) error {
+	// 检查 segment 是否过期了
 	if _, ok := newseg.ExpiresIn(); !ok {
 		return errors.New("cannot insert expired segment")
 	}
@@ -344,45 +337,44 @@ func (lfs *LogStructuredFS) UpdateSegmentWithCAS(key string, expected_cas uint64
 		return fmt.Errorf("inode index for %d not found", inum)
 	}
 
-	// 我的设计是没有问题的，问题是很多客户端不支持 long 或者 uint64 类型的版本号，
-	// 长时间运行可能会出现 MVCC 版本号溢出的问题，对溢出进行检查。
-	if atomic.LoadUint64(&inode.mvcc) == math.MaxUint64 {
-		return errors.New("failed to cas number version overflow")
-	}
-
-	// 真 CAS 进行更新
-	if !atomic.CompareAndSwapUint64(&inode.mvcc, expected_cas, expected_cas+1) {
+	// 1. 校验 expected
+	current := atomic.LoadUint64(&inode.mvcc)
+	if current != expected {
 		return errors.New("version conflict")
 	}
 
+	// 2. 先序列化
 	bytes, err := serializedSegment(newseg)
 	if err != nil {
 		return err
 	}
 
-	// 先写 active region 再更新 inode 索引
+	// 3. 写入 region 并分配 offset（在锁内）
 	lfs.mu.Lock()
-	err = appendToActiveRegion(lfs.active, bytes)
-	if err != nil {
+	if err = appendToActiveRegion(lfs.active, bytes); err != nil {
 		lfs.mu.Unlock()
 		return err
 	}
 
 	// 原子读取 offset 和 region id 用于更新 inode
-	value_pos := atomic.LoadInt64(&lfs.offset)
-	region_id := lfs.regionID
+	value_pos := lfs.offset
+	region_id := lfs.regionId
 
 	// 更新 offset 方便下一条数据正确写入
-	atomic.AddInt64(&lfs.offset, int64(newseg.Size()))
-
+	lfs.offset += int64(newseg.Size())
 	lfs.mu.Unlock()
 
-	// 基于上面的元数据信息更新 inode 索引
+	// 4. 更新 inode
 	atomic.StoreInt64(&inode.CreatedAt, newseg.CreatedAt)
 	atomic.StoreInt64(&inode.ExpiredAt, newseg.ExpiredAt)
 	atomic.StoreInt32(&inode.Length, newseg.Size())
-	atomic.StoreInt64(&inode.RegionID, region_id)
+	atomic.StoreInt64(&inode.regionId, region_id)
 	atomic.StoreInt64(&inode.Position, value_pos)
+
+	// 5. 最后提交版本
+	if !atomic.CompareAndSwapUint64(&inode.mvcc, expected, expected+1) {
+		return errors.New("version conflict after write")
+	}
 
 	return nil
 }
@@ -397,7 +389,7 @@ func (lfs *LogStructuredFS) changeRegions() error {
 	}
 
 	// 重新以只读的方式打开这个文件，并且设置 mmap 映射
-	fileName, err := toStringFileName(lfs.regionID)
+	fileName, err := toStringFileName(lfs.regionId)
 	if err != nil {
 		return fmt.Errorf("failed to active region name to string: %w", err)
 	}
@@ -408,7 +400,7 @@ func (lfs *LogStructuredFS) changeRegions() error {
 		return fmt.Errorf("failed to mmap data file: %w", err)
 	}
 
-	lfs.regions[lfs.regionID].ReaderAt = reader
+	lfs.regions[lfs.regionId].ReaderAt = reader
 
 	err = lfs.createActiveRegion()
 	if err != nil {
@@ -419,8 +411,8 @@ func (lfs *LogStructuredFS) changeRegions() error {
 }
 
 func (lfs *LogStructuredFS) createActiveRegion() error {
-	lfs.regionID += 1
-	fileName, err := toStringFileName(lfs.regionID)
+	lfs.regionId += 1
+	fileName, err := toStringFileName(lfs.regionId)
 	if err != nil {
 		return fmt.Errorf("failed to new active region name: %w", err)
 	}
@@ -442,7 +434,7 @@ func (lfs *LogStructuredFS) createActiveRegion() error {
 	lfs.active = active
 	lfs.offset = int64(len(dataFileMetadata))
 	// Active region 不立即 mmap，只存储 Fd
-	lfs.regions[lfs.regionID] = &Region{Fd: lfs.active, ReaderAt: nil}
+	lfs.regions[lfs.regionId] = &Region{Fd: lfs.active, ReaderAt: nil}
 
 	return nil
 }
@@ -467,12 +459,12 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 					return fmt.Errorf("failed to mmap data file: %w", err)
 				}
 
-				regionID, err := parseDataFileName(file.Name())
+				regionId, err := parseDataFileName(file.Name())
 				if err != nil {
 					return fmt.Errorf("failed to get region id: %w", err)
 				}
 
-				lfs.regions[regionID] = &Region{Fd: fd, ReaderAt: reader}
+				lfs.regions[regionId] = &Region{Fd: fd, ReaderAt: reader}
 			}
 		}
 	}
@@ -489,12 +481,12 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 		})
 
 		// Find the latest version of the data file
-		lfs.regionID = regionIds[len(regionIds)-1]
+		lfs.regionId = regionIds[len(regionIds)-1]
 
 		// Create a new file if the largest region file exceeds the threshold, otherwise, no need to create a new file
-		active, ok := lfs.regions[lfs.regionID]
+		active, ok := lfs.regions[lfs.regionId]
 		if !ok {
-			return fmt.Errorf("region file not found for region id: %d", lfs.regionID)
+			return fmt.Errorf("region file not found for region id: %d", lfs.regionId)
 		}
 		stat, err := active.Fd.Stat()
 		if err != nil {
@@ -599,7 +591,7 @@ func (lfs *LogStructuredFS) RunCheckpoint(second uint32) {
 
 			// 只有数据文件大于 2 个，才生成快速恢复的检查点
 			if len(lfs.regions) >= 2 {
-				ckpt := checkpointFileName(lfs.regionID)
+				ckpt := checkpointFileName(lfs.regionId)
 
 				fd, err := os.OpenFile(filepath.Join(lfs.directory, ckpt), os.O_CREATE|os.O_WRONLY, lfs.fsPerm)
 				if err != nil {
@@ -761,7 +753,7 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 		indexs:    make([]*indexMap, shard),
 		regions:   make(map[int64]*Region, 10),
 		offset:    int64(len(dataFileMetadata)),
-		regionID:  0,
+		regionId:  0,
 		directory: opt.Path,
 		gcstate:   _GC_INIT,
 		fsPerm:    opt.FSPerm,
@@ -790,9 +782,9 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 	}
 
 	// Active region 不使用 mmap，只有当它成为旧的 region 文件时才 mmap
-	if instance.regions[instance.regionID].ReaderAt != nil {
-		instance.regions[instance.regionID].ReaderAt.Close()
-		instance.regions[instance.regionID].ReaderAt = nil
+	if instance.regions[instance.regionId].ReaderAt != nil {
+		instance.regions[instance.regionId].ReaderAt.Close()
+		instance.regions[instance.regionId].ReaderAt = nil
 	}
 
 	// 120 秒执行一次过期 keys 的检查，防止已经过期 key 一直存储在内存中
@@ -1049,7 +1041,7 @@ func crashRecoveryAllIndex(regions map[int64]*Region, indexs []*indexMap) error 
 				}
 
 				imap.index[inum] = &inode{
-					RegionID:  regionId,
+					regionId:  regionId,
 					Position:  offset,
 					Length:    segment.Size(),
 					CreatedAt: segment.CreatedAt,
@@ -1216,14 +1208,14 @@ func readSegment(reader io.ReaderAt, offset, bufsize int64) (uint64, *Segment, e
 	return inodeNum(string(keybuf)), &seg, nil
 }
 
-func toStringFileName(regionID int64) (string, error) {
-	fileName := formatDataFileName(regionID)
-	// Verify if regionID starts with 0 (valid only for 8 digits)
+func toStringFileName(regionId int64) (string, error) {
+	fileName := formatDataFileName(regionId)
+	// Verify if regionId starts with 0 (valid only for 8 digits)
 	if strings.HasPrefix(fileName, "0") {
 		return fileName, nil
 	}
-	// Throw an exception if the regionID exceeds the current set number of data files
-	return "", fmt.Errorf("new region id %d cannot be converted to a valid file name", regionID)
+	// Throw an exception if the regionId exceeds the current set number of data files
+	return "", fmt.Errorf("new region id %d cannot be converted to a valid file name", regionId)
 }
 
 // parseDataFileName converts the numeric part of the file name (e.g., 0000001.wdb) to uint64
@@ -1247,8 +1239,8 @@ func formatDataFileName(number int64) string {
 	return fmt.Sprintf("%010d%s", number, fileExtension)
 }
 
-func checkpointFileName(regionID int64) string {
-	return fmt.Sprintf("mem.%d.%d.tmp", time.Now().Unix(), regionID)
+func checkpointFileName(regionId int64) string {
+	return fmt.Sprintf("mem.%d.%d.tmp", time.Now().Unix(), regionId)
 }
 
 // serializedIndex serializes the index to a recoverable file snapshot record format:
@@ -1259,7 +1251,7 @@ func serializedIndex(buf *bytes.Buffer, inum uint64, inode *inode) ([]byte, erro
 
 	// Write each field in order
 	binary.Write(buf, binary.LittleEndian, inum)
-	binary.Write(buf, binary.LittleEndian, inode.RegionID)
+	binary.Write(buf, binary.LittleEndian, inode.regionId)
 	binary.Write(buf, binary.LittleEndian, inode.Position)
 	binary.Write(buf, binary.LittleEndian, inode.ExpiredAt)
 	binary.Write(buf, binary.LittleEndian, inode.CreatedAt)
@@ -1287,7 +1279,7 @@ func deserializedIndex(data []byte) (uint64, *inode, error) {
 
 	// Deserialize each field of inode
 	var inode inode
-	err = binary.Read(buf, binary.LittleEndian, &inode.RegionID)
+	err = binary.Read(buf, binary.LittleEndian, &inode.regionId)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -1404,7 +1396,7 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 		// find 40% dirty regions
 		for i := 0; i < 4 && i < len(regionIds); i++ {
 			lfs.mu.RLock()
-			exclude := regionIds[i] == lfs.regionID
+			exclude := regionIds[i] == lfs.regionId
 			lfs.mu.RUnlock()
 
 			// 排除活跃的文件
@@ -1459,7 +1451,7 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 							}
 
 							inode.Position = lfs.offset
-							inode.RegionID = lfs.regionID
+							inode.regionId = lfs.regionId
 
 							lfs.offset += int64(segment.Size())
 
@@ -1652,7 +1644,7 @@ func scanAndRecoveryCheckpoint(files []string, regions map[int64]*Region, indexs
 				}
 
 				imap.index[inum] = &inode{
-					RegionID:  regionId,
+					regionId:  regionId,
 					Position:  offset,
 					Length:    segment.Size(),
 					CreatedAt: segment.CreatedAt,
