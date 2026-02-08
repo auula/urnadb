@@ -60,6 +60,8 @@ const (
 var (
 	shard            = 10
 	pipeline         = NewPipeline()
+	txnDirName       = "txn"
+	txnExtension     = ".txn"
 	fileExtension    = ".db"
 	ckptExtension    = ".ckpt"
 	mainIndexFile    = "index.db"
@@ -374,6 +376,19 @@ func (lfs *LogStructuredFS) createActiveRegion() error {
 	// Active region 不立即 mmap，只存储 Fd
 	lfs.regions[lfs.regionId] = &Region{Fd: lfs.active, ReaderAt: nil}
 
+	return nil
+}
+
+func (lfs *LogStructuredFS) RedoPendingTxns() error {
+	txn_dir := filepath.Join(lfs.directory, txnDirName)
+	if !utils.IsExist(txn_dir) {
+		err := os.MkdirAll(txn_dir, lfs.fsPerm)
+		if err != nil {
+			return fmt.Errorf("failed to create transaction directory: %w", err)
+		}
+	}
+
+	// 存在 txn 文件说明上次运行过程中有事物未能成功执行，Redo 这些未提交的事务来恢复数据的一致性和安全性。
 	return nil
 }
 
@@ -1057,6 +1072,29 @@ func checkFileSystem(path string, fsPerm fs.FileMode) error {
 					return fmt.Errorf("failed to validated index file header: %w", err)
 				}
 			}
+
+			// 递归检查子目录中的事物数据文件，确保它们的格式正确
+			if file.IsDir() && file.Name() == txnDirName {
+				txns, err := os.ReadDir(filepath.Join(path, txnDirName))
+				if err != nil {
+					return fmt.Errorf("failed to read txn directory: %w", err)
+				}
+
+				for _, txn := range txns {
+					if !txn.IsDir() && strings.HasSuffix(txn.Name(), txnExtension) {
+						file, err := os.Open(filepath.Join(path, txnDirName, txn.Name()))
+						if err != nil {
+							return fmt.Errorf("failed to check transaction file: %w", err)
+						}
+						defer file.Close()
+
+						err = validateFileHeader(file)
+						if err != nil {
+							return fmt.Errorf("failed to validated transaction file header: %w", err)
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -1502,7 +1540,7 @@ func scanAndRecoveryCheckpoint(files []string, regions map[int64]*Region, indexs
 	var (
 		ckpt    int
 		path    string
-		pauseID string
+		pauseId string
 	)
 
 	for _, file := range files {
@@ -1516,7 +1554,7 @@ func scanAndRecoveryCheckpoint(files []string, regions map[int64]*Region, indexs
 			if ts > ckpt {
 				ckpt = ts
 				path = file
-				pauseID = parts[2]
+				pauseId = parts[2]
 			}
 		}
 	}
@@ -1533,7 +1571,7 @@ func scanAndRecoveryCheckpoint(files []string, regions map[int64]*Region, indexs
 	}
 
 	// 由于检查点不是实时的索引快照，再从检查点之后数据文件进行恢复完整数据
-	pid, err := strconv.Atoi(pauseID)
+	pid, err := strconv.Atoi(pauseId)
 	if err != nil {
 		return err
 	}
