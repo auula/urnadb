@@ -75,7 +75,7 @@ type Options struct {
 
 // inode represents a file system node with metadata.
 type inode struct {
-	regionId  int64  // Unique identifier for the region
+	RegionId  int64  // Unique identifier for the region
 	Position  int64  // Position within the file
 	ExpiredAt int64  // Expiration time of the inode (UNIX timestamp in nano seconds)
 	CreatedAt int64  // Creation time of the inode (UNIX timestamp in nano seconds)
@@ -135,7 +135,7 @@ func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
 	imap.mu.Lock()
 	// Update the inode metadata within a critical section.
 	imap.index[inum] = &inode{
-		regionId:  lfs.regionId,
+		RegionId:  lfs.regionId,
 		Position:  lfs.offset,
 		Length:    seg.Size(),
 		CreatedAt: seg.CreatedAt,
@@ -236,9 +236,9 @@ func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
 		return 0, nil, fmt.Errorf("inode index for %d has expired", inum)
 	}
 
-	region, ok := lfs.regions[atomic.LoadInt64(&inode.regionId)]
+	region, ok := lfs.regions[atomic.LoadInt64(&inode.RegionId)]
 	if !ok {
-		return 0, nil, fmt.Errorf("data region with ID %d not found", inode.regionId)
+		return 0, nil, fmt.Errorf("data region with ID %d not found", inode.RegionId)
 	}
 
 	// 如果是 Active Region 它的 ReaderAt 为 nil，直接读取不需要使用 mmap
@@ -979,7 +979,7 @@ func crashRecoveryAllIndex(regions map[int64]*Region, indexs []*indexMap) error 
 				}
 
 				imap.index[inum] = &inode{
-					regionId:  regionId,
+					RegionId:  regionId,
 					Position:  offset,
 					Length:    segment.Size(),
 					CreatedAt: segment.CreatedAt,
@@ -1189,7 +1189,7 @@ func serializedIndex(buf *bytes.Buffer, inum uint64, inode *inode) ([]byte, erro
 
 	// Write each field in order
 	binary.Write(buf, binary.LittleEndian, inum)
-	binary.Write(buf, binary.LittleEndian, inode.regionId)
+	binary.Write(buf, binary.LittleEndian, inode.RegionId)
 	binary.Write(buf, binary.LittleEndian, inode.Position)
 	binary.Write(buf, binary.LittleEndian, inode.ExpiredAt)
 	binary.Write(buf, binary.LittleEndian, inode.CreatedAt)
@@ -1217,7 +1217,7 @@ func deserializedIndex(data []byte) (uint64, *inode, error) {
 
 	// Deserialize each field of inode
 	var inode inode
-	err = binary.Read(buf, binary.LittleEndian, &inode.regionId)
+	err = binary.Read(buf, binary.LittleEndian, &inode.RegionId)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -1389,7 +1389,7 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 							}
 
 							inode.Position = lfs.offset
-							inode.regionId = lfs.regionId
+							inode.RegionId = lfs.regionId
 
 							lfs.offset += int64(segment.Size())
 
@@ -1582,7 +1582,7 @@ func scanAndRecoveryCheckpoint(files []string, regions map[int64]*Region, indexs
 				}
 
 				imap.index[inum] = &inode{
-					regionId:  regionId,
+					RegionId:  regionId,
 					Position:  offset,
 					Length:    segment.Size(),
 					CreatedAt: segment.CreatedAt,
