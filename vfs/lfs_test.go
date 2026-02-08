@@ -18,12 +18,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"os"
 	"sync"
-	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/auula/urnadb/conf"
 	"github.com/auula/urnadb/types"
@@ -299,113 +296,6 @@ func BenchmarkVFSReads(b *testing.B) {
 		if err != nil {
 			b.Logf("%v", err)
 		}
-	}
-}
-
-func TestUpdateSegmentWithCAS_Concurrent(t *testing.T) {
-	var wg sync.WaitGroup
-
-	fss, err := OpenFS(&Options{
-		FSPerm:    conf.FSPerm,
-		Path:      conf.Settings.Path,
-		Threshold: conf.Settings.Region.Threshold,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	data := `
-{
-  "table": {
-    "1": {
-      "active": true,
-      "age": 25,
-      "name": "Alice",
-      "score": 95.5,
-      "tags": [
-        "admin",
-        "user"
-      ]
-    },
-    "2": {
-      "active": false,
-      "age": 30,
-      "config": {
-        "font": 14,
-        "theme": "dark"
-      },
-      "name": "Bob"
-    },
-    "3": {}
-  },
-  "t_id": 4
-}
-`
-	var tables types.Table
-	err = json.Unmarshal([]byte(data), &tables)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	key := "key-01"
-	seg, err := NewSegment(key, &tables, -1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = fss.PutSegment(key, seg)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var failures int32
-	var success int32
-
-	concurrentUpdates := rand.Intn(100)
-	// 记录开始时间
-	startTime := time.Now()
-	for i := 0; i < concurrentUpdates; i++ {
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
-
-			// 1. 获取当前版本号
-			version, _, err := fss.FetchSegment(key)
-			if err != nil {
-				t.Errorf("goroutine %d: failed to fetch segment: %v", id, err)
-				return
-			}
-
-			// 2. 创建新的 `Segment`
-			newseg, err := NewSegment(key, &tables, -1)
-			if err != nil {
-				t.Errorf("goroutine %d: failed to create segment: %v", id, err)
-				return
-			}
-
-			// 3. CAS 更新
-			err = fss.UpdateSegmentWithCAS(key, version, newseg)
-			if err != nil {
-				atomic.AddInt32(&failures, 1)
-				t.Logf("goroutine %d: CAS update failed (expected version: %d)", id, version)
-			} else {
-				atomic.AddInt32(&success, 1)
-				t.Logf("goroutine %d: CAS update succeeded (version: %d)", id, version)
-			}
-		}(i)
-	}
-
-	wg.Wait()
-
-	// 记录结束时间
-	duration := time.Since(startTime)
-	t.Logf("Total execution time: %v", duration)
-
-	t.Logf("Total success: %d, Total failures: %d,Updates concurrent: %d", success, failures, concurrentUpdates)
-
-	// 断言至少有一些失败的情况（正常情况下应该有很多失败）
-	if failures == 0 && (failures+success) != int32(concurrentUpdates) {
-		t.Error("Expected some CAS failures, but got none")
 	}
 }
 
