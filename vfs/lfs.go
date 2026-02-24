@@ -386,6 +386,43 @@ func (lfs *LogStructuredFS) RedoPendingTxns() error {
 		if err != nil {
 			return fmt.Errorf("failed to create transaction directory: %w", err)
 		}
+		return nil
+	}
+
+	txns, err := os.ReadDir(txn_dir)
+	if err != nil {
+		return fmt.Errorf("failed to read transaction directory: %w", err)
+	}
+
+	var pending_txns []int64
+	for _, txn := range txns {
+		if !txn.IsDir() && strings.HasSuffix(txn.Name(), txnExtension) {
+			// 去掉 .txn 后缀，只保留 id 部分方便排序
+			txn_id := strings.TrimSuffix(txn.Name(), txnExtension)
+			// 转成 int64
+			seq, err := strconv.ParseInt(txn_id, 10, 64)
+			if err != nil {
+				// 文件名异常，直接跳过或者返回错误都可以
+				return fmt.Errorf("invalid transaction file %s: %w", txn.Name(), err)
+			}
+			pending_txns = append(pending_txns, seq)
+		}
+	}
+
+	// 对事务文件进行排序，确保按照创建顺序执行事务，避免数据不一致问题
+	sort.Slice(pending_txns, func(i, j int) bool {
+		return pending_txns[i] < pending_txns[j]
+	})
+
+	for _, txn := range pending_txns {
+		txn_path := filepath.Join(txn_dir, fmt.Sprintf("%d%s", txn, txnExtension))
+		txn_fd, err := os.OpenFile(txn_path, os.O_RDWR, lfs.fsPerm)
+		if err != nil {
+			_ = txn_fd.Close()
+			return fmt.Errorf("failed to open pending transaction file: %w", err)
+		}
+
+		_ = os.Remove(txn_path)
 	}
 
 	// 存在 txn 文件说明上次运行过程中有事物未能成功执行，Redo 这些未提交的事务来恢复数据的一致性和安全性。
@@ -1036,6 +1073,7 @@ func checkFileSystem(path string, fsPerm fs.FileMode) error {
 		if err != nil {
 			return err
 		}
+		return nil
 	}
 
 	files, err := os.ReadDir(path)
