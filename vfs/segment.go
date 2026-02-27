@@ -107,9 +107,9 @@ func AcquirePoolSegment[T Serializable](key string, data T, ttl int64) (*Segment
 	return seg, nil
 }
 
-func (seg *Segment) ReleaseToPool() {
-	seg.Clear()
-	segmentPool.Put(seg)
+func (s *Segment) ReleaseToPool() {
+	s.Clear()
+	segmentPool.Put(s)
 }
 
 func (s *Segment) Clear() {
@@ -128,8 +128,8 @@ func NewSegmentWithExpiry[T Serializable](data T, createdAt, expiredAt int64) (*
 }
 
 // GetExpiryMeta 返回 Segment 的元信息，包括创建时间和过期时间，适用于基于已有过期时间的 segment 的更新操作
-func (seg *Segment) GetExpiryMeta() (int64, int64) {
-	return seg.CreatedAt, seg.ExpiredAt
+func (s *Segment) GetExpiryMeta() (int64, int64) {
+	return s.CreatedAt, s.ExpiredAt
 }
 
 // NewSegment 使用数据类型初始化并返回对应的 Segment

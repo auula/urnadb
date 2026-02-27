@@ -60,7 +60,7 @@ const (
 var (
 	shard            = 10
 	pipeline         = NewPipeline()
-	txnDirName       = "txn"
+	txnDirName       = "txns"
 	txnExtension     = ".txn"
 	fileExtension    = ".db"
 	ckptExtension    = ".ckpt"
@@ -149,7 +149,7 @@ func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
 	lfs.offset += int64(seg.Size()) // uint32 to uint64 is always safe
 
 	if lfs.offset >= lfs.regionThreshold {
-		return lfs.createActiveRegion()
+		return lfs.changeRegions()
 	}
 
 	return nil
@@ -329,13 +329,13 @@ func (lfs *LogStructuredFS) changeRegions() error {
 	}
 
 	// 重新以只读的方式打开这个文件，并且设置 mmap 映射
-	fileName, err := toStringFileName(lfs.regionId)
+	name, err := toStringFileName(lfs.regionId)
 	if err != nil {
 		return fmt.Errorf("failed to active region name to string: %w", err)
 	}
 
 	// 写满了就映射为 mmap 的方式读取
-	reader, err := mmap.Open(filepath.Join(lfs.directory, fileName))
+	reader, err := mmap.Open(filepath.Join(lfs.directory, name))
 	if err != nil {
 		return fmt.Errorf("failed to mmap data file: %w", err)
 	}
@@ -352,17 +352,17 @@ func (lfs *LogStructuredFS) changeRegions() error {
 
 func (lfs *LogStructuredFS) createActiveRegion() error {
 	lfs.regionId += 1
-	fileName, err := toStringFileName(lfs.regionId)
+	name, err := toStringFileName(lfs.regionId)
 	if err != nil {
 		return fmt.Errorf("failed to new active region name: %w", err)
 	}
 
-	active, err := os.OpenFile(filepath.Join(lfs.directory, fileName), appendOnlyLog, lfs.fsPerm)
+	fd, err := os.OpenFile(filepath.Join(lfs.directory, name), appendOnlyLog, lfs.fsPerm)
 	if err != nil {
 		return fmt.Errorf("failed to create active region: %w", err)
 	}
 
-	n, err := active.Write(dataFileMetadata)
+	n, err := fd.Write(dataFileMetadata)
 	if err != nil {
 		return fmt.Errorf("failed to write active region metadata: %w", err)
 	}
@@ -371,7 +371,7 @@ func (lfs *LogStructuredFS) createActiveRegion() error {
 		return errors.New("failed to active region metadata write")
 	}
 
-	lfs.active = active
+	lfs.active = fd
 	lfs.offset = int64(len(dataFileMetadata))
 	// Active region 不立即 mmap，只存储 Fd
 	lfs.regions[lfs.regionId] = &Region{Fd: lfs.active, ReaderAt: nil}
@@ -379,53 +379,105 @@ func (lfs *LogStructuredFS) createActiveRegion() error {
 	return nil
 }
 
-func (lfs *LogStructuredFS) RedoPendingTxns() error {
-	txn_dir := filepath.Join(lfs.directory, txnDirName)
-	if !utils.IsExist(txn_dir) {
-		err := os.MkdirAll(txn_dir, lfs.fsPerm)
+func (lfs *LogStructuredFS) redoPendingTxns() error {
+	txnDirPath := filepath.Join(lfs.directory, txnDirName)
+	if !utils.IsExist(txnDirPath) {
+		err := os.MkdirAll(txnDirPath, lfs.fsPerm)
 		if err != nil {
 			return fmt.Errorf("failed to create transaction directory: %w", err)
 		}
 		return nil
 	}
 
-	txns, err := os.ReadDir(txn_dir)
+	txns, err := os.ReadDir(txnDirPath)
 	if err != nil {
 		return fmt.Errorf("failed to read transaction directory: %w", err)
 	}
 
-	var pending_txns []int64
+	var pendingTxns []int64
 	for _, txn := range txns {
 		if !txn.IsDir() && strings.HasSuffix(txn.Name(), txnExtension) {
 			// 去掉 .txn 后缀，只保留 id 部分方便排序
-			txn_id := strings.TrimSuffix(txn.Name(), txnExtension)
+			name := strings.TrimSuffix(txn.Name(), txnExtension)
 			// 转成 int64
-			seq, err := strconv.ParseInt(txn_id, 10, 64)
+			id, err := strconv.ParseInt(name, 10, 64)
 			if err != nil {
 				// 文件名异常，直接跳过或者返回错误都可以
 				return fmt.Errorf("invalid transaction file %s: %w", txn.Name(), err)
 			}
-			pending_txns = append(pending_txns, seq)
+			pendingTxns = append(pendingTxns, id)
 		}
 	}
 
 	// 对事务文件进行排序，确保按照创建顺序执行事务，避免数据不一致问题
-	sort.Slice(pending_txns, func(i, j int) bool {
-		return pending_txns[i] < pending_txns[j]
+	sort.Slice(pendingTxns, func(i, j int) bool {
+		return pendingTxns[i] < pendingTxns[j]
 	})
 
-	for _, txn := range pending_txns {
-		txn_path := filepath.Join(txn_dir, fmt.Sprintf("%d%s", txn, txnExtension))
-		txn_fd, err := os.OpenFile(txn_path, os.O_RDWR, lfs.fsPerm)
+	// 存在 txn 文件说明上次运行过程中有事物未能成功执行，Redo 这些未提交的事务来恢复数据的一致性和安全性。
+	for _, txn := range pendingTxns {
+		txnFilePath := filepath.Join(txnDirPath, fmt.Sprintf("%d%s", txn, txnExtension))
+		fd, err := os.OpenFile(txnFilePath, os.O_RDWR, lfs.fsPerm)
 		if err != nil {
-			_ = txn_fd.Close()
 			return fmt.Errorf("failed to open pending transaction file: %w", err)
 		}
+		defer fd.Close()
 
-		_ = os.Remove(txn_path)
+		stat, err := fd.Stat()
+		if err != nil {
+			return fmt.Errorf("failed to stat pending transaction file: %w", err)
+		}
+
+		var seg *Segment
+		for offset := int64(len(dataFileMetadata)); offset < stat.Size(); offset += int64(seg.Size()) {
+			// Read segment of ? bytes
+			inum, seg, err := readSegment(fd, offset, _SEGMENT_PADDING)
+			if err != nil {
+				return fmt.Errorf("failed to read pending transaction segment: %w", err)
+			}
+
+			// 执行事务回滚操作直接把 KV 重写到 active region 中，并且更新对应的 inode 信息，这样就保证了数据的一致性和安全性了。
+			imap := lfs.indexs[inum%uint64(shard)]
+			if imap == nil {
+				return fmt.Errorf("failed to find index for inum: %d", inum)
+			}
+
+			bytes, err := serializedSegment(seg)
+			if err != nil {
+				return fmt.Errorf("failed to serialized segment: %w", err)
+			}
+
+			err = appendToActiveRegion(lfs.active, bytes)
+			if err != nil {
+				return fmt.Errorf("failed to append to active region: %w", err)
+			}
+
+			imap.index[inum] = &inode{
+				mvcc:      0,
+				Length:    seg.Size(),
+				Position:  lfs.offset,
+				RegionId:  lfs.regionId,
+				CreatedAt: seg.CreatedAt,
+				ExpiredAt: seg.ExpiredAt,
+			}
+
+			lfs.offset += int64(seg.Size())
+
+			if lfs.offset >= lfs.regionThreshold {
+				// fix bug: return lfs.changeRegions()
+				err := lfs.changeRegions()
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		err = os.Remove(txnFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to delete pending transaction file %s: %w", txnFilePath, err)
+		}
 	}
 
-	// 存在 txn 文件说明上次运行过程中有事物未能成功执行，Redo 这些未提交的事务来恢复数据的一致性和安全性。
 	return nil
 }
 
@@ -462,8 +514,8 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 	// Only find the largest file if there are more than one data files
 	if len(lfs.regions) > 0 {
 		var regionIds []int64
-		for v := range lfs.regions {
-			regionIds = append(regionIds, v)
+		for id := range lfs.regions {
+			regionIds = append(regionIds, id)
 		}
 		// Sort the regionIds slice in ascending order
 		sort.Slice(regionIds, func(i, j int) bool {
@@ -484,17 +536,8 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 		}
 
 		if stat.Size() >= lfs.regionThreshold {
-			return lfs.createActiveRegion()
+			return lfs.changeRegions()
 		}
-
-		// 直接复用上一次的未写满的 active 文件
-		offset, err := active.Fd.Seek(0, io.SeekEnd)
-		if err != nil {
-			return fmt.Errorf("failed to get region file offset: %w", err)
-		}
-
-		lfs.active = active.Fd
-		lfs.offset = offset
 
 	} else {
 		// If it is an empty directory, create a writable data file
@@ -518,10 +561,10 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 //     to reconstruct the index file.
 func (lfs *LogStructuredFS) scanAndRecoverIndexs() error {
 	// Construct the full file path
-	filePath := filepath.Join(lfs.directory, mainIndexFile)
-	if utils.IsExist(filePath) {
+	path := filepath.Join(lfs.directory, mainIndexFile)
+	if utils.IsExist(path) {
 		// If the index file exists, restore it
-		reader, err := mmap.Open(filePath)
+		reader, err := mmap.Open(path)
 		if err != nil {
 			return fmt.Errorf("failed to mmap index file: %w", err)
 		}
@@ -582,7 +625,6 @@ func (lfs *LogStructuredFS) RunCheckpoint(second uint32) {
 			// 只有数据文件大于 2 个，才生成快速恢复的检查点
 			if len(lfs.regions) >= 2 {
 				ckpt := checkpointFileName(lfs.regionId)
-
 				fd, err := os.OpenFile(filepath.Join(lfs.directory, ckpt), os.O_CREATE|os.O_WRONLY, lfs.fsPerm)
 				if err != nil {
 					clog.Errorf("failed to generate index checkpoint file: %v", err)
@@ -739,7 +781,7 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 		return nil, err
 	}
 
-	instance := &LogStructuredFS{
+	storage := &LogStructuredFS{
 		indexs:    make([]*indexMap, shard),
 		regions:   make(map[int64]*Region, 10),
 		offset:    int64(len(dataFileMetadata)),
@@ -755,33 +797,38 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 	}
 
 	for i := 0; i < shard; i++ {
-		instance.indexs[i] = &indexMap{
+		storage.indexs[i] = &indexMap{
 			index: make(map[uint64]*inode, 1e6),
 		}
 	}
 
 	// First, perform recovery operations on existing data files and initialize the in-memory data version number
-	err = instance.scanAndRecoverRegions()
+	err = storage.scanAndRecoverRegions()
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover data regions: %w", err)
 	}
 
-	err = instance.scanAndRecoverIndexs()
+	err = storage.scanAndRecoverIndexs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover regions index: %w", err)
 	}
 
+	err = storage.redoPendingTxns()
+	if err != nil {
+		return nil, fmt.Errorf("failed to redo pending transactions: %w", err)
+	}
+
 	// Active region 不使用 mmap，只有当它成为旧的 region 文件时才 mmap
-	if instance.regions[instance.regionId].ReaderAt != nil {
-		instance.regions[instance.regionId].ReaderAt.Close()
-		instance.regions[instance.regionId].ReaderAt = nil
+	if storage.regions[storage.regionId].ReaderAt != nil {
+		storage.regions[storage.regionId].ReaderAt.Close()
+		storage.regions[storage.regionId].ReaderAt = nil
 	}
 
 	// 120 秒执行一次过期 keys 的检查，防止已经过期 key 一直存储在内存中
-	go instance.expireKeysLoop()
+	go storage.expireKeysLoop()
 
 	// Singleton pattern, but other packages can still create an instance with new(LogStructuredFS), which makes this ineffective
-	return instance, nil
+	return storage, nil
 }
 
 // Before closing, always check if GC (garbage collection) is executing.
@@ -990,8 +1037,8 @@ func recoveryIndex(reader *mmap.ReaderAt, indexs []*indexMap) error {
 // | DEL 1 | KIND 1 | EAT 8 | CAT 8 | KLEN 4 | VLEN 4 | KEY ? | VALUE ? | CRC32 4 |
 func crashRecoveryAllIndex(regions map[int64]*Region, indexs []*indexMap) error {
 	var regionIds []int64
-	for v := range regions {
-		regionIds = append(regionIds, v)
+	for id := range regions {
+		regionIds = append(regionIds, id)
 	}
 
 	sort.Slice(regionIds, func(i, j int) bool {
@@ -1004,14 +1051,14 @@ func crashRecoveryAllIndex(regions map[int64]*Region, indexs []*indexMap) error 
 			return fmt.Errorf("data file does not exist regions id: %d", regionId)
 		}
 
-		finfo, err := reg.Fd.Stat()
+		stat, err := reg.Fd.Stat()
 		if err != nil {
 			return err
 		}
 
 		offset := int64(len(dataFileMetadata))
 
-		for offset < finfo.Size() {
+		for offset < stat.Size() {
 			inum, segment, err := readSegment(reg.Fd, offset, _SEGMENT_PADDING)
 			if err != nil {
 				return fmt.Errorf("failed to parse data file segment: %w", err)
@@ -1049,9 +1096,9 @@ func crashRecoveryAllIndex(regions map[int64]*Region, indexs []*indexMap) error 
 	return nil
 }
 
-func validateFileHeader(file *os.File) error {
+func validateFileHeader(fd *os.File) error {
 	var fileHeader [4]byte
-	n, err := file.Read(fileHeader[:])
+	n, err := fd.Read(fileHeader[:])
 	if err != nil {
 		return err
 	}
@@ -1061,7 +1108,7 @@ func validateFileHeader(file *os.File) error {
 	}
 
 	if !bytes.Equal(fileHeader[:], dataFileMetadata) {
-		return fmt.Errorf("unsupported data file version: %v", file.Name())
+		return fmt.Errorf("unsupported data file version: %v", fd.Name())
 	}
 
 	return nil
@@ -1085,13 +1132,13 @@ func checkFileSystem(path string, fsPerm fs.FileMode) error {
 		for _, file := range files {
 			if !file.IsDir() && strings.HasSuffix(file.Name(), fileExtension) {
 				if strings.HasPrefix(file.Name(), "0") {
-					file, err := os.Open(filepath.Join(path, file.Name()))
+					fd, err := os.Open(filepath.Join(path, file.Name()))
 					if err != nil {
 						return fmt.Errorf("failed to check data file: %w", err)
 					}
-					defer file.Close()
+					defer fd.Close()
 
-					err = validateFileHeader(file)
+					err = validateFileHeader(fd)
 					if err != nil {
 						return fmt.Errorf("failed to validated data file header: %w", err)
 					}
@@ -1099,13 +1146,13 @@ func checkFileSystem(path string, fsPerm fs.FileMode) error {
 			}
 
 			if !file.IsDir() && file.Name() == mainIndexFile {
-				file, err := os.Open(filepath.Join(path, file.Name()))
+				fd, err := os.Open(filepath.Join(path, file.Name()))
 				if err != nil {
 					return fmt.Errorf("failed to check index file: %w", err)
 				}
-				defer file.Close()
+				defer fd.Close()
 
-				err = validateFileHeader(file)
+				err = validateFileHeader(fd)
 				if err != nil {
 					return fmt.Errorf("failed to validated index file header: %w", err)
 				}
@@ -1120,13 +1167,13 @@ func checkFileSystem(path string, fsPerm fs.FileMode) error {
 
 				for _, txn := range txns {
 					if !txn.IsDir() && strings.HasSuffix(txn.Name(), txnExtension) {
-						file, err := os.Open(filepath.Join(path, txnDirName, txn.Name()))
+						fd, err := os.Open(filepath.Join(path, txnDirName, txn.Name()))
 						if err != nil {
 							return fmt.Errorf("failed to check transaction file: %w", err)
 						}
-						defer file.Close()
+						defer fd.Close()
 
-						err = validateFileHeader(file)
+						err = validateFileHeader(fd)
 						if err != nil {
 							return fmt.Errorf("failed to validated transaction file header: %w", err)
 						}
@@ -1223,20 +1270,20 @@ func readSegment(reader io.ReaderAt, offset, bufsize int64) (uint64, *Segment, e
 }
 
 func toStringFileName(regionId int64) (string, error) {
-	fileName := formatDataFileName(regionId)
+	name := formatDataFileName(regionId)
 	// Verify if regionId starts with 0 (valid only for 8 digits)
-	if strings.HasPrefix(fileName, "0") {
-		return fileName, nil
+	if strings.HasPrefix(name, "0") {
+		return name, nil
 	}
 	// Throw an exception if the regionId exceeds the current set number of data files
 	return "", fmt.Errorf("new region id %d cannot be converted to a valid file name", regionId)
 }
 
 // parseDataFileName converts the numeric part of the file name (e.g., 0000001.wdb) to uint64
-func parseDataFileName(fileName string) (int64, error) {
-	parts := strings.Split(fileName, ".")
+func parseDataFileName(name string) (int64, error) {
+	parts := strings.Split(name, ".")
 	if len(parts) != 2 {
-		return 0, fmt.Errorf("invalid file name format: %s", fileName)
+		return 0, fmt.Errorf("invalid file name format: %s", name)
 	}
 
 	// Convert to uint64
@@ -1400,9 +1447,10 @@ func serializedSegment(seg *Segment) ([]byte, error) {
 func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 	if len(lfs.regions) >= 5 {
 		var regionIds, dirtyIds []int64
-		for v := range lfs.regions {
-			regionIds = append(regionIds, v)
+		for id := range lfs.regions {
+			regionIds = append(regionIds, id)
 		}
+
 		sort.Slice(regionIds, func(i, j int) bool {
 			return regionIds[i] < regionIds[j]
 		})
@@ -1459,7 +1507,7 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 							lfs.mu.Lock()
 							defer lfs.mu.Unlock()
 
-							err = appendToActiveRegion(lfs.active, bytes)
+							err := appendToActiveRegion(lfs.active, bytes)
 							if err != nil {
 								return err
 							}
@@ -1498,16 +1546,16 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 		}
 
 		// delete dirty region file
-		for _, reg_id := range dirtyIds {
-			func(reg_id int64) {
+		for _, regId := range dirtyIds {
+			func(regId int64) {
 				lfs.mu.Lock()
 				defer lfs.mu.Unlock()
-				reg, ok := lfs.regions[reg_id]
+				reg, ok := lfs.regions[regId]
 				if ok {
 					_ = os.Remove(filepath.Join(lfs.directory, reg.Fd.Name()))
-					delete(lfs.regions, reg_id)
+					delete(lfs.regions, regId)
 				}
-			}(reg_id)
+			}(regId)
 		}
 
 	} else {
@@ -1631,14 +1679,14 @@ func scanAndRecoveryCheckpoint(files []string, regions map[int64]*Region, indexs
 			return fmt.Errorf("data file does not exist regions id: %d", regionId)
 		}
 
-		finfo, err := reg.Fd.Stat()
+		stat, err := reg.Fd.Stat()
 		if err != nil {
 			return err
 		}
 
 		offset := int64(len(dataFileMetadata))
 
-		for offset < finfo.Size() {
+		for offset < stat.Size() {
 			inum, segment, err := readSegment(reg.Fd, offset, _SEGMENT_PADDING)
 			if err != nil {
 				return fmt.Errorf("failed to parse data file segment: %w", err)

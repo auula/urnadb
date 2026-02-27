@@ -19,15 +19,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 )
 
 // 全句事物 ID 每次创建一个新的事物就会自增 1 ，保证每个事物都有一个唯一的 ID 所对应的 .txn 文件了，
 // 这个 ID 就是 .txn 文件的文件名，系统重启的时候就会去读取这个 .txn 文件来恢复对应 key 的老数据版本了。
 // 每次重新启动之后 ID 源会被重置，之前的 .txn 文件会被删除，新的 .txn 的文件 ID 会重新的从 1 开始了，这样就保证了每次启动之后 ID 都是唯一的了。
-var globalTxnId atomic.Int64
+var globalTxnId atomic.Uint64
 
-func acquireTxnId() int64 {
+func acquireTxnId() uint64 {
 	return globalTxnId.Add(1)
 }
 
@@ -41,53 +42,95 @@ func acquireTxnId() int64 {
 // 但是还没有提交，万一这个时候系统崩溃了数据就丢了，所以要有 .txn 文件来记录是对应 key 的老数据版本。
 // 等系统重启的时候再去读取 .txn 文件中的数据来恢复对应 key 的老数据版本，这样就保证了数据的安全性和一致性了。
 type Transaction struct {
-	fd    *os.File
-	id    int64
-	path  string
-	buf   *bytes.Buffer
+	fd      *os.File
+	id      uint64
+	path    string
+	buf     *bytes.Buffer
+	store   *LogStructuredFS
+	execute func(ctx *TxnState) error
+	once    sync.Once
+}
+
+type TxnState struct {
 	store *LogStructuredFS
+}
+
+// 运算完成之后的结果进行持久化存储，注意这里的 segs 可能有新加入的新 key 不在 Begin 中返回的。
+func (ctx *TxnState) Saves(segs []*Snapshot) error {
+	return nil
+}
+
+// 事物开始的时候对本次事物需要的 keys 进行批量获取操作，方便后面进行运算。
+func (ctx *TxnState) Begin(keys []string) ([]*Snapshot, error) {
+	var result []*Snapshot
+
+	for _, key := range keys {
+		mvcc, seg, err := ctx.store.FetchSegment(key)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, &Snapshot{
+			Segment: seg,
+			mvcc:    mvcc,
+		})
+	}
+
+	return result, nil
+}
+
+// 为什么单独设计一个 Snapshot 是因为需要做事物中的 key 对应的版本冲突检测。
+type Snapshot struct {
+	*Segment
+	mvcc uint64
+}
+
+// VersionConflicts 用于 MVCC 版本号冲突检测方法，事物提交成功之后必须是批量比较版本号，
+// 成功提交条件是 len(tnxs) == len(version) 这里的 version 类型是 bool ，必须所有事物的比较结果都是 true 才能成功提交。
+func (s *Snapshot) VersionConflicts(version uint64) bool {
+	return true
 }
 
 // 这里的 keys 是事务涉及到的 key 列表，事务执行过程中会对这些 key 进行读写操作，
 // 所以需要在事务开始的时候就把这些 key 传进来，这样就可以在事务执行过程中对这些 key 进行操作了。
 // 拿到这些 key 对应磁盘老版本数据写到 .txn 文件中，这样就保证了能在事物执行失败时执行回滚操作。
-func NewTransaction(store *LogStructuredFS, keys []string) (*Transaction, error) {
-	txn_id := acquireTxnId()
-	txn_path := filepath.Join(store.directory, txnDirName, fmt.Sprintf("%d%s", txn_id, txnExtension))
-
-	txn_fd, err := os.OpenFile(txn_path, os.O_CREATE|os.O_WRONLY|os.O_EXCL, store.fsPerm)
+func NewTransaction(store *LogStructuredFS) (*Transaction, error) {
+	txnId := acquireTxnId()
+	txnPath := filepath.Join(store.directory, txnDirName, fmt.Sprintf("%d%s", txnId, txnExtension))
+	fd, err := os.OpenFile(txnPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, store.fsPerm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new transaction file: %w", err)
 	}
 
-	n, err := txn_fd.Write(dataFileMetadata)
+	n, err := fd.Write(dataFileMetadata)
 	if err != nil {
-		_ = txn_fd.Close()
-		_ = os.Remove(txn_path)
+		_ = fd.Close()
+		_ = os.Remove(txnPath)
 		return nil, fmt.Errorf("failed to write metadata to transaction file: %w", err)
 	}
 
 	if n != len(dataFileMetadata) {
-		_ = txn_fd.Close()
-		_ = os.Remove(txn_path)
+		_ = fd.Close()
+		_ = os.Remove(txnPath)
 		return nil, fmt.Errorf("failed to write full metadata to transaction file")
 	}
 
 	return &Transaction{
-		fd:    txn_fd,
+		fd:    fd,
 		store: store,
 		buf:   bytes.NewBuffer(make([]byte, 1024)),
-		id:    txn_id,
-		path:  txn_path,
+		id:    txnId,
+		path:  txnPath,
 	}, nil
 }
 
 // 本次事物执行过程中新 keys 对应的新版本的 segment 进行持久化到 .db 文件中并且更新索引 inode 和 .db 文件映射关系。
-func (t *Transaction) WriteSegments(segs []*Segment) (int, error) {
-	return 0, nil
+func (t *Transaction) AtomicBatch(callback func(ctx *TxnState) error) {
+	t.once.Do(func() {
+		t.execute = callback
+	})
 }
 
-func (t *Transaction) TxnID() int64 {
+func (t *Transaction) TxnID() uint64 {
 	return t.id
 }
 
@@ -96,9 +139,13 @@ func (t *Transaction) TxnID() int64 {
 // 如果没有删除就说明这个事物提交失败了，系统崩溃了就会去读取这个 .txn 文件来恢复对应 key 的老数据版本了。
 
 // 这样下去启动的时候存储引擎就不会再去读取 .txn 文件了，
-// 没有 .txn 文件了就说明没有未提交的事务了，事物执行成功了，
+// 没有 .txn 文件了就说明没有未提交的事务了，事物执行成功了，一定要做版本控制检查器，检查每个数据的版本。
 // Commit 最重要一个环境就是对应 key 的新版本的 segment 进行持久化到 .db 文件中并且更新索引 inode 和 .db 文件映射关系。
 func (t *Transaction) Commit() error {
+	err := t.execute(&TxnState{store: t.store})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
