@@ -53,11 +53,13 @@ type Transaction struct {
 }
 
 type TxnState struct {
-	store *LogStructuredFS
+	store  *LogStructuredFS
+	writes []*Snapshot
 }
 
 // 运算完成之后的结果进行持久化存储，注意这里的 segs 可能有新加入的新 key 不在 Begin 中返回的。
 func (ctx *TxnState) Saves(segs []*Snapshot) error {
+	ctx.writes = append(ctx.writes, segs...)
 	return nil
 }
 
@@ -153,6 +155,7 @@ func (t *Transaction) Commit() error {
 	if err != nil {
 		return err
 	}
+	// 应该在这里写一个版本检查
 	return nil
 }
 
