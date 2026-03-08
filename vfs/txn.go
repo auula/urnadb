@@ -16,6 +16,7 @@ package vfs
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -64,15 +65,21 @@ func (ctx *TxnState) Saves(segs []*Snapshot) error {
 func (ctx *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 	var result []*Snapshot
 
-	for _, key := range keys {
-		mvcc, seg, err := ctx.store.FetchSegment(key)
-		if err != nil {
-			return nil, err
+	if len(keys) > 0 {
+		for _, key := range keys {
+			mvcc, seg, err := ctx.store.FetchSegment(key)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, &Snapshot{
+				Segment: seg,
+				mvcc:    mvcc,
+			})
 		}
-		result = append(result, &Snapshot{
-			Segment: seg,
-			mvcc:    mvcc,
-		})
+	}
+
+	if result != nil && len(result) == 0 {
+		return nil, errors.New("begin snapshot is empty")
 	}
 
 	return result, nil
