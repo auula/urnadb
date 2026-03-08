@@ -15,7 +15,6 @@
 package vfs
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -48,26 +47,28 @@ type Transaction struct {
 	fd      *os.File
 	id      uint64
 	path    string
-	buf     *bytes.Buffer
 	store   *LogStructuredFS
 	execute func(ctx *TxnState) error
 	once    sync.Once
 }
 
 type TxnState struct {
+	fd     *os.File
 	store  *LogStructuredFS
 	writes []*Snapshot
+	keys   map[string]struct{}
 }
 
 // 运算完成之后的结果进行持久化存储，注意这里的 segs 可能有新加入的新 key 不在 Begin 中返回的。
-func (ctx *TxnState) Saves(segs []*Snapshot) error {
-	ctx.writes = append(ctx.writes, segs...)
+func (ctx *TxnState) Saves(snaps []*Snapshot) error {
+	ctx.writes = append(ctx.writes, snaps...)
 	return nil
 }
 
 // 事物开始的时候对本次事物需要的 keys 进行批量获取操作，方便后面进行运算。
 func (ctx *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 	var result []*Snapshot
+	ctx.keys = make(map[string]struct{}, len(keys))
 
 	if len(keys) > 0 {
 		for _, key := range keys {
@@ -75,6 +76,7 @@ func (ctx *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 			if err != nil {
 				return nil, err
 			}
+			ctx.keys[key] = struct{}{}
 			result = append(result, &Snapshot{
 				Segment: seg,
 				mvcc:    mvcc,
@@ -82,8 +84,22 @@ func (ctx *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 		}
 	}
 
-	if result != nil && len(result) == 0 {
+	if len(result) == 0 {
 		return nil, ErrEmptyBeginSnapshot
+	}
+
+	buf := make([]byte, 0, 1024)
+	for _, sp := range result {
+		bytes, err := serializedSegment(sp.Segment)
+		if err != nil {
+			return nil, err
+		}
+		buf = append(buf, bytes...)
+	}
+
+	err := appendToActiveRegion(ctx.fd, buf)
+	if err != nil {
+		return nil, err
 	}
 
 	return result, nil
@@ -95,10 +111,10 @@ type Snapshot struct {
 	mvcc uint64
 }
 
-// VersionConflicts 用于 MVCC 版本号冲突检测方法，事物提交成功之后必须是批量比较版本号，
+// hasConflict 用于 MVCC 版本号冲突检测方法，事物提交成功之后必须是批量比较版本号，
 // 成功提交条件是 len(tnxs) == len(version) 这里的 version 类型是 bool ，必须所有事物的比较结果都是 true 才能成功提交。
-func (s *Snapshot) VersionConflicts(version uint64) bool {
-	return true
+func (s *Snapshot) hasConflict(version uint64) bool {
+	return s.mvcc == version
 }
 
 // 这里的 keys 是事务涉及到的 key 列表，事务执行过程中会对这些 key 进行读写操作，
@@ -128,7 +144,6 @@ func NewTransaction(store *LogStructuredFS) (*Transaction, error) {
 	return &Transaction{
 		fd:    fd,
 		store: store,
-		buf:   bytes.NewBuffer(make([]byte, 1024)),
 		id:    txnId,
 		path:  txnPath,
 	}, nil
@@ -153,18 +168,56 @@ func (t *Transaction) TxnID() uint64 {
 // 没有 .txn 文件了就说明没有未提交的事务了，事物执行成功了，一定要做版本控制检查器，检查每个数据的版本。
 // Commit 最重要一个环境就是对应 key 的新版本的 segment 进行持久化到 .db 文件中并且更新索引 inode 和 .db 文件映射关系。
 func (t *Transaction) Commit() error {
-	err := t.execute(&TxnState{store: t.store})
+	state := &TxnState{store: t.store, fd: t.fd}
+	err := t.execute(state)
 	if err != nil {
 		return err
 	}
-	// 应该在这里写一个版本检查
-	return nil
+
+	var allowed, conflict = true, (*Snapshot)(nil)
+	for _, seg := range state.writes {
+		key := seg.GetKeyString()
+		if _, ok := state.keys[key]; !ok {
+			// 中途新 key 应该添加一条删除记录，事物启动时直接回滚到没有这个 key 状态下。
+			tombstone := NewTombstoneSegment(key)
+			bytes, err := serializedSegment(tombstone)
+			if err != nil {
+				return err
+			}
+			err = appendToActiveRegion(state.fd, bytes)
+			if err != nil {
+				return err
+			}
+			// 新 key 就不需要做版本控制检查。
+			continue
+		}
+		// 老版本的 key 必须做版本检查。
+		version, ok := t.store.mvcc(key)
+		if ok && !seg.hasConflict(version) {
+			conflict, allowed = seg, false
+		}
+	}
+
+	// 全部检查通过之后就可以进行提交了。
+	if allowed {
+		err := t.store.CommitTxns(state.writes)
+		if err != nil {
+			return fmt.Errorf("failed to commit transaction: %w", err)
+		}
+		err = os.Remove(t.path)
+		if err != nil {
+			return fmt.Errorf("failed to commit delete transaction: %w", err)
+		}
+	}
+
+	return fmt.Errorf("mvcc version conflict for key %q", conflict.GetKeyString())
 }
 
 // 这里 Rollback 是将缓冲区对应磁盘 .txn 中的数据写会到 .db 文件中，
 // 写回操作要注意更新索引 inode 和 .db 文件映射关系，同样删除 .txn 文件，
 // 这样下去启动的时候存储引擎就不会再去读取 .txn 文件了。
 func (t *Transaction) Rollback() error {
+	t.store.RollbackTxns(nil)
 	return nil
 }
 

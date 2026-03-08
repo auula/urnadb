@@ -98,6 +98,7 @@ type Region struct {
 // LogStructuredFS represents the virtual file storage system.
 type LogStructuredFS struct {
 	mu               sync.RWMutex
+	regmux           sync.Mutex
 	offset           int64
 	regionId         int64
 	directory        string
@@ -167,9 +168,57 @@ func (lfs *LogStructuredFS) BatchFetchSegments(keys ...string) ([]*Segment, erro
 	return segs, nil
 }
 
+func (lfs *LogStructuredFS) CommitTxns(snaps []*Snapshot) error {
+	if snaps == nil {
+		return errors.New("unexpected empty snapshot")
+	}
+
+	lfs.mu.Lock()
+	defer lfs.mu.Unlock()
+
+	for _, seg := range snaps {
+		bytes, err := serializedSegment(seg.Segment)
+		if err != nil {
+			return err
+		}
+		err = appendToActiveRegion(lfs.active, bytes)
+		if err != nil {
+			return err
+		}
+
+		inum := inodeNum(seg.GetKeyString())
+		imap := lfs.indexs[inum%uint64(shard)]
+
+		imap.mu.Lock()
+		imap.index[inum] = &inode{
+			RegionId:  lfs.regionId,
+			Position:  lfs.offset,
+			Length:    seg.Size(),
+			CreatedAt: seg.CreatedAt,
+			ExpiredAt: seg.ExpiredAt,
+			mvcc:      seg.mvcc + 1,
+		}
+		imap.mu.Unlock()
+
+		lfs.offset += int64(seg.Size())
+
+		if lfs.offset >= lfs.regionThreshold {
+			return lfs.changeRegions()
+		}
+	}
+
+	return nil
+}
+
+func (lfs *LogStructuredFS) RollbackTxns(snaps []*Snapshot) error {
+	if snaps == nil {
+		return errors.New("unexpected empty snapshot")
+	}
+	return nil
+}
+
 func (lfs *LogStructuredFS) DeleteSegment(key string) error {
 	seg := NewTombstoneSegment(key)
-
 	bytes, err := serializedSegment(seg)
 	if err != nil {
 		return err
@@ -214,6 +263,25 @@ func (lfs *LogStructuredFS) IsActive(key string) bool {
 	}
 
 	return (inode != nil && inode.ExpiredAt == ImmortalTTL) || (inode.ExpiredAt > 0 && time.Now().UnixMicro() < inode.ExpiredAt)
+}
+
+func (lfs *LogStructuredFS) mvcc(key string) (uint64, bool) {
+	inum := inodeNum(key)
+
+	imap := lfs.indexs[inum%uint64(shard)]
+	if imap == nil {
+		return 0, false
+	}
+
+	imap.mu.RLock()
+	defer imap.mu.RUnlock()
+
+	inode, ok := imap.index[inum]
+	if !ok {
+		return 0, false
+	}
+
+	return inode.mvcc, true
 }
 
 func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
@@ -320,8 +388,8 @@ func inodeNum(key string) uint64 {
 }
 
 func (lfs *LogStructuredFS) changeRegions() error {
-	lfs.mu.Lock()
-	defer lfs.mu.Unlock()
+	lfs.regmux.Lock()
+	defer lfs.regmux.Unlock()
 
 	err := utils.FlushToDisk(lfs.active)
 	if err != nil {
@@ -946,7 +1014,7 @@ func recoveryIndex(reader *mmap.ReaderAt, indexs []*indexMap) error {
 		defer wg.Done()
 		defer close(nqueue)
 
-		buf := make([]byte, _INDEX_SEGMENT_SIZE)
+		buf := make([]byte, 0, _INDEX_SEGMENT_SIZE)
 
 		for offset < int64(reader.Len()) {
 			select {
@@ -1188,7 +1256,7 @@ func checkFileSystem(path string, fsPerm fs.FileMode) error {
 
 // | DEL 1 | KIND 1 | EAT 8 | CAT 8 | KLEN 4 | VLEN 4 | KEY ? | VALUE ? | CRC32 4 |
 func readSegment(reader io.ReaderAt, offset, bufsize int64) (uint64, *Segment, error) {
-	buf := make([]byte, bufsize)
+	buf := make([]byte, 0, bufsize)
 
 	_, err := reader.ReadAt(buf, offset)
 	if err != nil {
@@ -1225,7 +1293,7 @@ func readSegment(reader io.ReaderAt, offset, bufsize int64) (uint64, *Segment, e
 	// End of Header 26 bytes
 
 	// Read Key data
-	keybuf := make([]byte, seg.KeySize)
+	keybuf := make([]byte, 0, seg.KeySize)
 	_, err = reader.ReadAt(keybuf, int64(offset)+int64(readOffset))
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to parse key in segment: %w", err)
@@ -1233,7 +1301,7 @@ func readSegment(reader io.ReaderAt, offset, bufsize int64) (uint64, *Segment, e
 	readOffset += int(seg.KeySize)
 
 	// Read Value data
-	valuebuf := make([]byte, seg.ValueSize)
+	valuebuf := make([]byte, 0, seg.ValueSize)
 	_, err = reader.ReadAt(valuebuf, int64(offset)+int64(readOffset))
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to parse value in segment: %w", err)
@@ -1241,7 +1309,7 @@ func readSegment(reader io.ReaderAt, offset, bufsize int64) (uint64, *Segment, e
 	readOffset += int(seg.ValueSize)
 
 	// Read checksum (4 bytes)
-	checksumBuf := make([]byte, 4)
+	checksumBuf := make([]byte, 0, 4)
 	_, err = reader.ReadAt(checksumBuf, int64(offset)+int64(readOffset))
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to read checksum in segment: %w", err)
@@ -1546,16 +1614,16 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 		}
 
 		// delete dirty region file
-		for _, regId := range dirtyIds {
-			func(regId int64) {
-				lfs.mu.Lock()
-				defer lfs.mu.Unlock()
-				reg, ok := lfs.regions[regId]
+		for _, id := range dirtyIds {
+			func(id int64) {
+				lfs.regmux.Lock()
+				defer lfs.regmux.Unlock()
+				reg, ok := lfs.regions[id]
 				if ok {
 					_ = os.Remove(filepath.Join(lfs.directory, reg.Fd.Name()))
-					delete(lfs.regions, regId)
+					delete(lfs.regions, id)
 				}
-			}(regId)
+			}(id)
 		}
 
 	} else {
