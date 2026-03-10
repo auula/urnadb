@@ -716,7 +716,7 @@ func (lfs *LogStructuredFS) RunCheckpoint(second uint32) {
 				}
 
 				// 创建一个 buf 缓冲区方便服用内存
-				buf := bytes.NewBuffer(make([]byte, 0, 48))
+				buf := bytes.NewBuffer(make([]byte, 48))
 
 				// 遍历 indexs 确保锁的粒度更小
 				for _, imap := range lfs.indexs {
@@ -1014,7 +1014,7 @@ func recoveryIndex(reader *mmap.ReaderAt, indexs []*indexMap) error {
 		defer wg.Done()
 		defer close(nqueue)
 
-		buf := make([]byte, 0, _INDEX_SEGMENT_SIZE)
+		buf := make([]byte, _INDEX_SEGMENT_SIZE)
 
 		for offset < int64(reader.Len()) {
 			select {
@@ -1256,7 +1256,7 @@ func checkFileSystem(path string, fsPerm fs.FileMode) error {
 
 // | DEL 1 | KIND 1 | EAT 8 | CAT 8 | KLEN 4 | VLEN 4 | KEY ? | VALUE ? | CRC32 4 |
 func readSegment(reader io.ReaderAt, offset, bufsize int64) (uint64, *Segment, error) {
-	buf := make([]byte, 0, bufsize)
+	buf := make([]byte, bufsize)
 
 	_, err := reader.ReadAt(buf, offset)
 	if err != nil {
@@ -1293,7 +1293,7 @@ func readSegment(reader io.ReaderAt, offset, bufsize int64) (uint64, *Segment, e
 	// End of Header 26 bytes
 
 	// Read Key data
-	keybuf := make([]byte, 0, seg.KeySize)
+	keybuf := make([]byte, seg.KeySize)
 	_, err = reader.ReadAt(keybuf, int64(offset)+int64(readOffset))
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to parse key in segment: %w", err)
@@ -1301,7 +1301,7 @@ func readSegment(reader io.ReaderAt, offset, bufsize int64) (uint64, *Segment, e
 	readOffset += int(seg.KeySize)
 
 	// Read Value data
-	valuebuf := make([]byte, 0, seg.ValueSize)
+	valuebuf := make([]byte, seg.ValueSize)
 	_, err = reader.ReadAt(valuebuf, int64(offset)+int64(readOffset))
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to parse value in segment: %w", err)
@@ -1309,7 +1309,7 @@ func readSegment(reader io.ReaderAt, offset, bufsize int64) (uint64, *Segment, e
 	readOffset += int(seg.ValueSize)
 
 	// Read checksum (4 bytes)
-	checksumBuf := make([]byte, 0, 4)
+	checksumBuf := make([]byte, 4)
 	_, err = reader.ReadAt(checksumBuf, int64(offset)+int64(readOffset))
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to read checksum in segment: %w", err)
