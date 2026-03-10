@@ -169,7 +169,7 @@ func (lfs *LogStructuredFS) BatchFetchSegments(keys ...string) ([]*Segment, erro
 }
 
 func (lfs *LogStructuredFS) CommitTxns(snaps []*Snapshot) error {
-	if snaps == nil {
+	if len(snaps) == 0 {
 		return errors.New("unexpected empty snapshot")
 	}
 
@@ -211,7 +211,7 @@ func (lfs *LogStructuredFS) CommitTxns(snaps []*Snapshot) error {
 }
 
 func (lfs *LogStructuredFS) RollbackTxns(snaps []*Snapshot) error {
-	if snaps == nil {
+	if len(snaps) == 0 {
 		return errors.New("unexpected empty snapshot")
 	}
 	return nil
