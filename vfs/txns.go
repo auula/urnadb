@@ -44,24 +44,27 @@ func acquireTxnId() uint64 {
 // 但是还没有提交，万一这个时候系统崩溃了数据就丢了，所以要有 .txn 文件来记录是对应 key 的老数据版本。
 // 等系统重启的时候再去读取 .txn 文件中的数据来恢复对应 key 的老数据版本，这样就保证了数据的安全性和一致性了。
 type Transaction struct {
-	fd      *os.File
-	id      uint64
-	path    string
-	store   *LogStructuredFS
-	execute func(ctx *TxnState) error
-	once    sync.Once
+	fd        *os.File
+	id        uint64
+	path      string
+	store     *LogStructuredFS
+	execute   func(ctx *TxnState) error
+	snapshots []*Snapshot
+	once      sync.Once
+	newKeys   []string
 }
 
 type TxnState struct {
 	fd     *os.File
 	store  *LogStructuredFS
 	writes []*Snapshot
+	reads  []*Snapshot
 	keys   map[string]struct{}
 }
 
 // 运算完成之后的结果进行持久化存储，注意这里的 segs 可能有新加入的新 key 不在 Begin 中返回的。
-func (ctx *TxnState) Saves(snaps []*Snapshot) error {
-	ctx.writes = append(ctx.writes, snaps...)
+func (ctx *TxnState) Save(snaps []*Snapshot) error {
+	ctx.writes = snaps
 	return nil
 }
 
@@ -70,22 +73,28 @@ func (ctx *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 	var result []*Snapshot
 	ctx.keys = make(map[string]struct{}, len(keys))
 
-	if len(keys) > 0 {
-		for _, key := range keys {
-			mvcc, seg, err := ctx.store.FetchSegment(key)
-			if err != nil {
-				return nil, err
-			}
-			ctx.keys[key] = struct{}{}
-			result = append(result, &Snapshot{
-				Segment: seg,
-				mvcc:    mvcc,
-			})
+	for _, key := range keys {
+		mvcc, seg, err := ctx.store.FetchSegment(key)
+		if err != nil {
+			return nil, err
 		}
+		ctx.keys[key] = struct{}{}
+		result = append(result, &Snapshot{
+			Segment: seg,
+			mvcc:    mvcc,
+		})
 	}
 
 	if len(result) == 0 {
 		return nil, ErrEmptyBeginSnapshot
+	}
+
+	// 这里要注意对 result 中的每个 Snapshot 进行深复制，不能直接把 result 中的 Snapshot 的指针赋值给 ctx.reads，
+	// 因为后面可能会对 ctx.reads 中的 Snapshot 进行修改，导致 result 中的 Snapshot 也被修改了，这样就不符合事务的 MVCC 原子性了。
+	ctx.reads = make([]*Snapshot, len(result))
+	for i, s := range result {
+		cp := *s
+		ctx.reads[i] = &cp
 	}
 
 	buf := make([]byte, 0, 1024)
@@ -120,7 +129,7 @@ func (s *Snapshot) hasConflict(version uint64) bool {
 // 这里的 keys 是事务涉及到的 key 列表，事务执行过程中会对这些 key 进行读写操作，
 // 所以需要在事务开始的时候就把这些 key 传进来，这样就可以在事务执行过程中对这些 key 进行操作了。
 // 拿到这些 key 对应磁盘老版本数据写到 .txn 文件中，这样就保证了能在事物执行失败时执行回滚操作。
-func NewTransaction(store *LogStructuredFS) (*Transaction, error) {
+func (store *LogStructuredFS) NewTransaction() (*Transaction, error) {
 	txnId := acquireTxnId()
 	txnPath := filepath.Join(store.directory, txnDirName, fmt.Sprintf("%d%s", txnId, txnExtension))
 	fd, err := os.OpenFile(txnPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, store.fsPerm)
@@ -174,26 +183,33 @@ func (t *Transaction) Commit() error {
 		return err
 	}
 
+	t.snapshots = state.reads
+	buf := make([]byte, 0, _PAGE_SIZE_4KB)
+
 	var allowed, conflict = true, (*Snapshot)(nil)
 	for _, seg := range state.writes {
-		key := seg.GetKeyString()
+		key := seg.KeyString()
+		// 新 key 就不需要做版本控制检查了，直接添加到 .txn 文件中就好了
 		if _, ok := state.keys[key]; !ok {
-			// 中途新 key 应该添加一条删除记录，事物启动时直接回滚到没有这个 key 状态下。
+			// 中途新 key 应该添加一条删除记录
+			t.newKeys = append(t.newKeys, key)
+			// 事物启动时直接回滚到没有这个 key 状态下
 			tombstone := NewTombstoneSegment(key)
 			bytes, err := serializedSegment(tombstone)
 			if err != nil {
 				return err
 			}
-			err = appendToActiveRegion(state.fd, bytes)
-			if err != nil {
-				return err
-			}
-			// 新 key 就不需要做版本控制检查。
+			buf = append(buf, bytes...)
 			continue
 		}
+
+		err := appendToActiveRegion(state.fd, buf)
+		if err != nil {
+			return err
+		}
+
 		// 老版本的 key 必须做版本检查。
-		version, ok := t.store.mvcc(key)
-		if ok && !seg.hasConflict(version) {
+		if version, ok := t.store.mvcc(key); ok && !seg.hasConflict(version) {
 			conflict, allowed = seg, false
 		}
 	}
@@ -208,17 +224,28 @@ func (t *Transaction) Commit() error {
 		if err != nil {
 			return fmt.Errorf("failed to commit delete transaction: %w", err)
 		}
+		return nil
 	}
 
-	return fmt.Errorf("mvcc version conflict for key %q", conflict.GetKeyString())
+	return fmt.Errorf("mvcc version conflict for key %q", conflict.KeyString())
 }
 
 // 这里 Rollback 是将缓冲区对应磁盘 .txn 中的数据写会到 .db 文件中，
 // 写回操作要注意更新索引 inode 和 .db 文件映射关系，同样删除 .txn 文件，
 // 这样下去启动的时候存储引擎就不会再去读取 .txn 文件了。
 func (t *Transaction) Rollback() error {
-	t.store.RollbackTxns(nil)
+	if len(t.snapshots) == 0 {
+		return ErrEmptyBeginSnapshot
+	}
+
+	err := t.store.RollbackTxns(t.newKeys, t.snapshots)
+	if err != nil {
+		return fmt.Errorf("failed to rollback transaction: %w", err)
+	}
+	err = os.Remove(t.path)
+	if err != nil {
+		return fmt.Errorf("failed to rollback delete transaction file: %w", err)
+	}
+
 	return nil
 }
-
-type TransactionManager struct{}

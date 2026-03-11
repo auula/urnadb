@@ -143,9 +143,9 @@ func TestReadSegment(t *testing.T) {
 		t.Errorf("expected Value to be %s, but got: %s", string(seg.Value), string(segment.Value))
 	}
 
-	// 校验返回的 inode number (inodeNum)
-	if inum != inodeNum(string(seg.Key)) {
-		t.Errorf("expected inodeNum to be '%s', but got: %d", seg.Key, inum)
+	// 校验返回的 inode number (keyHash)
+	if inum != keyHash(string(seg.Key)) {
+		t.Errorf("expected keyHash to be '%s', but got: %d", seg.Key, inum)
 	}
 }
 

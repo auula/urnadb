@@ -55,6 +55,7 @@ const (
 	_GC_INACTIVE
 	_SEGMENT_PADDING    = 26
 	_INDEX_SEGMENT_SIZE = 48
+	_PAGE_SIZE_4KB      = 4 << 10
 )
 
 var (
@@ -116,8 +117,7 @@ type LogStructuredFS struct {
 
 // PutSegment inserts a Segment record into the LogStructuredFS virtual file system.
 func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
-	inum := inodeNum(key)
-
+	inum := keyHash(key)
 	bytes, err := serializedSegment(seg)
 	if err != nil {
 		return err
@@ -168,52 +168,114 @@ func (lfs *LogStructuredFS) BatchFetchSegments(keys ...string) ([]*Segment, erro
 	return segs, nil
 }
 
-func (lfs *LogStructuredFS) CommitTxns(snaps []*Snapshot) error {
-	if len(snaps) == 0 {
+func (lfs *LogStructuredFS) CommitTxns(snapshots []*Snapshot) error {
+	if len(snapshots) == 0 {
 		return errors.New("unexpected empty snapshot")
 	}
 
 	lfs.mu.Lock()
 	defer lfs.mu.Unlock()
 
-	for _, seg := range snaps {
-		bytes, err := serializedSegment(seg.Segment)
+	for _, snapshot := range snapshots {
+		bytes, err := serializedSegment(snapshot.Segment)
 		if err != nil {
 			return err
 		}
+
 		err = appendToActiveRegion(lfs.active, bytes)
 		if err != nil {
 			return err
 		}
 
-		inum := inodeNum(seg.GetKeyString())
+		inum := keyHash(snapshot.KeyString())
 		imap := lfs.indexs[inum%uint64(shard)]
 
 		imap.mu.Lock()
 		imap.index[inum] = &inode{
 			RegionId:  lfs.regionId,
 			Position:  lfs.offset,
-			Length:    seg.Size(),
-			CreatedAt: seg.CreatedAt,
-			ExpiredAt: seg.ExpiredAt,
-			mvcc:      seg.mvcc + 1,
+			Length:    snapshot.Size(),
+			CreatedAt: snapshot.CreatedAt,
+			ExpiredAt: snapshot.ExpiredAt,
+			mvcc:      snapshot.mvcc + 1,
 		}
 		imap.mu.Unlock()
 
-		lfs.offset += int64(seg.Size())
+		lfs.offset += int64(snapshot.Size())
+	}
 
-		if lfs.offset >= lfs.regionThreshold {
-			return lfs.changeRegions()
-		}
+	if lfs.offset >= lfs.regionThreshold {
+		return lfs.changeRegions()
 	}
 
 	return nil
 }
 
-func (lfs *LogStructuredFS) RollbackTxns(snaps []*Snapshot) error {
-	if len(snaps) == 0 {
+func (lfs *LogStructuredFS) RollbackTxns(keys []string, snapshots []*Snapshot) error {
+	if len(snapshots) == 0 {
 		return errors.New("unexpected empty snapshot")
 	}
+
+	lfs.mu.Lock()
+	defer lfs.mu.Unlock()
+
+	for _, key := range keys {
+		inum := keyHash(key)
+		imap := lfs.indexs[inum%uint64(shard)]
+		if imap == nil {
+			return fmt.Errorf("inode index shard for %d not found", inum)
+		}
+
+		seg := NewTombstoneSegment(key)
+		bytes, err := serializedSegment(seg)
+		if err != nil {
+			return err
+		}
+
+		err = appendToActiveRegion(lfs.active, bytes)
+		if err != nil {
+			return err
+		}
+
+		imap.mu.Lock()
+		delete(imap.index, inum)
+		imap.mu.Unlock()
+
+		lfs.offset += int64(seg.Size())
+	}
+
+	for _, snapshot := range snapshots {
+		bytes, err := serializedSegment(snapshot.Segment)
+		if err != nil {
+			return err
+		}
+
+		err = appendToActiveRegion(lfs.active, bytes)
+		if err != nil {
+			return err
+		}
+
+		inum := keyHash(snapshot.KeyString())
+		imap := lfs.indexs[inum%uint64(shard)]
+
+		imap.mu.Lock()
+		imap.index[inum] = &inode{
+			RegionId:  lfs.regionId,
+			Position:  lfs.offset,
+			Length:    snapshot.Size(),
+			CreatedAt: snapshot.CreatedAt,
+			ExpiredAt: snapshot.ExpiredAt,
+			mvcc:      snapshot.mvcc,
+		}
+		imap.mu.Unlock()
+
+		lfs.offset += int64(snapshot.Size())
+	}
+
+	if lfs.offset >= lfs.regionThreshold {
+		return lfs.changeRegions()
+	}
+
 	return nil
 }
 
@@ -235,7 +297,7 @@ func (lfs *LogStructuredFS) DeleteSegment(key string) error {
 	lfs.offset += int64(seg.Size())
 	lfs.mu.Unlock()
 
-	inum := inodeNum(key)
+	inum := keyHash(key)
 	imap := lfs.indexs[inum%uint64(shard)]
 	if imap == nil {
 		return fmt.Errorf("inode index shard for %d not found", inum)
@@ -249,7 +311,7 @@ func (lfs *LogStructuredFS) DeleteSegment(key string) error {
 }
 
 func (lfs *LogStructuredFS) IsActive(key string) bool {
-	inum := inodeNum(key)
+	inum := keyHash(key)
 	imap := lfs.indexs[inum%uint64(shard)]
 	if imap == nil {
 		return false
@@ -266,8 +328,7 @@ func (lfs *LogStructuredFS) IsActive(key string) bool {
 }
 
 func (lfs *LogStructuredFS) mvcc(key string) (uint64, bool) {
-	inum := inodeNum(key)
-
+	inum := keyHash(key)
 	imap := lfs.indexs[inum%uint64(shard)]
 	if imap == nil {
 		return 0, false
@@ -285,7 +346,7 @@ func (lfs *LogStructuredFS) mvcc(key string) (uint64, bool) {
 }
 
 func (lfs *LogStructuredFS) FetchSegment(key string) (uint64, *Segment, error) {
-	inum := inodeNum(key)
+	inum := keyHash(key)
 	imap := lfs.indexs[inum%uint64(shard)]
 	if imap == nil {
 		return 0, nil, fmt.Errorf("inode index shard for %d not found", inum)
@@ -383,7 +444,7 @@ func (lfs *LogStructuredFS) expireKeysLoop() {
 	}
 }
 
-func inodeNum(key string) uint64 {
+func keyHash(key string) uint64 {
 	return murmur3.Sum64([]byte(key))
 }
 
@@ -602,6 +663,15 @@ func (lfs *LogStructuredFS) scanAndRecoverRegions() error {
 		if err != nil {
 			return fmt.Errorf("failed to get region file info: %w", err)
 		}
+
+		// 直接复用上一次的未写满的 active 文件
+		offset, err := active.Fd.Seek(0, io.SeekEnd)
+		if err != nil {
+			return fmt.Errorf("failed to get region file offset: %w", err)
+		}
+
+		lfs.active = active.Fd
+		lfs.offset = offset
 
 		if stat.Size() >= lfs.regionThreshold {
 			return lfs.changeRegions()
@@ -1334,7 +1404,7 @@ func readSegment(reader io.ReaderAt, offset, bufsize int64) (uint64, *Segment, e
 	seg.Key = keybuf
 	seg.Value = decodedData
 
-	return inodeNum(string(keybuf)), &seg, nil
+	return keyHash(string(keybuf)), &seg, nil
 }
 
 func toStringFileName(regionId int64) (string, error) {
@@ -1525,9 +1595,9 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 
 		// find 40% dirty regions
 		for i := 0; i < 4 && i < len(regionIds); i++ {
-			lfs.mu.RLock()
+			lfs.regmux.Lock()
 			exclude := regionIds[i] == lfs.regionId
-			lfs.mu.RUnlock()
+			lfs.regmux.Unlock()
 
 			// 排除活跃的文件
 			if exclude {

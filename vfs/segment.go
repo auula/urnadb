@@ -181,11 +181,11 @@ func (s *Segment) IsTombstone() bool {
 	return s.Tombstone == 1
 }
 
-func (s *Segment) GetTypeString() string {
+func (s *Segment) TypeString() string {
 	return kindToString[s.Type]
 }
 
-func (s *Segment) GetKeyString() string {
+func (s *Segment) KeyString() string {
 	return string(s.Key)
 }
 

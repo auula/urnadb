@@ -39,8 +39,8 @@ func QueryController(ctx *gin.Context) {
 	ttl, _ := seg.ExpiresIn()
 
 	ctx.IndentedJSON(http.StatusOK, response.OkJSON("metadata query completed successfully", gin.H{
-		"type":  seg.GetTypeString(),
-		"key":   seg.GetKeyString(),
+		"type":  seg.TypeString(),
+		"key":   seg.KeyString(),
 		"value": seg.Value,
 		"ttl":   ttl,
 		"mvcc":  version,

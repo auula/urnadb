@@ -42,6 +42,7 @@ func (h *HealthService) RegionCompactStatus() uint8 {
 func (h *HealthService) RegionInodeCount() uint64 {
 	return h.storage.RefreshInodeCount()
 }
+
 func (h *HealthService) GetTotalSpaceUsed() uint64 {
 	return h.storage.GetTotalSpaceUsed()
 }
