@@ -28,7 +28,7 @@ func TestPipelineWithComplexData(t *testing.T) {
 
 	// 启用压缩
 	pipeline.SetCompressor(&Snappy{})
-	pipeline.SetEncryptor(AESCryptor, []byte("1234567890123456"))
+	pipeline.SetEncryptor(AESBlockCipher, []byte("1234567890123456"))
 
 	// 对数据进行编码（压缩 + 加密）
 	encodedData, err := pipeline.Encode([]byte(originalString))

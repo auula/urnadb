@@ -429,7 +429,7 @@ func TestVFSOpertions(t *testing.T) {
 	err = fss.ExportSnapshotIndex()
 	assert.NoError(t, err)
 
-	err = fss.SetEncryptor(AESCryptor, []byte("1234567890123456"))
+	err = fss.SetEncryptor(AESBlockCipher, []byte("1234567890123456"))
 	assert.NoError(t, err)
 
 	fss.SetCompressor(SnappyCompressor)
