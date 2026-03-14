@@ -12,33 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controllers
+package controller
 
 import (
+	"net/http"
+
 	"github.com/auula/urnadb/server/response"
-	"github.com/auula/urnadb/server/services"
-	"github.com/auula/urnadb/vfs"
+	"github.com/auula/urnadb/utils"
+	"github.com/gin-gonic/gin"
 )
 
-var (
-	ts services.TablesService
-	qs services.QueryService
-	ls services.LocksService
-	rs services.RecordsService
-	vs services.VariantsService
-	hs *services.HealthService
-)
+func QueryController(ctx *gin.Context) {
+	name := ctx.Param("key")
+	if !utils.NotNullString(name) {
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
+		return
+	}
 
-var (
-	miss_key = response.FailJSON("missing key in request path")
-)
+	version, seg, err := qs.QuerySegment(name)
+	if err != nil {
+		ctx.IndentedJSON(http.StatusNotFound, response.FailJSON(err.Error()))
+		return
+	}
 
-func InitAllComponents(storage *vfs.LogStructuredFS) error {
-	hs = services.NewHealthService(storage)
-	rs = services.NewRecordsService(storage)
-	ls = services.NewLocksServiceImpl(storage)
-	qs = services.NewQueryServiceImpl(storage)
-	ts = services.NewTablesServiceImpl(storage)
-	vs = services.NewVariantsServiceImpl(storage)
-	return nil
+	defer utils.ReleaseToPool(seg)
+	ttl, _ := seg.ExpiresIn()
+
+	ctx.IndentedJSON(http.StatusOK, response.OkJSON("metadata query completed successfully", gin.H{
+		"type":  seg.TypeString(),
+		"key":   seg.KeyString(),
+		"value": seg.Value,
+		"ttl":   ttl,
+		"mvcc":  version,
+	}))
 }

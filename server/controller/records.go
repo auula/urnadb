@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controllers
+package controller
 
 import (
 	"errors"
 	"net/http"
 
 	"github.com/auula/urnadb/server/response"
-	"github.com/auula/urnadb/server/services"
+	services "github.com/auula/urnadb/server/service"
 	"github.com/auula/urnadb/types"
 	"github.com/auula/urnadb/utils"
 	"github.com/gin-gonic/gin"
