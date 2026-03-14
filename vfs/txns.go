@@ -23,7 +23,10 @@ import (
 	"sync/atomic"
 )
 
-var ErrEmptyBeginSnapshot = errors.New("unexpected empty begin snapshot")
+var (
+	ErrEmptyBeginSnapshot = errors.New("unexpected empty begin snapshot")
+	ErrRemoveTransaction  = errors.New("failed to delete transaction file")
+)
 
 // 全句事物 ID 每次创建一个新的事物就会自增 1 ，保证每个事物都有一个唯一的 ID 所对应的 .txn 文件了，
 // 这个 ID 就是 .txn 文件的文件名，系统重启的时候就会去读取这个 .txn 文件来恢复对应 key 的老数据版本了。
@@ -52,6 +55,7 @@ type Transaction struct {
 	snapshots []*Snapshot
 	once      sync.Once
 	newKeys   []string
+	rollback  bool
 }
 
 type TxnState struct {
@@ -159,7 +163,7 @@ func (store *LogStructuredFS) NewTransaction() (*Transaction, error) {
 }
 
 // 本次事物执行过程中新 keys 对应的新版本的 segment 进行持久化到 .db 文件中并且更新索引 inode 和 .db 文件映射关系。
-func (t *Transaction) AtomicBatch(callback func(ctx *TxnState) error) {
+func (t *Transaction) AtomicBatch(callback func(txns *TxnState) error) {
 	t.once.Do(func() {
 		t.execute = callback
 	})
@@ -180,6 +184,7 @@ func (t *Transaction) Commit() error {
 	state := &TxnState{store: t.store, fd: t.fd}
 	err := t.execute(state)
 	if err != nil {
+		t.snapshots = state.reads
 		return err
 	}
 
@@ -209,8 +214,9 @@ func (t *Transaction) Commit() error {
 		}
 
 		// 老版本的 key 必须做版本检查。
-		if version, ok := t.store.mvcc(key); ok && !seg.hasConflict(version) {
-			conflict, allowed = seg, false
+		if version, ok := t.store.visible(key); ok && !seg.hasConflict(version) {
+			conflict, allowed, t.rollback = seg, false, false
+			break
 		}
 	}
 
@@ -218,10 +224,12 @@ func (t *Transaction) Commit() error {
 	if allowed {
 		err := t.store.CommitTxns(state.writes)
 		if err != nil {
+			t.rollback = true
 			return fmt.Errorf("failed to commit transaction: %w", err)
 		}
 		err = os.Remove(t.path)
 		if err != nil {
+			t.rollback = false
 			return fmt.Errorf("failed to commit delete transaction: %w", err)
 		}
 		return nil
@@ -238,11 +246,15 @@ func (t *Transaction) Rollback() error {
 		return ErrEmptyBeginSnapshot
 	}
 
-	err := t.store.RollbackTxns(t.newKeys, t.snapshots)
-	if err != nil {
-		return fmt.Errorf("failed to rollback transaction: %w", err)
+	// 如果是版本冲突就不需要进行回滚，直接删除 .txn 文件就好了
+	if t.rollback {
+		err := t.store.RollbackTxns(t.newKeys, t.snapshots)
+		if err != nil {
+			return fmt.Errorf("failed to rollback transaction: %w", err)
+		}
 	}
-	err = os.Remove(t.path)
+
+	err := os.Remove(t.path)
 	if err != nil {
 		return fmt.Errorf("failed to rollback delete transaction file: %w", err)
 	}

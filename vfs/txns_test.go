@@ -46,7 +46,7 @@ func testPutSegment(store *LogStructuredFS) {
 	}
 }
 
-func TestBatchTransaction(t *testing.T) {
+func TestCommitTransaction(t *testing.T) {
 	// 这里可以测试一下事务的提交和回滚功能了，确保事务的原子性和一致性了。
 	fss, err := OpenFS(&Options{
 		FSPerm:    conf.FSPerm,
@@ -64,9 +64,9 @@ func TestBatchTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	txns.AtomicBatch(func(ctx *TxnState) error {
+	txns.AtomicBatch(func(txns *TxnState) error {
 		keys := []string{"key1", "key2"}
-		snapshots, err := ctx.Begin(keys)
+		snapshots, err := txns.Begin(keys)
 		if err != nil {
 			return err
 		}
@@ -80,7 +80,14 @@ func TestBatchTransaction(t *testing.T) {
 		snapshots[1].Value = []byte("test transaction 2.")
 		snapshots[1].ValueSize = int32(len(snapshots[1].Value))
 
-		return ctx.Save(snapshots)
+		seg, _ := NewSegment("key3", &types.Variant{}, ImmortalTTL)
+
+		snapshots = append(snapshots, &Snapshot{
+			mvcc:    1,
+			Segment: seg,
+		})
+
+		return txns.Save(snapshots)
 	})
 
 	if err := txns.Commit(); err != nil {
@@ -109,5 +116,32 @@ func TestBatchTransaction(t *testing.T) {
 
 	if string(seg.Value) != "test transaction 2." {
 		t.Fatalf("expected value to be 'test transaction 2.', but got: %s", string(seg.Value))
+	}
+}
+
+func TestRollbackTransaction(t *testing.T) {
+	fss, err := OpenFS(&Options{
+		FSPerm:    conf.FSPerm,
+		Path:      conf.Settings.Path,
+		Threshold: conf.Settings.Region.Threshold,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txns, err := fss.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txns.AtomicBatch(func(txns *TxnState) error {
+		return errors.New("simulated transaction failure")
+	})
+
+	if err := txns.Commit(); err != nil {
+		err := txns.Rollback()
+		if !errors.Is(err, ErrEmptyBeginSnapshot) {
+			t.Fatal(err)
+		}
 	}
 }

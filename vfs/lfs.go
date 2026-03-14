@@ -327,7 +327,7 @@ func (lfs *LogStructuredFS) IsActive(key string) bool {
 	return (inode != nil && inode.ExpiredAt == ImmortalTTL) || (inode.ExpiredAt > 0 && time.Now().UnixMicro() < inode.ExpiredAt)
 }
 
-func (lfs *LogStructuredFS) mvcc(key string) (uint64, bool) {
+func (lfs *LogStructuredFS) visible(key string) (uint64, bool) {
 	inum := keyHash(key)
 	imap := lfs.indexs[inum%uint64(shard)]
 	if imap == nil {
