@@ -430,7 +430,7 @@ func (lfs *LogStructuredFS) StopExpireLoop() {
 	}
 }
 
-func (lfs *LogStructuredFS) expireKeysLoop() {
+func (lfs *LogStructuredFS) cleanupExpired() {
 	for range lfs.expireLoopWorker.C {
 		for _, imap := range lfs.indexs {
 			imap.mu.Lock()
@@ -963,7 +963,7 @@ func OpenFS(opt *Options) (*LogStructuredFS, error) {
 	}
 
 	// 120 秒执行一次过期 keys 的检查，防止已经过期 key 一直存储在内存中
-	go storage.expireKeysLoop()
+	go storage.cleanupExpired()
 
 	// Singleton pattern, but other packages can still create an instance with new(LogStructuredFS), which makes this ineffective
 	return storage, nil
