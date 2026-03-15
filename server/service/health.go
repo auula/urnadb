@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package services
+package service
 
 import (
 	"github.com/auula/urnadb/vfs"
@@ -42,6 +42,7 @@ func (h *HealthService) RegionCompactStatus() uint8 {
 func (h *HealthService) RegionInodeCount() uint64 {
 	return h.storage.RefreshInodeCount()
 }
+
 func (h *HealthService) GetTotalSpaceUsed() uint64 {
 	return h.storage.GetTotalSpaceUsed()
 }

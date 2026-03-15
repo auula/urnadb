@@ -26,9 +26,9 @@ import (
 	"time"
 
 	"github.com/auula/urnadb/clog"
-	"github.com/auula/urnadb/server/controllers"
-	"github.com/auula/urnadb/server/middlewares"
-	"github.com/auula/urnadb/server/routes"
+	"github.com/auula/urnadb/server/controller"
+	"github.com/auula/urnadb/server/middleware"
+	"github.com/auula/urnadb/server/router"
 	"github.com/auula/urnadb/vfs"
 )
 
@@ -96,12 +96,12 @@ func New(opt *Options) (*HttpServer, error) {
 	}
 
 	pkgmut.Lock()
-	middlewares.SetAuthPassword(opt.Auth)
+	middleware.SetAuthPassword(opt.Auth)
 	pkgmut.Unlock()
 
 	hs := HttpServer{
 		serv: &http.Server{
-			Handler:      routes.SetupRoutes(),
+			Handler:      router.SetupRoutes(),
 			Addr:         net.JoinHostPort(ipv4, strconv.Itoa(int(opt.Port))),
 			WriteTimeout: timeout,
 			ReadTimeout:  timeout,
@@ -121,13 +121,13 @@ func (*HttpServer) SetupFS(fss *vfs.LogStructuredFS) {
 	pkgmut.Lock()
 	defer pkgmut.Unlock()
 	storage = fss
-	controllers.InitAllComponents(storage)
+	controller.InitAllComponents(storage)
 }
 
 func (*HttpServer) SetAllowIP(allowd []string) {
 	pkgmut.Lock()
 	defer pkgmut.Unlock()
-	middlewares.SetAllowIpList(allowd)
+	middleware.SetAllowIpList(allowd)
 }
 
 func (hs *HttpServer) Port() uint16 {

@@ -12,15 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controllers
+package service
 
 import (
-	"net/http"
-
-	"github.com/auula/urnadb/server/response"
-	"github.com/gin-gonic/gin"
+	"github.com/auula/urnadb/vfs"
 )
 
-func Error404Handler(ctx *gin.Context) {
-	ctx.JSON(http.StatusNotFound, response.FailJSON("Oops! 404 Not Found!"))
+type QueryService interface {
+	QuerySegment(name string) (version uint64, seg *vfs.Segment, err error)
+}
+
+type QueryServiceImpl struct {
+	storage *vfs.LogStructuredFS
+}
+
+func NewQueryServiceImpl(storage *vfs.LogStructuredFS) QueryService {
+	return &QueryServiceImpl{
+		storage: storage,
+	}
+}
+
+func (q *QueryServiceImpl) QuerySegment(name string) (version uint64, seg *vfs.Segment, err error) {
+	return q.storage.FetchSegment(name)
 }

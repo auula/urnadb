@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controllers
+package controller
 
 import (
 	"errors"
 	"net/http"
 
 	"github.com/auula/urnadb/server/response"
-	"github.com/auula/urnadb/server/services"
+	services "github.com/auula/urnadb/server/service"
 	"github.com/auula/urnadb/utils"
 	"github.com/gin-gonic/gin"
 )
@@ -35,7 +35,7 @@ type LeaseLockRequest struct {
 func NewLockController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 
@@ -62,7 +62,7 @@ func NewLockController(ctx *gin.Context) {
 func DeleteLockController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 
@@ -85,7 +85,7 @@ func DeleteLockController(ctx *gin.Context) {
 func DoLeaseLockController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 
