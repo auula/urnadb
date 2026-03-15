@@ -155,10 +155,11 @@ func (store *LogStructuredFS) NewTransaction() (*Transaction, error) {
 	}
 
 	return &Transaction{
-		fd:    fd,
-		store: store,
-		id:    txnId,
-		path:  txnPath,
+		fd:       fd,
+		store:    store,
+		id:       txnId,
+		path:     txnPath,
+		rollback: false,
 	}, nil
 }
 
