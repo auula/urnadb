@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	AESCryptor       = new(Cryptor)
+	AESBlockCipher   = new(Cryptor)
 	SnappyCompressor = new(Snappy)
 )
 

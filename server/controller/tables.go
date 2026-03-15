@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controllers
+package controller
 
 import (
 	"errors"
@@ -20,7 +20,7 @@ import (
 	"net/http"
 
 	"github.com/auula/urnadb/server/response"
-	"github.com/auula/urnadb/server/services"
+	services "github.com/auula/urnadb/server/service"
 	"github.com/auula/urnadb/types"
 	"github.com/auula/urnadb/utils"
 	"github.com/gin-gonic/gin"
@@ -33,7 +33,7 @@ type CreateTableRequest struct {
 func CreateTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 
@@ -61,7 +61,7 @@ func CreateTableController(ctx *gin.Context) {
 func DeleteTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 
@@ -77,7 +77,7 @@ func DeleteTableController(ctx *gin.Context) {
 func QueryTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 
@@ -98,7 +98,7 @@ type PatchRowsRequest struct {
 func PatchRowsTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 
@@ -125,7 +125,7 @@ type QueryRowsRequest struct {
 func QueryRowsTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 
@@ -148,7 +148,7 @@ func QueryRowsTableController(ctx *gin.Context) {
 func RemoveRowsTabelController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 
@@ -175,7 +175,7 @@ type InsertRowsRequest struct {
 func InsertRowsTableController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 

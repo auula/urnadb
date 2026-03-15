@@ -145,9 +145,9 @@ func runServer() {
 	}
 
 	if conf.Settings.IsEncryptionEnabled() {
-		// Set file data to use AES cryptor algorithm
-		fss.SetEncryptor(vfs.AESCryptor, conf.Settings.Secret())
-		clog.Info("Static encryptor activated was successfully")
+		// Set file data to use AES cipher algorithm
+		fss.SetEncryptor(vfs.AESBlockCipher, conf.Settings.Secret())
+		clog.Info("Block encryptor activated was successfully")
 	}
 
 	if conf.Settings.IsCompactRegionEnabled() {

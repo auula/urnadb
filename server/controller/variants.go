@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controllers
+package controller
 
 import (
 	"errors"
 	"net/http"
 
 	"github.com/auula/urnadb/server/response"
-	"github.com/auula/urnadb/server/services"
+	"github.com/auula/urnadb/server/service"
 	"github.com/auula/urnadb/types"
 	"github.com/auula/urnadb/utils"
 	"github.com/gin-gonic/gin"
@@ -28,7 +28,7 @@ import (
 func DeleteVariantController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 
@@ -44,7 +44,7 @@ func DeleteVariantController(ctx *gin.Context) {
 func GetVariantController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 
@@ -69,7 +69,7 @@ type CreateVariantRequest struct {
 func CreateVariantController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 
@@ -112,7 +112,7 @@ type MathVariantRequest struct {
 func MathVariantController(ctx *gin.Context) {
 	name := ctx.Param("key")
 	if !utils.NotNullString(name) {
-		ctx.IndentedJSON(http.StatusBadRequest, missKey)
+		ctx.IndentedJSON(http.StatusBadRequest, miss_key)
 		return
 	}
 
@@ -136,9 +136,9 @@ func MathVariantController(ctx *gin.Context) {
 
 func handlerVariantsError(ctx *gin.Context, err error) {
 	switch {
-	case errors.Is(err, services.ErrVariantNotFound):
+	case errors.Is(err, service.ErrVariantNotFound):
 		ctx.IndentedJSON(http.StatusNotFound, response.FailJSON(err.Error()))
-	case errors.Is(err, services.ErrVariantExpired):
+	case errors.Is(err, service.ErrVariantExpired):
 		ctx.IndentedJSON(http.StatusGone, response.FailJSON(err.Error()))
 	default:
 		// 所有其他错误都统一返回 500 内部服务器错误
