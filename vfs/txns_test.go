@@ -16,6 +16,7 @@ package vfs
 
 import (
 	"errors"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -248,4 +249,251 @@ func TestConflictTransaction(t *testing.T) {
 	}()
 
 	wg.Wait()
+}
+
+func TestCommitTxnsError(t *testing.T) {
+	_ = os.RemoveAll(conf.Settings.Path)
+
+	fss, err := OpenFS(&Options{
+		FSPerm:    conf.FSPerm,
+		Path:      conf.Settings.Path,
+		Threshold: conf.Settings.Region.Threshold,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testPutSegment(fss)
+
+	txns, err := fss.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txns.AtomicBatch(func(txns *TxnState) error {
+		keys := []string{"key1"}
+		snapshots, err := txns.Begin(keys)
+		if err != nil {
+			return err
+		}
+
+		snapshots[0].Value = []byte("test commit error")
+		snapshots[0].ValueSize = int32(len(snapshots[0].Value))
+
+		// 关闭 active region 文件，导致 CommitTxns 中的 appendToActiveRegion 失败
+		_ = fss.active.Close()
+
+		return txns.Save(snapshots)
+	})
+
+	err = txns.Commit()
+	if err == nil {
+		t.Fatal("expected commit to fail with closed active region")
+	}
+	t.Logf("Got expected error: %v", err)
+
+	// 验证 rollback 标志被设置
+	if !txns.rollback {
+		t.Error("expected rollback flag to be true after commit failure")
+	}
+}
+
+func TestCommitRemoveError(t *testing.T) {
+	_ = os.RemoveAll(conf.Settings.Path)
+
+	fss, err := OpenFS(&Options{
+		FSPerm:    conf.FSPerm,
+		Path:      conf.Settings.Path,
+		Threshold: conf.Settings.Region.Threshold,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testPutSegment(fss)
+
+	txns, err := fss.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txns.AtomicBatch(func(txns *TxnState) error {
+		keys := []string{"key1"}
+		snapshots, err := txns.Begin(keys)
+		if err != nil {
+			return err
+		}
+
+		snapshots[0].Value = []byte("test remove error")
+		snapshots[0].ValueSize = int32(len(snapshots[0].Value))
+
+		return txns.Save(snapshots)
+	})
+
+	// 提前删除 .txn 文件，导致 os.Remove 失败
+	_ = txns.fd.Close()
+	_ = os.Remove(txns.path)
+
+	err = txns.Commit()
+	if err == nil {
+		t.Fatal("expected commit to fail when removing txn file")
+	}
+	t.Logf("Got expected error: %v", err)
+}
+
+func TestRollbackWithNewKeys(t *testing.T) {
+	_ = os.RemoveAll(conf.Settings.Path)
+
+	fss, err := OpenFS(&Options{
+		FSPerm:    conf.FSPerm,
+		Path:      conf.Settings.Path,
+		Threshold: conf.Settings.Region.Threshold,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testPutSegment(fss)
+
+	txns, err := fss.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var activeFd *os.File
+	txns.AtomicBatch(func(txns *TxnState) error {
+		keys := []string{"key1"}
+		snapshots, err := txns.Begin(keys)
+		if err != nil {
+			return err
+		}
+
+		snapshots[0].Value = []byte("modified value")
+		snapshots[0].ValueSize = int32(len(snapshots[0].Value))
+
+		// 添加新 key
+		seg, _ := NewSegment("new-key", &types.Variant{}, ImmortalTTL)
+		snapshots = append(snapshots, &Snapshot{
+			mvcc:    1,
+			Segment: seg,
+		})
+
+		// 保存 active fd 引用
+		activeFd = txns.store.active
+
+		return txns.Save(snapshots)
+	})
+
+	err = txns.Commit()
+	if err == nil {
+		// Commit 成功，关闭 active region 然后再次尝试 rollback
+		_ = activeFd.Close()
+		err = txns.Rollback()
+		if err == nil {
+			t.Fatal("expected rollback to fail with closed active region")
+		}
+		t.Logf("Got expected rollback error: %v", err)
+	} else {
+		t.Logf("Commit failed as expected: %v", err)
+	}
+}
+
+func TestRollbackRemoveError(t *testing.T) {
+	_ = os.RemoveAll(conf.Settings.Path)
+
+	fss, err := OpenFS(&Options{
+		FSPerm:    conf.FSPerm,
+		Path:      conf.Settings.Path,
+		Threshold: conf.Settings.Region.Threshold,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testPutSegment(fss)
+
+	txns, err := fss.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txns.AtomicBatch(func(txns *TxnState) error {
+		keys := []string{"key1"}
+		_, err := txns.Begin(keys)
+		if err != nil {
+			return err
+		}
+		return errors.New("simulated failure")
+	})
+
+	err = txns.Commit()
+	if err == nil {
+		t.Fatal("expected commit to fail")
+	}
+
+	// 删除 .txn 文件导致 Rollback 中的 os.Remove 失败
+	_ = txns.fd.Close()
+	_ = os.Remove(txns.path)
+
+	err = txns.Rollback()
+	if err == nil {
+		t.Fatal("expected rollback to fail when removing txn file")
+	}
+	t.Logf("Got expected error: %v", err)
+}
+
+func TestRollbackTxnsError(t *testing.T) {
+	_ = os.RemoveAll(conf.Settings.Path)
+
+	fss, err := OpenFS(&Options{
+		FSPerm:    conf.FSPerm,
+		Path:      conf.Settings.Path,
+		Threshold: conf.Settings.Region.Threshold,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testPutSegment(fss)
+
+	txns, err := fss.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txns.AtomicBatch(func(txns *TxnState) error {
+		keys := []string{"key1"}
+		snapshots, err := txns.Begin(keys)
+		if err != nil {
+			return err
+		}
+
+		snapshots[0].Value = []byte("modified value")
+		snapshots[0].ValueSize = int32(len(snapshots[0].Value))
+
+		// 添加新 key 触发 rollback 逻辑
+		seg, _ := NewSegment("new-key", &types.Variant{}, ImmortalTTL)
+		snapshots = append(snapshots, &Snapshot{
+			mvcc:    1,
+			Segment: seg,
+		})
+
+		return txns.Save(snapshots)
+	})
+
+	// 先提交成功
+	err = txns.Commit()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 关闭 active region，然后调用 Rollback 触发 RollbackTxns 错误
+	_ = fss.active.Close()
+	txns.rollback = true // 强制执行 RollbackTxns
+
+	err = txns.Rollback()
+	if err == nil {
+		t.Fatal("expected rollback to fail with closed active region")
+	}
+	t.Logf("Got expected rollback error: %v", err)
 }
