@@ -557,8 +557,9 @@ func (lfs *LogStructuredFS) redoPendingTxns() error {
 			return fmt.Errorf("failed to stat pending transaction file: %w", err)
 		}
 
-		var seg *Segment
-		for offset := int64(len(dataFileMetadata)); offset < stat.Size(); offset += int64(seg.Size()) {
+		offset := int64(len(dataFileMetadata))
+
+		for offset < stat.Size() {
 			// Read segment of ? bytes
 			inum, seg, err := readSegment(fd, offset, _SEGMENT_PADDING)
 			if err != nil {
@@ -599,6 +600,8 @@ func (lfs *LogStructuredFS) redoPendingTxns() error {
 					return err
 				}
 			}
+
+			offset += int64(seg.Size())
 		}
 
 		err = os.Remove(txnFilePath)

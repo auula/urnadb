@@ -48,7 +48,7 @@ type Transaction struct {
 	id        uint64
 	path      string
 	store     *LogStructuredFS
-	execute   func(ctx *TxnState) error
+	execute   func(txns *TxnState) error
 	snapshots []*Snapshot
 	once      sync.Once
 	newKeys   []string
@@ -64,22 +64,22 @@ type TxnState struct {
 }
 
 // 运算完成之后的结果进行持久化存储，注意这里的 segs 可能有新加入的新 key 不在 Begin 中返回的。
-func (ctx *TxnState) Save(snaps []*Snapshot) error {
-	ctx.writes = snaps
+func (txns *TxnState) Save(snaps []*Snapshot) error {
+	txns.writes = snaps
 	return nil
 }
 
 // 事物开始的时候对本次事物需要的 keys 进行批量获取操作，方便后面进行运算。
-func (ctx *TxnState) Begin(keys []string) ([]*Snapshot, error) {
+func (txns *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 	var result []*Snapshot
-	ctx.keys = make(map[string]struct{}, len(keys))
+	txns.keys = make(map[string]struct{}, len(keys))
 
 	for _, key := range keys {
-		mvcc, seg, err := ctx.store.FetchSegment(key)
+		mvcc, seg, err := txns.store.FetchSegment(key)
 		if err != nil {
 			return nil, err
 		}
-		ctx.keys[key] = struct{}{}
+		txns.keys[key] = struct{}{}
 		result = append(result, &Snapshot{
 			Segment: seg,
 			mvcc:    mvcc,
@@ -90,12 +90,12 @@ func (ctx *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 		return nil, ErrEmptyBeginSnapshot
 	}
 
-	// 这里要注意对 result 中的每个 Snapshot 进行深复制，不能直接把 result 中的 Snapshot 的指针赋值给 ctx.reads，
-	// 因为后面可能会对 ctx.reads 中的 Snapshot 进行修改，导致 result 中的 Snapshot 也被修改了，这样就不符合事务的 MVCC 原子性了。
-	ctx.reads = make([]*Snapshot, len(result))
+	// 这里要注意对 result 中的每个 Snapshot 进行深复制，不能直接把 result 中的 Snapshot 的指针赋值给 txns.reads，
+	// 因为后面可能会对 txns.reads 中的 Snapshot 进行修改，导致 result 中的 Snapshot 也被修改了，这样就不符合事务的 MVCC 原子性了。
+	txns.reads = make([]*Snapshot, len(result))
 	for i, s := range result {
 		cp := *s
-		ctx.reads[i] = &cp
+		txns.reads[i] = &cp
 	}
 
 	buf := make([]byte, 0, 1024)
@@ -107,7 +107,7 @@ func (ctx *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 		buf = append(buf, bytes...)
 	}
 
-	err := appendToActiveRegion(ctx.fd, buf)
+	err := appendToActiveRegion(txns.fd, buf)
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +179,9 @@ func (t *Transaction) TxnID() uint64 {
 // 没有 .txn 文件了就说明没有未提交的事务了，事物执行成功了，一定要做版本控制检查器，检查每个数据的版本。
 // Commit 最重要一个环境就是对应 key 的新版本的 segment 进行持久化到 .db 文件中并且更新索引 inode 和 .db 文件映射关系。
 func (t *Transaction) Commit() error {
+	if t.execute == nil {
+		return errors.New("transaction execute function is not set")
+	}
 	state := &TxnState{store: t.store, fd: t.fd}
 	err := t.execute(state)
 	if err != nil {
@@ -233,7 +236,7 @@ func (t *Transaction) Commit() error {
 		return nil
 	}
 
-	return fmt.Errorf("mvcc version conflict for key %q", conflict.KeyString())
+	return fmt.Errorf("transaction id %d aborted: write conflict on key %q", t.TxnID(), conflict.KeyString())
 }
 
 // 这里 Rollback 是将缓冲区对应磁盘 .txn 中的数据写会到 .db 文件中，

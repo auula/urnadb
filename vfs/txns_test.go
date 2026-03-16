@@ -16,6 +16,7 @@ package vfs
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -144,4 +145,107 @@ func TestRollbackTransaction(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+}
+
+func TestEmptyBeginSnapshot(t *testing.T) {
+	fss, err := OpenFS(&Options{
+		FSPerm:    conf.FSPerm,
+		Path:      conf.Settings.Path,
+		Threshold: conf.Settings.Region.Threshold,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txns, err := fss.NewTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	txns.AtomicBatch(func(txns *TxnState) error {
+		_, err := txns.Begin([]string{})
+		if err != nil {
+			return err
+		}
+		return txns.Save(nil)
+	})
+
+	if err := txns.Commit(); err != nil {
+		if !errors.Is(err, ErrEmptyBeginSnapshot) {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestConflictTransaction(t *testing.T) {
+	var wg sync.WaitGroup
+	fss, err := OpenFS(&Options{
+		FSPerm:    conf.FSPerm,
+		Path:      conf.Settings.Path,
+		Threshold: conf.Settings.Region.Threshold,
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testPutSegment(fss)
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		txns, _ := fss.NewTransaction()
+
+		txns.AtomicBatch(func(txns *TxnState) error {
+			keys := []string{"key1", "key2"}
+			snapshots, err := txns.Begin(keys)
+			if err != nil {
+				return err
+			}
+
+			snapshots[0].Value = []byte("A-test transaction 1.")
+			snapshots[0].ValueSize = int32(len(snapshots[0].Value))
+
+			time.Sleep(2 * time.Second)
+
+			snapshots[1].Value = []byte("A-test transaction 2.")
+			snapshots[1].ValueSize = int32(len(snapshots[1].Value))
+
+			return txns.Save(snapshots)
+		})
+
+		if err := txns.Commit(); err != nil {
+			t.Log(err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		txns, _ := fss.NewTransaction()
+
+		txns.AtomicBatch(func(txns *TxnState) error {
+			keys := []string{"key1", "key2"}
+			snapshots, err := txns.Begin(keys)
+			if err != nil {
+				return err
+			}
+
+			time.Sleep(3 * time.Second)
+
+			snapshots[0].Value = []byte("B-test transaction 1.")
+			snapshots[0].ValueSize = int32(len(snapshots[0].Value))
+
+			snapshots[1].Value = []byte("B-test transaction 2.")
+			snapshots[1].ValueSize = int32(len(snapshots[1].Value))
+
+			return txns.Save(snapshots)
+		})
+
+		if err := txns.Commit(); err != nil {
+			t.Log(err)
+		}
+	}()
+
+	wg.Wait()
 }
