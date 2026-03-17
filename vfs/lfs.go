@@ -600,8 +600,6 @@ func (lfs *LogStructuredFS) redoPendingTxns() error {
 					return err
 				}
 			}
-
-			offset += int64(seg.Size())
 		}
 
 		err = os.Remove(txnFilePath)
