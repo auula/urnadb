@@ -94,3 +94,76 @@ func TestToTable(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.Equal(t, tablesData.Size(), result.Size())
 }
+
+// TestSerializeWithInvalidData 测试 Serialize 在极端情况下的行为
+func TestSerializeWithInvalidData(t *testing.T) {
+	// 创建一个包含超大数据的 Segment，可能导致内存问题
+	// 注意：binary.Write 对基本类型几乎不会失败，这个测试主要是为了覆盖率
+	seg := &Segment{
+		Tombstone: 0,
+		Type:      variant,
+		ExpiredAt: time.Now().UnixMicro(),
+		CreatedAt: time.Now().UnixMicro(),
+		KeySize:   5,
+		ValueSize: 5,
+		Key:       []byte("test"),
+		Value:     []byte("value"),
+	}
+
+	// 正常情况下应该成功
+	data, err := seg.Serialize()
+	assert.NoError(t, err)
+	assert.NotNil(t, data)
+}
+
+// failingWriter 是一个会在写入时失败的 writer
+type failingWriter struct {
+	failAfter int
+	written   int
+}
+
+func (f *failingWriter) Write(p []byte) (n int, err error) {
+	if f.written >= f.failAfter {
+		return 0, assert.AnError
+	}
+	f.written += len(p)
+	return len(p), nil
+}
+
+// TestSerializeWriteError 测试 binary.Write 失败的情况
+func TestSerializeWriteError(t *testing.T) {
+	seg := &Segment{
+		Tombstone: 0,
+		Type:      variant,
+		ExpiredAt: time.Now().UnixMicro(),
+		CreatedAt: time.Now().UnixMicro(),
+		KeySize:   4,
+		ValueSize: 5,
+		Key:       []byte("test"),
+		Value:     []byte("value"),
+	}
+
+	tests := []struct {
+		name      string
+		failAfter int
+		errMsg    string
+	}{
+		{"Tombstone", 0, "failed to write Tombstone"},
+		{"Type", 1, "failed to write Type"},
+		{"ExpiredAt", 2, "failed to write ExpiredAt"},
+		{"CreatedAt", 10, "failed to write CreatedAt"},
+		{"KeySize", 18, "failed to write KeySize"},
+		{"ValueSize", 22, "failed to write ValueSize"},
+		{"Key", 26, "failed to write Key"},
+		{"Value", 30, "failed to write Value"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			writer := &failingWriter{failAfter: tt.failAfter}
+			err := seg.serializeToWriter(writer)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errMsg)
+		})
+	}
+}

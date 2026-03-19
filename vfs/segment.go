@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/crc32"
+	"io"
 	"sync"
 	"time"
 
@@ -371,53 +372,62 @@ func (s *Segment) ToJSON() ([]byte, error) {
 
 func (seg *Segment) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
-
-	err := binary.Write(buf, binary.LittleEndian, seg.Tombstone)
+	err := seg.serializeToWriter(buf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to write Tombstone: %w", err)
+		return nil, err
 	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.Type)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write Type: %w", err)
-	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.ExpiredAt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write ExpiredAt: %w", err)
-	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.CreatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write CreatedAt: %w", err)
-	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.KeySize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write KeySize: %w", err)
-	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.ValueSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write ValueSize: %w", err)
-	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.Key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write Key: %w", err)
-	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.Value)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write Value: %w", err)
-	}
-
-	checksum := crc32.ChecksumIEEE(buf.Bytes())
-
-	err = binary.Write(buf, binary.LittleEndian, checksum)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write checksum: %w", err)
-	}
-
 	return buf.Bytes(), nil
+}
+
+func (seg *Segment) serializeToWriter(w io.Writer) error {
+	err := binary.Write(w, binary.LittleEndian, seg.Tombstone)
+	if err != nil {
+		return fmt.Errorf("failed to write Tombstone: %w", err)
+	}
+
+	err = binary.Write(w, binary.LittleEndian, seg.Type)
+	if err != nil {
+		return fmt.Errorf("failed to write Type: %w", err)
+	}
+
+	err = binary.Write(w, binary.LittleEndian, seg.ExpiredAt)
+	if err != nil {
+		return fmt.Errorf("failed to write ExpiredAt: %w", err)
+	}
+
+	err = binary.Write(w, binary.LittleEndian, seg.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("failed to write CreatedAt: %w", err)
+	}
+
+	err = binary.Write(w, binary.LittleEndian, seg.KeySize)
+	if err != nil {
+		return fmt.Errorf("failed to write KeySize: %w", err)
+	}
+
+	err = binary.Write(w, binary.LittleEndian, seg.ValueSize)
+	if err != nil {
+		return fmt.Errorf("failed to write ValueSize: %w", err)
+	}
+
+	err = binary.Write(w, binary.LittleEndian, seg.Key)
+	if err != nil {
+		return fmt.Errorf("failed to write Key: %w", err)
+	}
+
+	err = binary.Write(w, binary.LittleEndian, seg.Value)
+	if err != nil {
+		return fmt.Errorf("failed to write Value: %w", err)
+	}
+
+	// 对于 checksum，我们需要先获取所有字节，这里需要特殊处理 Buffer 才行
+	if buf, ok := w.(*bytes.Buffer); ok {
+		checksum := crc32.ChecksumIEEE(buf.Bytes())
+		err = binary.Write(w, binary.LittleEndian, checksum)
+		if err != nil {
+			return fmt.Errorf("failed to write checksum: %w", err)
+		}
+	}
+
+	return nil
 }
