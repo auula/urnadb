@@ -151,6 +151,7 @@ func (vs *VariantsServiceImpl) DeleteVariant(name string) error {
 
 	err := vs.storage.DeleteSegment(name)
 	if err != nil {
+		vs.acquireVariantLock(name).Unlock()
 		clog.Errorf("[VariantsService.DeleteVariant] %v", err)
 		return err
 	}
