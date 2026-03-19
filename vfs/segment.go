@@ -15,8 +15,11 @@
 package vfs
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"sync"
 	"time"
 
@@ -364,4 +367,57 @@ func (s *Segment) ToJSON() ([]byte, error) {
 		return nil, errors.New("unknown data type")
 	}
 	return cast(s)
+}
+
+func (seg *Segment) Serialize() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	err := binary.Write(buf, binary.LittleEndian, seg.Tombstone)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write Tombstone: %w", err)
+	}
+
+	err = binary.Write(buf, binary.LittleEndian, seg.Type)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write Type: %w", err)
+	}
+
+	err = binary.Write(buf, binary.LittleEndian, seg.ExpiredAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write ExpiredAt: %w", err)
+	}
+
+	err = binary.Write(buf, binary.LittleEndian, seg.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write CreatedAt: %w", err)
+	}
+
+	err = binary.Write(buf, binary.LittleEndian, seg.KeySize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write KeySize: %w", err)
+	}
+
+	err = binary.Write(buf, binary.LittleEndian, seg.ValueSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write ValueSize: %w", err)
+	}
+
+	err = binary.Write(buf, binary.LittleEndian, seg.Key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write Key: %w", err)
+	}
+
+	err = binary.Write(buf, binary.LittleEndian, seg.Value)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write Value: %w", err)
+	}
+
+	checksum := crc32.ChecksumIEEE(buf.Bytes())
+
+	err = binary.Write(buf, binary.LittleEndian, checksum)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write checksum: %w", err)
+	}
+
+	return buf.Bytes(), nil
 }

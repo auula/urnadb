@@ -118,7 +118,7 @@ type LogStructuredFS struct {
 // PutSegment inserts a Segment record into the LogStructuredFS virtual file system.
 func (lfs *LogStructuredFS) PutSegment(key string, seg *Segment) error {
 	inum := keyHash(key)
-	bytes, err := serializedSegment(seg)
+	bytes, err := seg.Serialize()
 	if err != nil {
 		return err
 	}
@@ -177,7 +177,7 @@ func (lfs *LogStructuredFS) CommitTxns(snapshots []*Snapshot) error {
 	defer lfs.mu.Unlock()
 
 	for _, snapshot := range snapshots {
-		bytes, err := serializedSegment(snapshot.Segment)
+		bytes, err := snapshot.Serialize()
 		if err != nil {
 			return err
 		}
@@ -227,7 +227,7 @@ func (lfs *LogStructuredFS) RollbackTxns(keys []string, snapshots []*Snapshot) e
 		}
 
 		seg := NewTombstoneSegment(key)
-		bytes, err := serializedSegment(seg)
+		bytes, err := seg.Serialize()
 		if err != nil {
 			return err
 		}
@@ -245,7 +245,7 @@ func (lfs *LogStructuredFS) RollbackTxns(keys []string, snapshots []*Snapshot) e
 	}
 
 	for _, snapshot := range snapshots {
-		bytes, err := serializedSegment(snapshot.Segment)
+		bytes, err := snapshot.Serialize()
 		if err != nil {
 			return err
 		}
@@ -281,7 +281,7 @@ func (lfs *LogStructuredFS) RollbackTxns(keys []string, snapshots []*Snapshot) e
 
 func (lfs *LogStructuredFS) DeleteSegment(key string) error {
 	seg := NewTombstoneSegment(key)
-	bytes, err := serializedSegment(seg)
+	bytes, err := seg.Serialize()
 	if err != nil {
 		return err
 	}
@@ -572,7 +572,7 @@ func (lfs *LogStructuredFS) redoPendingTxns() error {
 				return fmt.Errorf("failed to find index for inum: %d", inum)
 			}
 
-			bytes, err := serializedSegment(seg)
+			bytes, err := seg.Serialize()
 			if err != nil {
 				return fmt.Errorf("failed to serialized segment: %w", err)
 			}
@@ -1519,59 +1519,6 @@ func deserializedIndex(data []byte) (uint64, *inode, error) {
 	return inum, &inode, nil
 }
 
-func serializedSegment(seg *Segment) ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	err := binary.Write(buf, binary.LittleEndian, seg.Tombstone)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write Tombstone: %w", err)
-	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.Type)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write Type: %w", err)
-	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.ExpiredAt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write ExpiredAt: %w", err)
-	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.CreatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write CreatedAt: %w", err)
-	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.KeySize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write KeySize: %w", err)
-	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.ValueSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write ValueSize: %w", err)
-	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.Key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write Key: %w", err)
-	}
-
-	err = binary.Write(buf, binary.LittleEndian, seg.Value)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write Value: %w", err)
-	}
-
-	checksum := crc32.ChecksumIEEE(buf.Bytes())
-
-	err = binary.Write(buf, binary.LittleEndian, checksum)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write checksum: %w", err)
-	}
-
-	return buf.Bytes(), nil
-}
-
 // Garbage Collection Compressor
 // Steps:
 // 1. If no index snapshot exists on disk, perform a global scan to restore the index.
@@ -1636,7 +1583,7 @@ func (lfs *LogStructuredFS) cleanupDirtyRegions() error {
 					}
 
 					if isValid(segment, inode) {
-						bytes, err := serializedSegment(segment)
+						bytes, err := segment.Serialize()
 						if err != nil {
 							return err
 						}
