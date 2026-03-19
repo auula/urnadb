@@ -100,7 +100,7 @@ func (txns *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 
 	buf := make([]byte, 0, 1024)
 	for _, sp := range result {
-		bytes, err := serializedSegment(sp.Segment)
+		bytes, err := sp.Segment.Serialize()
 		if err != nil {
 			return nil, err
 		}
@@ -201,7 +201,7 @@ func (t *Transaction) Commit() error {
 			t.newKeys = append(t.newKeys, key)
 			// 事物启动时直接回滚到没有这个 key 状态下
 			tombstone := NewTombstoneSegment(key)
-			bytes, err := serializedSegment(tombstone)
+			bytes, err := tombstone.Serialize()
 			if err != nil {
 				return err
 			}

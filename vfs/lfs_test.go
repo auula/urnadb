@@ -92,7 +92,7 @@ func TestReadSegment(t *testing.T) {
 	}
 
 	// 将 Segment 数据转化为字节数组
-	bytes, err := serializedSegment(seg)
+	bytes, err := seg.Serialize()
 	if err != nil {
 		t.Fatalf("failed to serialized segment:%v", err)
 	}
