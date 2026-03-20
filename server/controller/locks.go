@@ -19,7 +19,7 @@ import (
 	"net/http"
 
 	"github.com/auula/urnadb/server/response"
-	services "github.com/auula/urnadb/server/service"
+	"github.com/auula/urnadb/server/service"
 	"github.com/auula/urnadb/utils"
 	"github.com/gin-gonic/gin"
 )
@@ -111,11 +111,11 @@ func DoLeaseLockController(ctx *gin.Context) {
 
 func handlerLocksError(ctx *gin.Context, err error) {
 	switch {
-	case errors.Is(err, services.ErrInvalidToken):
+	case errors.Is(err, service.ErrInvalidToken):
 		ctx.IndentedJSON(http.StatusForbidden, response.FailJSON(err.Error()))
-	case errors.Is(err, services.ErrLockNotFound):
+	case errors.Is(err, service.ErrLockNotFound):
 		ctx.IndentedJSON(http.StatusNotFound, response.FailJSON(err.Error()))
-	case errors.Is(err, services.ErrAlreadyLocked):
+	case errors.Is(err, service.ErrAlreadyLocked):
 		ctx.IndentedJSON(http.StatusLocked, response.FailJSON(err.Error()))
 	default:
 		ctx.IndentedJSON(http.StatusInternalServerError, response.FailJSON(err.Error()))
