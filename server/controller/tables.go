@@ -197,6 +197,10 @@ func InsertRowsTableController(ctx *gin.Context) {
 	}))
 }
 
+func TransactionController(ctx *gin.Context) {
+
+}
+
 func handlerTablesError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, service.ErrTableAlreadyExists):

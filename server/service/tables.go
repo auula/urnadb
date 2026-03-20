@@ -50,6 +50,8 @@ type TablesService interface {
 	InsertRows(name string, rows map[string]any) (uint32, error)
 	// 根据表名和子查询条件搜索表
 	QueryRows(name string, wheres map[string]any) ([]map[string]any, error)
+	// 事务接口，暂时不支持
+	Transaction(txns []*TxnsBatchs) error
 }
 
 type TablesServiceImpl struct {
@@ -242,9 +244,18 @@ func (s *TablesServiceImpl) QueryRows(name string, wheres map[string]any) ([]map
 	defer utils.ReleaseToPool(tab, seg)
 
 	// 类似于 SQL 的 AND 多条件查询一样
-	result := tab.SelectRowsAll(wheres)
+	return tab.SelectRowsAll(wheres), nil
+}
 
-	return result, nil
+type TxnsBatchs struct {
+	name       string         // 事务涉及的表名列表
+	operation  string         // 操作类型，类似于 SQL 的 INSERT、UPDATE、DELETE
+	conditions map[string]any // 操作条件针对 UPDATE 和 DELETE 操作
+	data       map[string]any // 操作数据针对 INSERT 和 UPDATE 操作
+}
+
+func (s *TablesServiceImpl) Transaction(txns []*TxnsBatchs) error {
+	return nil
 }
 
 func NewTablesServiceImpl(storage *vfs.LogStructuredFS) TablesService {
