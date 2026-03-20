@@ -16,12 +16,21 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/auula/urnadb/clog"
 	"github.com/auula/urnadb/types"
 	"github.com/auula/urnadb/utils"
 	"github.com/auula/urnadb/vfs"
+)
+
+type OperationType int8
+
+const (
+	_INSERT OperationType = iota
+	_UPDATE
+	_DELETE
 )
 
 var (
@@ -51,7 +60,7 @@ type TablesService interface {
 	// 根据表名和子查询条件搜索表
 	QueryRows(name string, wheres map[string]any) ([]map[string]any, error)
 	// 事务接口，暂时不支持
-	Transaction(txns []*TxnsBatchs) error
+	Transaction(mts []*TableMutation) error
 }
 
 type TablesServiceImpl struct {
@@ -247,14 +256,97 @@ func (s *TablesServiceImpl) QueryRows(name string, wheres map[string]any) ([]map
 	return tab.SelectRowsAll(wheres), nil
 }
 
-type TxnsBatchs struct {
-	name       string         // 事务涉及的表名列表
-	operation  string         // 操作类型，类似于 SQL 的 INSERT、UPDATE、DELETE
-	conditions map[string]any // 操作条件针对 UPDATE 和 DELETE 操作
-	data       map[string]any // 操作数据针对 INSERT 和 UPDATE 操作
+type TableMutation struct {
+	Name       string         // 事务涉及的表名列表
+	Operation  OperationType  // 操作类型，类似于 SQL 的 INSERT、UPDATE、DELETE
+	Conditions map[string]any // 操作条件针对 UPDATE 和 DELETE 操作
+	Data       map[string]any // 操作数据针对 INSERT 和 UPDATE 操作
 }
 
-func (s *TablesServiceImpl) Transaction(txns []*TxnsBatchs) error {
+func (s *TablesServiceImpl) Transaction(mutations []*TableMutation) error {
+	var keys []string
+	for _, mutation := range mutations {
+		keys = append(keys, mutation.Name)
+	}
+
+	txn, err := s.storage.NewTransaction()
+	if err != nil {
+		clog.Errorf("[TablesService.Transaction] %v", err)
+		return err
+	}
+
+	txn.AtomicBatch(func(txns *vfs.TxnState) error {
+		snapshots, err := txns.Begin(keys)
+		if err != nil {
+			clog.Errorf("[TablesService.Transaction] %v", err)
+			return err
+		}
+
+		var results []*vfs.Snapshot
+		for _, mutation := range mutations {
+			// Process each mutation
+			for _, snap := range snapshots {
+				if mutation.Name == snap.KeyString() {
+					tab, err := snap.ToTable()
+					if err != nil {
+						clog.Errorf("[TablesService.Transaction] %v", err)
+						return err
+					}
+
+					switch mutation.Operation {
+					case _INSERT:
+						if tab.AddRows(mutation.Data) <= 0 {
+							return fmt.Errorf("failed to insert table rows %s", mutation.Name)
+						}
+						snapshot, err := buildSnapshot(snap, tab)
+						if err != nil {
+							return err
+						}
+						results = append(results, snapshot)
+					case _UPDATE:
+						err := tab.UpdateRows(mutation.Conditions, mutation.Data)
+						if err != nil {
+							return fmt.Errorf("failed to update table %s rows: %w", mutation.Name, err)
+						}
+						snapshot, err := buildSnapshot(snap, tab)
+						if err != nil {
+							return err
+						}
+						results = append(results, snapshot)
+					case _DELETE:
+						tab.RemoveRows(mutation.Conditions)
+						snapshot, err := buildSnapshot(snap, tab)
+						if err != nil {
+							return err
+						}
+						results = append(results, snapshot)
+					default:
+						return fmt.Errorf(
+							"unsupported transaction operation type: %s for key %s",
+							mutation.Operation.String(),
+							mutation.Name,
+						)
+					}
+
+				}
+			}
+		}
+
+		return txns.Save(results)
+	})
+
+	err = txn.Commit()
+	if err != nil {
+		inner := txn.Rollback()
+		if inner != nil && !errors.Is(inner, vfs.ErrEmptyBeginSnapshot) {
+			clog.Errorf("[TablesService.Transaction] %v", inner)
+			return errors.Join(err, inner)
+		}
+		// 能到这里来说明是版本冲突了，直接返回错误就好了
+		clog.Errorf("[TablesService.Transaction] %v", err)
+		return err
+	}
+
 	return nil
 }
 
@@ -267,4 +359,31 @@ func NewTablesServiceImpl(storage *vfs.LogStructuredFS) TablesService {
 func (s *TablesServiceImpl) acquireTablesLock(key string) *sync.RWMutex {
 	actual, _ := s.tlock.LoadOrStore(key, new(sync.RWMutex))
 	return actual.(*sync.RWMutex)
+}
+
+func buildSnapshot(snap *vfs.Snapshot, tab *types.Table) (*vfs.Snapshot, error) {
+	ttl, ok := snap.ExpiresIn()
+	if !ok {
+		return nil, ErrTableExpired
+	}
+
+	seg, err := vfs.NewSegment(snap.KeyString(), tab, ttl)
+	if err != nil {
+		return nil, err
+	}
+
+	return vfs.NewSnapshot(seg, snap.Version()), nil
+}
+
+func (opt OperationType) String() string {
+	switch opt {
+	case _INSERT:
+		return "INSERT"
+	case _UPDATE:
+		return "UPDATE"
+	case _DELETE:
+		return "DELETE"
+	default:
+		return "UNKNOWN"
+	}
 }

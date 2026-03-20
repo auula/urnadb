@@ -98,7 +98,7 @@ func (txns *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 		txns.reads[i] = &cp
 	}
 
-	buf := make([]byte, 0, 1024)
+	buf := make([]byte, 0, _PAGE_SIZE_4KB)
 	for _, sp := range result {
 		bytes, err := sp.Segment.Serialize()
 		if err != nil {
@@ -119,6 +119,17 @@ func (txns *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 type Snapshot struct {
 	*Segment
 	mvcc uint64
+}
+
+func NewSnapshot(seg *Segment, mvcc uint64) *Snapshot {
+	return &Snapshot{
+		Segment: seg,
+		mvcc:    mvcc,
+	}
+}
+
+func (s *Snapshot) Version() uint64 {
+	return s.mvcc
 }
 
 // hasConflict 用于 MVCC 版本号冲突检测方法，事物提交成功之后必须是批量比较版本号，

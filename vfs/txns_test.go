@@ -93,13 +93,11 @@ func TestCommitTransaction(t *testing.T) {
 	})
 
 	if err := txns.Commit(); err != nil {
+		inner := txns.Rollback()
 		if !errors.Is(err, ErrEmptyBeginSnapshot) {
-			t.Fatal(err)
+			t.Fatal(errors.Join(err, inner))
 		}
-		err := txns.Rollback()
-		if !errors.Is(err, ErrEmptyBeginSnapshot) {
-			t.Fatal(err)
-		}
+		t.Fatal(err)
 	}
 
 	_, seg, err := fss.FetchSegment("key1")
