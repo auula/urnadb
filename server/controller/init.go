@@ -16,17 +16,17 @@ package controller
 
 import (
 	"github.com/auula/urnadb/server/response"
-	services "github.com/auula/urnadb/server/service"
+	"github.com/auula/urnadb/server/service"
 	"github.com/auula/urnadb/vfs"
 )
 
 var (
-	ts services.TablesService
-	qs services.QueryService
-	ls services.LocksService
-	rs services.RecordsService
-	vs services.VariantsService
-	hs *services.HealthService
+	ts service.TablesService
+	qs service.QueryService
+	ls service.LocksService
+	rs service.RecordsService
+	vs service.VariantsService
+	hs *service.HealthService
 )
 
 var (
@@ -34,11 +34,11 @@ var (
 )
 
 func InitAllComponents(storage *vfs.LogStructuredFS) error {
-	hs = services.NewHealthService(storage)
-	rs = services.NewRecordsService(storage)
-	ls = services.NewLocksServiceImpl(storage)
-	qs = services.NewQueryServiceImpl(storage)
-	ts = services.NewTablesServiceImpl(storage)
-	vs = services.NewVariantsServiceImpl(storage)
+	hs = service.NewHealthService(storage)
+	rs = service.NewRecordsService(storage)
+	ls = service.NewLocksServiceImpl(storage)
+	qs = service.NewQueryServiceImpl(storage)
+	ts = service.NewTablesServiceImpl(storage)
+	vs = service.NewVariantsServiceImpl(storage)
 	return nil
 }

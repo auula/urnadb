@@ -19,7 +19,7 @@ import (
 	"net/http"
 
 	"github.com/auula/urnadb/server/response"
-	services "github.com/auula/urnadb/server/service"
+	"github.com/auula/urnadb/server/service"
 	"github.com/auula/urnadb/types"
 	"github.com/auula/urnadb/utils"
 	"github.com/gin-gonic/gin"
@@ -122,11 +122,11 @@ func SearchRecordController(ctx *gin.Context) {
 
 func handlerRecordError(ctx *gin.Context, err error) {
 	switch {
-	case errors.Is(err, services.ErrRecordUpdateFailed):
+	case errors.Is(err, service.ErrRecordUpdateFailed):
 		ctx.IndentedJSON(http.StatusConflict, response.FailJSON(err.Error()))
-	case errors.Is(err, services.ErrRecordNotFound):
+	case errors.Is(err, service.ErrRecordNotFound):
 		ctx.IndentedJSON(http.StatusNotFound, response.FailJSON(err.Error()))
-	case errors.Is(err, services.ErrRecordExpired):
+	case errors.Is(err, service.ErrRecordExpired):
 		ctx.IndentedJSON(http.StatusGone, response.FailJSON(err.Error()))
 	default:
 		// 所有其他错误都统一返回 500 内部服务器错误

@@ -20,7 +20,7 @@ import (
 	"net/http"
 
 	"github.com/auula/urnadb/server/response"
-	services "github.com/auula/urnadb/server/service"
+	"github.com/auula/urnadb/server/service"
 	"github.com/auula/urnadb/types"
 	"github.com/auula/urnadb/utils"
 	"github.com/gin-gonic/gin"
@@ -199,11 +199,11 @@ func InsertRowsTableController(ctx *gin.Context) {
 
 func handlerTablesError(ctx *gin.Context, err error) {
 	switch {
-	case errors.Is(err, services.ErrTableAlreadyExists):
+	case errors.Is(err, service.ErrTableAlreadyExists):
 		ctx.IndentedJSON(http.StatusConflict, response.FailJSON(err.Error()))
-	case errors.Is(err, services.ErrTableNotFound):
+	case errors.Is(err, service.ErrTableNotFound):
 		ctx.IndentedJSON(http.StatusNotFound, response.FailJSON(err.Error()))
-	case errors.Is(err, services.ErrTableExpired):
+	case errors.Is(err, service.ErrTableExpired):
 		ctx.IndentedJSON(http.StatusGone, response.FailJSON(err.Error()))
 	default:
 		// 所有其他错误都统一返回 500 内部服务器错误
