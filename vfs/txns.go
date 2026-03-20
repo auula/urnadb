@@ -49,7 +49,7 @@ type Transaction struct {
 	path      string
 	store     *LogStructuredFS
 	execute   func(txns *TxnState) error
-	snapshots []*Snapshot
+	snapshots map[string]*Snapshot
 	once      sync.Once
 	newKeys   []string
 	rollback  bool
@@ -58,20 +58,20 @@ type Transaction struct {
 type TxnState struct {
 	fd     *os.File
 	store  *LogStructuredFS
-	writes []*Snapshot
-	reads  []*Snapshot
+	writes map[string]*Snapshot
+	reads  map[string]*Snapshot
 	keys   map[string]struct{}
 }
 
 // 运算完成之后的结果进行持久化存储，注意这里的 segs 可能有新加入的新 key 不在 Begin 中返回的。
-func (txns *TxnState) Save(snaps []*Snapshot) error {
+func (txns *TxnState) Save(snaps map[string]*Snapshot) error {
 	txns.writes = snaps
 	return nil
 }
 
 // 事物开始的时候对本次事物需要的 keys 进行批量获取操作，方便后面进行运算。
-func (txns *TxnState) Begin(keys []string) ([]*Snapshot, error) {
-	var result []*Snapshot
+func (txns *TxnState) Begin(keys []string) (map[string]*Snapshot, error) {
+	result := make(map[string]*Snapshot, len(keys))
 	txns.keys = make(map[string]struct{}, len(keys))
 
 	for _, key := range keys {
@@ -80,10 +80,10 @@ func (txns *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 			return nil, err
 		}
 		txns.keys[key] = struct{}{}
-		result = append(result, &Snapshot{
+		result[key] = &Snapshot{
 			Segment: seg,
 			mvcc:    mvcc,
-		})
+		}
 	}
 
 	if len(result) == 0 {
@@ -92,13 +92,13 @@ func (txns *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 
 	// 这里要注意对 result 中的每个 Snapshot 进行深复制，不能直接把 result 中的 Snapshot 的指针赋值给 txns.reads，
 	// 因为后面可能会对 txns.reads 中的 Snapshot 进行修改，导致 result 中的 Snapshot 也被修改了，这样就不符合事务的 MVCC 原子性了。
-	txns.reads = make([]*Snapshot, len(result))
-	for i, s := range result {
+	txns.reads = make(map[string]*Snapshot, len(result))
+	for k, s := range result {
 		cp := *s
-		txns.reads[i] = &cp
+		txns.reads[k] = &cp
 	}
 
-	buf := make([]byte, 0, 1024)
+	buf := make([]byte, 0, _PAGE_SIZE_4KB)
 	for _, sp := range result {
 		bytes, err := sp.Segment.Serialize()
 		if err != nil {
@@ -119,6 +119,17 @@ func (txns *TxnState) Begin(keys []string) ([]*Snapshot, error) {
 type Snapshot struct {
 	*Segment
 	mvcc uint64
+}
+
+func NewSnapshot(seg *Segment, mvcc uint64) *Snapshot {
+	return &Snapshot{
+		Segment: seg,
+		mvcc:    mvcc,
+	}
+}
+
+func (s *Snapshot) Version() uint64 {
+	return s.mvcc
 }
 
 // hasConflict 用于 MVCC 版本号冲突检测方法，事物提交成功之后必须是批量比较版本号，
@@ -193,31 +204,34 @@ func (t *Transaction) Commit() error {
 	buf := make([]byte, 0, _PAGE_SIZE_4KB)
 
 	var allowed, conflict = true, (*Snapshot)(nil)
-	for _, seg := range state.writes {
-		key := seg.KeyString()
-		// 新 key 就不需要做版本控制检查了，直接添加到 .txn 文件中就好了
+	for key := range state.writes {
+		// 先处理新 key 的 tombstone
 		if _, ok := state.keys[key]; !ok {
-			// 中途新 key 应该添加一条删除记录
 			t.newKeys = append(t.newKeys, key)
-			// 事物启动时直接回滚到没有这个 key 状态下
 			tombstone := NewTombstoneSegment(key)
 			bytes, err := tombstone.Serialize()
 			if err != nil {
 				return err
 			}
 			buf = append(buf, bytes...)
-			continue
 		}
+	}
 
+	// 统一写入所有新 key 的 tombstone，一次系统调用的实现
+	if len(buf) > 0 {
 		err := appendToActiveRegion(state.fd, buf)
 		if err != nil {
 			return err
 		}
+	}
 
-		// 老版本的 key 必须做版本检查。
-		if version, ok := t.store.visible(key); ok && !seg.hasConflict(version) {
-			conflict, allowed, t.rollback = seg, false, false
-			break
+	// 再检查老 key 的版本冲突
+	for key, seg := range state.writes {
+		if _, ok := state.keys[key]; ok {
+			if version, ok := t.store.visible(key); ok && !seg.hasConflict(version) {
+				conflict, allowed, t.rollback = seg, false, false
+				break
+			}
 		}
 	}
 
