@@ -23,6 +23,35 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type Mutation struct {
+	Name      string         `json:"name" binding:"required"`
+	Operation string         `json:"operation" binding:"required,oneof=INSERT UPDATE DELETE"`
+	Where     map[string]any `json:"where,omitempty"`
+	Values    map[string]any `json:"values,omitempty"`
+}
+
+type MutationsRequest struct {
+	Mutations []*Mutation `json:"mutations" binding:"required"`
+}
+
+func (m *Mutation) Validate() error {
+	switch m.Operation {
+	case "INSERT":
+		if m.Values == nil {
+			return errors.New("INSERT requires values")
+		}
+	case "UPDATE":
+		if m.Where == nil || m.Values == nil {
+			return errors.New("UPDATE requires where contiton and values")
+		}
+	case "DELETE":
+		if m.Where == nil {
+			return errors.New("DELETE requires where contiton")
+		}
+	}
+	return nil
+}
+
 func TransactionController(ctx *gin.Context) {
 
 }

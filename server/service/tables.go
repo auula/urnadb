@@ -296,7 +296,7 @@ func (s *TablesServiceImpl) Transaction(mutations []*TableMutation) error {
 					switch mutation.Operation {
 					case _INSERT:
 						if tab.AddRows(mutation.Data) <= 0 {
-							return fmt.Errorf("failed to insert table rows %s", mutation.Name)
+							return fmt.Errorf("failed to insert table %s rows", mutation.Name)
 						}
 						snapshot, err := buildSnapshot(snap, tab)
 						if err != nil {
@@ -327,7 +327,6 @@ func (s *TablesServiceImpl) Transaction(mutations []*TableMutation) error {
 							mutation.Name,
 						)
 					}
-
 				}
 			}
 		}
