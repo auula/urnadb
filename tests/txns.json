@@ -1,0 +1,24 @@
+{
+    "mutations": [
+        {
+            "name": "users",
+            "operation": "INSERT",
+            "values": {
+                "id": 1,
+                "name": "Leon Ding",
+                "age": 25
+            }
+        },
+        {
+            "name": "users",
+            "operation": "UPDATE",
+            "where": {
+                "id": 1
+            },
+            "values": {
+                "age": 26
+            }
+        }
+    ],
+    "serialization": false
+}

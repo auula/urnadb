@@ -16,12 +16,21 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/auula/urnadb/clog"
 	"github.com/auula/urnadb/types"
 	"github.com/auula/urnadb/utils"
 	"github.com/auula/urnadb/vfs"
+)
+
+type OperationType int8
+
+const (
+	_INSERT OperationType = iota
+	_UPDATE
+	_DELETE
 )
 
 var (
@@ -50,6 +59,8 @@ type TablesService interface {
 	InsertRows(name string, rows map[string]any) (uint32, error)
 	// 根据表名和子查询条件搜索表
 	QueryRows(name string, wheres map[string]any) ([]map[string]any, error)
+	// 事务接口，暂时不支持
+	Transaction(mts []*TableMutation, serialization bool) error
 }
 
 type TablesServiceImpl struct {
@@ -242,9 +253,111 @@ func (s *TablesServiceImpl) QueryRows(name string, wheres map[string]any) ([]map
 	defer utils.ReleaseToPool(tab, seg)
 
 	// 类似于 SQL 的 AND 多条件查询一样
-	result := tab.SelectRowsAll(wheres)
+	return tab.SelectRowsAll(wheres), nil
+}
 
-	return result, nil
+type TableMutation struct {
+	Name       string         // 事务涉及的表名列表
+	Operation  OperationType  // 操作类型，类似于 SQL 的 INSERT、UPDATE、DELETE
+	Conditions map[string]any // 操作条件针对 UPDATE 和 DELETE 操作
+	Data       map[string]any // 操作数据针对 INSERT 和 UPDATE 操作
+}
+
+func (ts *TablesServiceImpl) Transaction(mutations []*TableMutation, serialization bool) error {
+	// 去重 key 不需要拿到重复的快照
+	keySet := make(map[string]struct{})
+	for _, mutation := range mutations {
+		keySet[mutation.Name] = struct{}{}
+	}
+
+	var keys []string
+	for key := range keySet {
+		keys = append(keys, key)
+	}
+
+	// 2PL 类似于关系数据中事物中的 serialization 隔离级别
+	if serialization {
+		for _, name := range keys {
+			// 排序保证锁顺序一致
+			ts.acquireTablesLock(name).Lock()
+			defer ts.acquireTablesLock(name).Unlock()
+		}
+	}
+
+	txn, err := ts.storage.NewTransaction()
+	if err != nil {
+		clog.Errorf("[TablesService.Transaction] %v", err)
+		return err
+	}
+
+	txn.AtomicBatch(func(txns *vfs.TxnState) error {
+		snapshots, err := txns.Begin(keys)
+		if err != nil {
+			clog.Errorf("[TablesService.Transaction] %v", err)
+			return err
+		}
+
+		// 使用 working 保存中间状态
+		working, tab := make(map[string]*types.Table), new(types.Table)
+		for _, mutation := range mutations {
+			// 优先使用 working 中的中间结果
+			if pending, ok := working[mutation.Name]; ok {
+				tab = pending
+			} else {
+				snap := snapshots[mutation.Name]
+				tab, err = snap.ToTable()
+				if err != nil {
+					return err
+				}
+			}
+
+			switch mutation.Operation {
+			case _INSERT:
+				if tab.AddRows(mutation.Data) <= 0 {
+					return fmt.Errorf("failed to insert table %s rows", mutation.Name)
+				}
+			case _UPDATE:
+				err := tab.UpdateRows(mutation.Conditions, mutation.Data)
+				if err != nil {
+					return fmt.Errorf("failed to update table %s rows: %w", mutation.Name, err)
+				}
+			case _DELETE:
+				tab.RemoveRows(mutation.Conditions)
+			default:
+				return fmt.Errorf("unsupported operation type: %s", mutation.Operation.String())
+			}
+
+			// 保存中间结果
+			working[mutation.Name] = tab
+		}
+
+		// 最后构建所有 snapshot
+		results := make(map[string]*vfs.Snapshot, len(working))
+		for name, tab := range working {
+			snap := snapshots[name]
+			snapshot, err := buildSnapshot(snap, tab)
+			if err != nil {
+				return err
+			}
+			results[name] = snapshot
+		}
+
+		return txns.Save(results)
+	})
+
+	err = txn.Commit()
+	if err != nil {
+		inner := txn.Rollback()
+		if inner != nil && !errors.Is(inner, vfs.ErrEmptyBeginSnapshot) {
+			clog.Errorf("[TablesService.Transaction] %v", inner)
+			return errors.Join(err, inner)
+		}
+		// 能到这里来说明是版本冲突了，直接返回错误就好了
+		clog.Errorf("[TablesService.Transaction] %v", err)
+		return err
+	}
+
+	return nil
 }
 
 func NewTablesServiceImpl(storage *vfs.LogStructuredFS) TablesService {
@@ -256,4 +369,31 @@ func NewTablesServiceImpl(storage *vfs.LogStructuredFS) TablesService {
 func (s *TablesServiceImpl) acquireTablesLock(key string) *sync.RWMutex {
 	actual, _ := s.tlock.LoadOrStore(key, new(sync.RWMutex))
 	return actual.(*sync.RWMutex)
+}
+
+func buildSnapshot(snap *vfs.Snapshot, tab *types.Table) (*vfs.Snapshot, error) {
+	ttl, ok := snap.ExpiresIn()
+	if !ok {
+		return nil, ErrTableExpired
+	}
+
+	seg, err := vfs.NewSegment(snap.KeyString(), tab, ttl)
+	if err != nil {
+		return nil, err
+	}
+
+	return vfs.NewSnapshot(seg, snap.Version()), nil
+}
+
+func (opt OperationType) String() string {
+	switch opt {
+	case _INSERT:
+		return "INSERT"
+	case _UPDATE:
+		return "UPDATE"
+	case _DELETE:
+		return "DELETE"
+	default:
+		return "UNKNOWN"
+	}
 }

@@ -42,6 +42,9 @@ func SetupRoutes() *gin.Engine {
 	// 健康检查
 	router.GET("/health", controller.HealthController)
 
+	// 事物处理
+	router.POST("/txns", controller.TransactionController)
+
 	// 查询路由
 	query := router.Group("/query")
 	{

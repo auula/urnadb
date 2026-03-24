@@ -73,33 +73,31 @@ func TestCommitTransaction(t *testing.T) {
 			return err
 		}
 
-		snapshots[0].Value = []byte("test transaction 1.")
-		snapshots[0].ValueSize = int32(len(snapshots[0].Value))
+		snapshots["key1"].Value = []byte("test transaction 1.")
+		snapshots["key1"].ValueSize = int32(len(snapshots["key1"].Value))
 
 		// 模拟事务执行过程中可能会有一些耗时的操作了，方便观察数据目录有没有 .txn 文件产生。
 		time.Sleep(3 * time.Second)
 
-		snapshots[1].Value = []byte("test transaction 2.")
-		snapshots[1].ValueSize = int32(len(snapshots[1].Value))
+		snapshots["key2"].Value = []byte("test transaction 2.")
+		snapshots["key2"].ValueSize = int32(len(snapshots["key2"].Value))
 
 		seg, _ := NewSegment("key3", &types.Variant{}, ImmortalTTL)
 
-		snapshots = append(snapshots, &Snapshot{
+		snapshots["key3"] = &Snapshot{
 			mvcc:    1,
 			Segment: seg,
-		})
+		}
 
 		return txns.Save(snapshots)
 	})
 
 	if err := txns.Commit(); err != nil {
+		inner := txns.Rollback()
 		if !errors.Is(err, ErrEmptyBeginSnapshot) {
-			t.Fatal(err)
+			t.Fatal(errors.Join(err, inner))
 		}
-		err := txns.Rollback()
-		if !errors.Is(err, ErrEmptyBeginSnapshot) {
-			t.Fatal(err)
-		}
+		t.Fatal(err)
 	}
 
 	_, seg, err := fss.FetchSegment("key1")
@@ -205,13 +203,13 @@ func TestConflictTransaction(t *testing.T) {
 				return err
 			}
 
-			snapshots[0].Value = []byte("A-test transaction 1.")
-			snapshots[0].ValueSize = int32(len(snapshots[0].Value))
+			snapshots["key1"].Value = []byte("A-test transaction 1.")
+			snapshots["key1"].ValueSize = int32(len(snapshots["key1"].Value))
 
 			time.Sleep(2 * time.Second)
 
-			snapshots[1].Value = []byte("A-test transaction 2.")
-			snapshots[1].ValueSize = int32(len(snapshots[1].Value))
+			snapshots["key2"].Value = []byte("A-test transaction 2.")
+			snapshots["key2"].ValueSize = int32(len(snapshots["key2"].Value))
 
 			return txns.Save(snapshots)
 		})
@@ -234,12 +232,11 @@ func TestConflictTransaction(t *testing.T) {
 
 			time.Sleep(3 * time.Second)
 
-			snapshots[0].Value = []byte("B-test transaction 1.")
-			snapshots[0].ValueSize = int32(len(snapshots[0].Value))
+			snapshots["key1"].Value = []byte("B-test transaction 1.")
+			snapshots["key1"].ValueSize = int32(len(snapshots["key1"].Value))
 
-			snapshots[1].Value = []byte("B-test transaction 2.")
-			snapshots[1].ValueSize = int32(len(snapshots[1].Value))
-
+			snapshots["key2"].Value = []byte("B-test transaction 2.")
+			snapshots["key2"].ValueSize = int32(len(snapshots["key2"].Value))
 			return txns.Save(snapshots)
 		})
 
@@ -277,8 +274,8 @@ func TestCommitTxnsError(t *testing.T) {
 			return err
 		}
 
-		snapshots[0].Value = []byte("test commit error")
-		snapshots[0].ValueSize = int32(len(snapshots[0].Value))
+		snapshots["key1"].Value = []byte("test commit error")
+		snapshots["key1"].ValueSize = int32(len(snapshots["key1"].Value))
 
 		// 关闭 active region 文件，导致 CommitTxns 中的 appendToActiveRegion 失败
 		_ = fss.active.Close()
@@ -324,8 +321,8 @@ func TestCommitRemoveError(t *testing.T) {
 			return err
 		}
 
-		snapshots[0].Value = []byte("test remove error")
-		snapshots[0].ValueSize = int32(len(snapshots[0].Value))
+		snapshots["key1"].Value = []byte("test remove error")
+		snapshots["key1"].ValueSize = int32(len(snapshots["key1"].Value))
 
 		return txns.Save(snapshots)
 	})
@@ -368,15 +365,15 @@ func TestRollbackWithNewKeys(t *testing.T) {
 			return err
 		}
 
-		snapshots[0].Value = []byte("modified value")
-		snapshots[0].ValueSize = int32(len(snapshots[0].Value))
+		snapshots["key1"].Value = []byte("modified value")
+		snapshots["key1"].ValueSize = int32(len(snapshots["key1"].Value))
 
 		// 添加新 key
 		seg, _ := NewSegment("new-key", &types.Variant{}, ImmortalTTL)
-		snapshots = append(snapshots, &Snapshot{
+		snapshots["new-key"] = &Snapshot{
 			mvcc:    1,
 			Segment: seg,
-		})
+		}
 
 		// 保存 active fd 引用
 		activeFd = txns.store.active
@@ -468,15 +465,15 @@ func TestRollbackTxnsError(t *testing.T) {
 			return err
 		}
 
-		snapshots[0].Value = []byte("modified value")
-		snapshots[0].ValueSize = int32(len(snapshots[0].Value))
+		snapshots["key1"].Value = []byte("modified value")
+		snapshots["key1"].ValueSize = int32(len(snapshots["key1"].Value))
 
 		// 添加新 key 触发 rollback 逻辑
 		seg, _ := NewSegment("new-key", &types.Variant{}, ImmortalTTL)
-		snapshots = append(snapshots, &Snapshot{
+		snapshots["new-key"] = &Snapshot{
 			mvcc:    1,
 			Segment: seg,
-		})
+		}
 
 		return txns.Save(snapshots)
 	})

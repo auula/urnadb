@@ -145,9 +145,7 @@ func (rs *RecordsServiceImpl) SearchRows(name string, column string) (any, error
 	defer utils.ReleaseToPool(seg, record)
 
 	// 递归深度搜索
-	result := record.SearchItem(column)
-
-	return result, nil
+	return record.SearchItem(column), nil
 }
 
 func NewRecordsService(storage *vfs.LogStructuredFS) RecordsService {
