@@ -68,7 +68,7 @@ type TablesServiceImpl struct {
 	storage *vfs.LogStructuredFS
 }
 
-func (t *TablesServiceImpl) AllTables() []*types.Table {
+func (*TablesServiceImpl) AllTables() []*types.Table {
 	return nil
 }
 
