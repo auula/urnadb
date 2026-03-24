@@ -263,7 +263,7 @@ type TableMutation struct {
 	Data       map[string]any // 操作数据针对 INSERT 和 UPDATE 操作
 }
 
-func (s *TablesServiceImpl) Transaction(mutations []*TableMutation, serialization bool) error {
+func (ts *TablesServiceImpl) Transaction(mutations []*TableMutation, serialization bool) error {
 	// 去重 key 不需要拿到重复的快照
 	keySet := make(map[string]struct{})
 	for _, mutation := range mutations {
@@ -275,7 +275,16 @@ func (s *TablesServiceImpl) Transaction(mutations []*TableMutation, serializatio
 		keys = append(keys, key)
 	}
 
-	txn, err := s.storage.NewTransaction()
+	// 2PL 类似于关系数据中事物中的 serialization 隔离级别
+	if serialization {
+		for _, name := range keys {
+			// 排序保证锁顺序一致
+			ts.acquireTablesLock(name).Lock()
+			defer ts.acquireTablesLock(name).Unlock()
+		}
+	}
+
+	txn, err := ts.storage.NewTransaction()
 	if err != nil {
 		clog.Errorf("[TablesService.Transaction] %v", err)
 		return err
