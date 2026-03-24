@@ -81,7 +81,7 @@ func (opt *Options) Validated() error {
 		return errors.New("HTTP server port illegal")
 	}
 
-	if len(opt.Auth) == 0 || len(opt.Auth) < 16 {
+	if opt.Auth == "" || len(opt.Auth) < 16 {
 		return errors.New("HTTP server auth password illegal")
 	}
 	return nil
