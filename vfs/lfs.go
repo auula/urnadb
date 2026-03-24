@@ -1426,12 +1426,12 @@ func parseDataFileName(name string) (int64, error) {
 	}
 
 	// Convert to uint64
-	number, err := strconv.ParseUint(parts[0], 10, 64)
+	number, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse number from file name: %w", err)
 	}
 
-	return int64(number), nil
+	return number, nil
 }
 
 // formatDataFileName converts uint64 to file name format (e.g., 1 to 0000001.wdb)
