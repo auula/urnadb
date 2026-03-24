@@ -18,6 +18,7 @@ coverage.out
 .idea
 testdata
 urnadb
+coverage.html
 
 # Q session records (sync via cloud storage)
 Q_SESSION_RECAP.md
