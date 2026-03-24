@@ -15,6 +15,7 @@
 package vfs
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -90,7 +91,7 @@ func TestCryptor(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if string(decrypted) != string(plaintext) {
+	if !bytes.Equal(decrypted, plaintext) {
 		t.Fatalf("got: %s , need: %s", decrypted, plaintext)
 	}
 }

@@ -165,6 +165,7 @@ func TestVFSWrite(t *testing.T) {
     "1": {
       "active": true,
       "age": 25,
+`
       "name": "Alice",
       "score": 95.5,
       "tags": [
