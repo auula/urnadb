@@ -234,7 +234,7 @@ func (opt *ServerOptions) CheckpointInterval() uint32 {
 }
 
 // HasCustom checked enable custom config
-func (opt *ServerOptions) HasCustom(path string) bool {
+func (*ServerOptions) HasCustom(path string) bool {
 	return path != defaultFilePath
 }
 
