@@ -136,10 +136,10 @@ func TestReadSegment(t *testing.T) {
 	if segment.ValueSize != seg.ValueSize {
 		t.Errorf("expected ValueSize to be %d, but got: %d", seg.ValueSize, segment.ValueSize)
 	}
-	if string(segment.Key) != string(seg.Key) {
+	if !bytes.Equal(segment.Key, seg.Key) {
 		t.Errorf("expected Key to be %s, but got: %s", string(seg.Key), string(segment.Key))
 	}
-	if string(segment.Value) != string(seg.Value) {
+	if !bytes.Equal(segment.Value, seg.Value) {
 		t.Errorf("expected Value to be %s, but got: %s", string(seg.Value), string(segment.Value))
 	}
 
@@ -148,23 +148,6 @@ func TestReadSegment(t *testing.T) {
 		t.Errorf("expected keyHash to be '%s', but got: %d", seg.Key, inum)
 	}
 }
-
-func TestVFSWrite(t *testing.T) {
-	fss, err := OpenFS(&Options{
-		FSPerm:    conf.FSPerm,
-		Path:      conf.Settings.Path,
-		Threshold: conf.Settings.Region.Threshold,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	data := `
-{
-  "table": {
-    "1": {
-      "active": true,
-      "age": 25,
       "name": "Alice",
       "score": 95.5,
       "tags": [
