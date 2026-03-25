@@ -14,15 +14,15 @@
 
 package response
 
-type ResponseEntity struct {
+type ResponseBody struct {
 	Status  string      `json:"status"`
 	Message string      `json:"message,omitempty"`
 	Data    interface{} `json:"data,omitempty"`
 }
 
 // 返回成功响应
-func OkJSON(message string, data interface{}) *ResponseEntity {
-	return &ResponseEntity{
+func OkJSON(message string, data interface{}) *ResponseBody {
+	return &ResponseBody{
 		Status:  "success",
 		Message: message,
 		Data:    data,
@@ -30,8 +30,8 @@ func OkJSON(message string, data interface{}) *ResponseEntity {
 }
 
 // 返回失败响应
-func FailJSON(message string) *ResponseEntity {
-	return &ResponseEntity{
+func FailJSON(message string) *ResponseBody {
+	return &ResponseBody{
 		Status:  "error",
 		Message: message,
 		Data:    nil,
