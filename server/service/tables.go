@@ -377,7 +377,7 @@ func buildSnapshot(snap *vfs.Snapshot, tab *types.Table) (*vfs.Snapshot, error) 
 		return nil, ErrTableExpired
 	}
 
-	seg, err := vfs.NewSegment(snap.KeyString(), tab, ttl)
+	seg, err := vfs.AcquirePoolSegment(snap.KeyString(), tab, ttl)
 	if err != nil {
 		return nil, err
 	}
