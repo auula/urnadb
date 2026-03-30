@@ -566,10 +566,16 @@ func (lfs *LogStructuredFS) redoPendingTxns() error {
 				return fmt.Errorf("failed to read pending transaction segment: %w", err)
 			}
 
-			// 执行事务回滚操作直接把 KV 重写到 active region 中，并且更新对应的 inode 信息，这样就保证了数据的一致性和安全性了。
+			// 执行事务回滚操作直接把 KV 重写到 active region 中，
+			// 并且更新对应的 inode 信息，这样就保证了数据的一致性和安全性了。
 			imap := lfs.indexs[inum%uint64(shard)]
 			if imap == nil {
 				return fmt.Errorf("failed to find index for inum: %d", inum)
+			}
+
+			// 防止中途已经失败的事物文件没有被删除，导致把后面同一个 key 新事物的数据给覆盖掉的 bug。
+			if inode, ok := imap.index[inum]; ok && inode.CreatedAt > seg.CreatedAt {
+				continue
 			}
 
 			bytes, err := seg.Serialize()
