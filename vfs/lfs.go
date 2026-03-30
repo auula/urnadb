@@ -575,6 +575,7 @@ func (lfs *LogStructuredFS) redoPendingTxns() error {
 
 			// 防止中途已经失败的事物文件没有被删除，导致把后面同一个 key 新事物的数据给覆盖掉的 bug。
 			if inode, ok := imap.index[inum]; ok && inode.CreatedAt > seg.CreatedAt {
+				lfs.offset += int64(seg.Size())
 				continue
 			}
 
@@ -582,6 +583,7 @@ func (lfs *LogStructuredFS) redoPendingTxns() error {
 			// 这样在后续的读取过程中就会被正确地识别为已删除的 key ，避免数据不一致的问题。
 			if seg.IsTombstone() {
 				delete(imap.index, inum)
+				lfs.offset += int64(seg.Size())
 				continue
 			}
 
