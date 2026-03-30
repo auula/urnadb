@@ -578,6 +578,13 @@ func (lfs *LogStructuredFS) redoPendingTxns() error {
 				continue
 			}
 
+			// 上次事物中中途添加的 key 需要回滚到没有到状态，所以需要把它写成一个 tombstone 记录，
+			// 这样在后续的读取过程中就会被正确地识别为已删除的 key ，避免数据不一致的问题。
+			if seg.IsTombstone() {
+				delete(imap.index, inum)
+				continue
+			}
+
 			bytes, err := seg.Serialize()
 			if err != nil {
 				return fmt.Errorf("failed to serialized segment: %w", err)
