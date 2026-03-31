@@ -31,21 +31,21 @@ import (
 type kind int8
 
 const (
-	table kind = iota
-	record
-	unknown
-	variant
-	leaselock
+	_TABLE kind = iota
+	_RECORD
+	_UNKNOWN
+	_VARIANT
+	_LEASELOCK
 )
 
 const ImmortalTTL = -1
 
 var kindToString = map[kind]string{
-	table:     "table",
-	record:    "record",
-	variant:   "variant",
-	unknown:   "unknown",
-	leaselock: "leaselock",
+	_TABLE:     "TABLE",
+	_RECORD:    "RECORD",
+	_VARIANT:   "VARIANT",
+	_UNKNOWN:   "UNKNOWN",
+	_LEASELOCK: "LEASELOCK",
 }
 
 // | DEL 1 | KIND 1 | EAT 8 | CAT 8 | KLEN 4 | VLEN 4 | KEY ? | VALUE ? | CRC32 4 |
@@ -170,7 +170,7 @@ func NewSegment[T Serializable](key string, data T, ttl int64) (*Segment, error)
 func NewTombstoneSegment(key string) *Segment {
 	createdAt, expiredAt := int64(time.Now().UnixMicro()), int64(0)
 	return &Segment{
-		Type:      unknown,
+		Type:      _UNKNOWN,
 		Tombstone: 1,
 		CreatedAt: createdAt,
 		ExpiredAt: expiredAt,
@@ -200,7 +200,7 @@ func (s *Segment) Size() int32 {
 
 func (s *Segment) ToVariant() (*types.Variant, error) {
 	// 如果类型不匹配，则返回错误
-	if s.Type != variant {
+	if s.Type != _VARIANT {
 		return nil, fmt.Errorf("not support conversion to variant type")
 	}
 
@@ -220,7 +220,7 @@ func (s *Segment) ToVariant() (*types.Variant, error) {
 
 func (s *Segment) ToRecord() (*types.Record, error) {
 	// 如果类型不匹配，则返回错误
-	if s.Type != record {
+	if s.Type != _RECORD {
 		return nil, fmt.Errorf("not support conversion to record type")
 	}
 
@@ -241,7 +241,7 @@ func (s *Segment) ToRecord() (*types.Record, error) {
 
 func (s *Segment) ToTable() (*types.Table, error) {
 	// 如果类型不匹配，则返回错误
-	if s.Type != table {
+	if s.Type != _TABLE {
 		return nil, fmt.Errorf("not support conversion to table type")
 	}
 
@@ -262,7 +262,7 @@ func (s *Segment) ToTable() (*types.Table, error) {
 
 func (s *Segment) ToLeaseLock() (*types.LeaseLock, error) {
 	// 如果类型不匹配，则返回错误
-	if s.Type != leaselock {
+	if s.Type != _LEASELOCK {
 		return nil, fmt.Errorf("not support conversion to lease lock type")
 	}
 
@@ -314,15 +314,15 @@ func (s *Segment) ExpiresIn() (int64, bool) {
 func toKind(data Serializable) kind {
 	switch data.(type) {
 	case *types.Table:
-		return table
+		return _TABLE
 	case *types.Record:
-		return record
+		return _RECORD
 	case *types.LeaseLock:
-		return leaselock
+		return _LEASELOCK
 	case *types.Variant:
-		return variant
+		return _VARIANT
 	}
-	return unknown
+	return _UNKNOWN
 }
 
 // Payload 返回 Segment 的值和长度
@@ -332,28 +332,28 @@ func (s *Segment) Payload() ([]byte, uint32) {
 }
 
 var segmentJsonEncoders = map[kind]func(*Segment) ([]byte, error){
-	record: func(s *Segment) ([]byte, error) {
+	_RECORD: func(s *Segment) ([]byte, error) {
 		num, err := s.ToRecord()
 		if err != nil {
 			return nil, err
 		}
 		return num.ToJSON()
 	},
-	table: func(s *Segment) ([]byte, error) {
+	_TABLE: func(s *Segment) ([]byte, error) {
 		tab, err := s.ToTable()
 		if err != nil {
 			return nil, err
 		}
 		return tab.ToJSON()
 	},
-	variant: func(s *Segment) ([]byte, error) {
+	_VARIANT: func(s *Segment) ([]byte, error) {
 		variants, err := s.ToVariant()
 		if err != nil {
 			return nil, err
 		}
 		return variants.ToJSON()
 	},
-	leaselock: func(s *Segment) ([]byte, error) {
+	_LEASELOCK: func(s *Segment) ([]byte, error) {
 		leaseLock, err := s.ToLeaseLock()
 		if err != nil {
 			return nil, err
