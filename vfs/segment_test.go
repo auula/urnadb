@@ -27,7 +27,7 @@ func TestNewTombstoneSegment(t *testing.T) {
 	segment := NewTombstoneSegment("mock-key")
 
 	// Ensure the segment is of Tombstone type and has expected fields
-	assert.Equal(t, unknown, segment.Type)                   // Tombstone should have Unknown type
+	assert.Equal(t, _UNKNOWN, segment.Type)                  // Tombstone should have Unknown type
 	assert.Equal(t, int8(1), segment.Tombstone)              // Tombstone should be marked as 1
 	assert.Equal(t, "mock-key", string(segment.Key))         // Ensure the key is set correctly
 	assert.Equal(t, int32(len("mock-key")), segment.KeySize) // Ensure the key size is correct
@@ -101,7 +101,7 @@ func TestSerializeWithInvalidData(t *testing.T) {
 	// 注意：binary.Write 对基本类型几乎不会失败，这个测试主要是为了覆盖率
 	seg := &Segment{
 		Tombstone: 0,
-		Type:      variant,
+		Type:      _VARIANT,
 		ExpiredAt: time.Now().UnixMicro(),
 		CreatedAt: time.Now().UnixMicro(),
 		KeySize:   5,
@@ -134,7 +134,7 @@ func (f *failingWriter) Write(p []byte) (n int, err error) {
 func TestSerializeWriteError(t *testing.T) {
 	seg := &Segment{
 		Tombstone: 0,
-		Type:      variant,
+		Type:      _VARIANT,
 		ExpiredAt: time.Now().UnixMicro(),
 		CreatedAt: time.Now().UnixMicro(),
 		KeySize:   4,
