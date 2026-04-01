@@ -30,7 +30,7 @@ type OperationType int8
 const (
 	_INSERT OperationType = iota
 	_UPDATE
-	_DELETE
+	_REMOVE
 )
 
 var (
@@ -321,7 +321,7 @@ func (ts *TablesServiceImpl) Transaction(mutations []*TableMutation, serializati
 				if err != nil {
 					return fmt.Errorf("failed to update table %s rows: %w", mutation.Name, err)
 				}
-			case _DELETE:
+			case _REMOVE:
 				tab.RemoveRows(mutation.Conditions)
 			default:
 				return fmt.Errorf("unsupported operation type: %s", mutation.Operation.String())
@@ -391,8 +391,8 @@ func (opt OperationType) String() string {
 		return "INSERT"
 	case _UPDATE:
 		return "UPDATE"
-	case _DELETE:
-		return "DELETE"
+	case _REMOVE:
+		return "REMOVE"
 	default:
 		return "UNKNOWN"
 	}
