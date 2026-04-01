@@ -28,7 +28,7 @@ var (
 	operationTypeMap = map[string]int{
 		"INSERT": 0,
 		"UPDATE": 1,
-		"DELETE": 2,
+		"REMOVE": 2,
 	}
 )
 
@@ -54,11 +54,11 @@ func (m *Mutation) Validated() error {
 		}
 	case "UPDATE":
 		if m.Where == nil || m.Values == nil {
-			return errors.New("UPDATE requires where contiton and values")
+			return errors.New("UPDATE requires where condition and values")
 		}
-	case "DELETE":
+	case "REMOVE":
 		if m.Where == nil {
-			return errors.New("DELETE requires where contiton")
+			return errors.New("REMOVE requires where condition")
 		}
 	default:
 		return fmt.Errorf("unsupported operation type: %s", m.Operation)
