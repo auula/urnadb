@@ -258,8 +258,8 @@ func (s *TablesServiceImpl) QueryRows(name string, wheres map[string]any) ([]map
 
 type TableMutation struct {
 	Name       string         // 事务涉及的表名列表
-	Operation  OperationType  // 操作类型，类似于 SQL 的 INSERT、UPDATE、DELETE
-	Conditions map[string]any // 操作条件针对 UPDATE 和 DELETE 操作
+	Operation  OperationType  // 操作类型，类似于 SQL 的 INSERT、UPDATE、REMOVE
+	Conditions map[string]any // 操作条件针对 UPDATE 和 REMOVE 操作
 	Data       map[string]any // 操作数据针对 INSERT 和 UPDATE 操作
 }
 
