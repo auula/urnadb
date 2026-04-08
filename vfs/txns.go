@@ -135,7 +135,7 @@ func (s *Snapshot) Version() uint64 {
 // hasConflict 用于 MVCC 版本号冲突检测方法，事物提交成功之后必须是批量比较版本号，
 // 成功提交条件是 len(tnxs) == len(version) 这里的 version 类型是 bool ，必须所有事物的比较结果都是 true 才能成功提交。
 func (s *Snapshot) hasConflict(version uint64) bool {
-	return s.mvcc == version
+	return s.mvcc != version
 }
 
 // 这里的 keys 是事务涉及到的 key 列表，事务执行过程中会对这些 key 进行读写操作，
@@ -228,7 +228,7 @@ func (t *Transaction) Commit() error {
 	// 再检查老 key 的版本冲突
 	for key, seg := range state.writes {
 		if _, ok := state.keys[key]; ok {
-			if version, ok := t.store.visible(key); ok && !seg.hasConflict(version) {
+			if version, ok := t.store.visible(key); ok && seg.hasConflict(version) {
 				conflict, allowed, t.rollback = seg, false, false
 				break
 			}
