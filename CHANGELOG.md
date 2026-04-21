@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.0 - 2026-04-21
+
+### Added
+
+- 🎉 Added support for full transactional integrity and improved data reading using mmap.
+
+### Fixed
+
+- 🔍 Fixed atomic export issue with `index.db`.
+- ⏰ Fixed anomalies in `ttl` calculations.
+- ♻️ Fixed interruption issues during `checkpoint` generation.
+- 💬 Improved CLI messages and enhanced readability of `json body` output.
+
+---
+
+
 ## 1.1.2 - 2025-04-05
 
 ### Added
