@@ -1,5 +1,14 @@
 # Changelog
 
+
+## 1.5.1 - 2026-04-27
+
+### Fixed
+
+- 🐛 Fixed resolve mvcc conflict bug in transactions.
+
+---
+
 ## 1.5.0 - 2026-04-21
 
 ### Added
