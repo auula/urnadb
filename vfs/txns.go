@@ -28,7 +28,10 @@ var ErrEmptyBeginSnapshot = errors.New("unexpected empty begin snapshot")
 // 全句事物 ID 每次创建一个新的事物就会自增 1 ，保证每个事物都有一个唯一的 ID 所对应的 .txn 文件了，
 // 这个 ID 就是 .txn 文件的文件名，系统重启的时候就会去读取这个 .txn 文件来恢复对应 key 的老数据版本了。
 // 每次重新启动之后 ID 源会被重置，之前的 .txn 文件会被删除，新的 .txn 的文件 ID 会重新的从 1 开始了，这样就保证了每次启动之后 ID 都是唯一的了。
-var globalTxnId atomic.Uint64
+var (
+	globalTxnId atomic.Uint64
+	commitLock  sync.Mutex
+)
 
 func acquireTxnId() uint64 {
 	return globalTxnId.Add(1)
@@ -224,6 +227,10 @@ func (t *Transaction) Commit() error {
 			return err
 		}
 	}
+
+	// 保护事务提交的版本检查和写入操作
+	commitLock.Lock()
+	defer commitLock.Unlock()
 
 	// 再检查老 key 的版本冲突
 	for key, seg := range state.writes {
