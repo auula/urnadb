@@ -20,7 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const version = "urnadb/1.5.0"
+const version = "urnadb/1.5.1"
 
 func SetupRoutes() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
