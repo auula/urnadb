@@ -24,17 +24,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var (
-	authToken   string
-	allowIpList []string
-)
+var auth_cfg *authConfig
 
-func SetAuthPassword(password string) {
-	authToken = password
+type authConfig struct {
+	AccessToken string
+	AllowedIPs  []string
 }
 
-func SetAllowIpList(ipList []string) {
-	allowIpList = ipList
+func SetAuthPassword(password string) {
+	auth_cfg.AccessToken = password
+}
+
+func SetAllowIpList(ips []string) {
+	auth_cfg.AllowedIPs = ips
 }
 
 func AuthMiddleware() gin.HandlerFunc {
@@ -50,9 +52,9 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// 检查 IP 白名单
-		if len(allowIpList) > 0 {
+		if len(auth_cfg.AllowedIPs) > 0 {
 			ok := false
-			for _, allowedIP := range allowIpList {
+			for _, allowedIP := range auth_cfg.AllowedIPs {
 				// 只要找到匹配的 IP，就终止循环
 				if allowedIP == strings.Split(ip, ":")[0] {
 					ok = true
@@ -61,15 +63,13 @@ func AuthMiddleware() gin.HandlerFunc {
 			}
 			if !ok {
 				clog.Warnf("Unauthorized IP address: %s", ip)
-				c.IndentedJSON(
-					http.StatusUnauthorized,
-					response.FailJSON(fmt.Sprintf("client IP %s is not allowed!", ip)))
+				c.IndentedJSON(http.StatusUnauthorized, response.FailJSON(fmt.Sprintf("client IP %s is not allowed!", ip)))
 				c.Abort()
 				return
 			}
 		}
 
-		if auth != authToken {
+		if auth != auth_cfg.AccessToken {
 			clog.Warnf("Unauthorized access attempt from client %s", ip)
 			c.IndentedJSON(http.StatusUnauthorized, response.FailJSON("access not authorised!"))
 			c.Abort()
