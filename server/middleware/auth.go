@@ -24,19 +24,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var auth_cfg *authConfig
+var ap *authPolicy
 
-type authConfig struct {
+type authPolicy struct {
 	AccessToken string
 	AllowedIPs  []string
 }
 
 func SetAuthPassword(password string) {
-	auth_cfg.AccessToken = password
+	ap.AccessToken = password
 }
 
 func SetAllowIpList(ips []string) {
-	auth_cfg.AllowedIPs = ips
+	ap.AllowedIPs = ips
 }
 
 func AuthMiddleware() gin.HandlerFunc {
@@ -52,9 +52,9 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// 检查 IP 白名单
-		if len(auth_cfg.AllowedIPs) > 0 {
+		if len(ap.AllowedIPs) > 0 {
 			ok := false
-			for _, allowedIP := range auth_cfg.AllowedIPs {
+			for _, allowedIP := range ap.AllowedIPs {
 				// 只要找到匹配的 IP，就终止循环
 				if allowedIP == strings.Split(ip, ":")[0] {
 					ok = true
@@ -69,7 +69,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			}
 		}
 
-		if auth != auth_cfg.AccessToken {
+		if auth != ap.AccessToken {
 			clog.Warnf("Unauthorized access attempt from client %s", ip)
 			c.IndentedJSON(http.StatusUnauthorized, response.FailJSON("access not authorised!"))
 			c.Abort()
