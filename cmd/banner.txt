@@ -1,7 +1,7 @@
                   __  __              ___  ___ 
                  / / / /______  ___ _/ _ \/ _ )
                 / /_/ / __/ _ \/ _ `/ // / _  |
-                \____/_/ /_//_/\_,_/____/____/  %s
+                \____/_/ /_//_/\_,_/____/____/  v%s
 
   UrnaDB is a NoSQL database support diverse data types and transactions. 
   UrnaDB Software License: Apache 2.0  Website: %s

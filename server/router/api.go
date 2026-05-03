@@ -15,12 +15,15 @@
 package router
 
 import (
+	"fmt"
+
 	"github.com/auula/urnadb/server/controller"
 	"github.com/auula/urnadb/server/middleware"
+	"github.com/auula/urnadb/utils"
 	"github.com/gin-gonic/gin"
 )
 
-const version = "urnadb/1.5.1"
+var version = fmt.Sprintf("urnadb/%s", utils.VersionString())
 
 func SetupRoutes() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)

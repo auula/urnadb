@@ -33,15 +33,12 @@ import (
 	"github.com/gookit/color"
 )
 
-const (
-	version = "v1.5.1"
-	website = "https://urnadb.github.io"
-)
+const website = "https://urnadb.github.io"
 
 var (
 	//go:embed banner.txt
 	text   string
-	banner = fmt.Sprintf(text, version, website)
+	banner = fmt.Sprintf(text, utils.VersionString(), website)
 	daemon = false
 )
 
