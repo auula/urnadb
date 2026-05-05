@@ -48,49 +48,49 @@ type Encryptor interface {
 	Decrypt(secret, ciphertext []byte) ([]byte, error)
 }
 
-type Pipeline struct {
+type Plugin struct {
 	Encryptor
 	Compressor
 	flags  int8
 	secret []byte
 }
 
-func NewPipeline() *Pipeline {
-	return &Pipeline{
+func NewPlugin() *Plugin {
+	return &Plugin{
 		flags:      0,
 		Encryptor:  nil,
 		Compressor: nil,
 	}
 }
 
-func (p *Pipeline) EnableEncryption() {
+func (p *Plugin) EnableEncryption() {
 	p.flags |= EnabledEncryption
 }
-func (p *Pipeline) EnableCompression() {
+func (p *Plugin) EnableCompression() {
 	p.flags |= EnabledCompression
 }
 
-func (p *Pipeline) DisableEncryption() {
+func (p *Plugin) DisableEncryption() {
 	p.flags &^= EnabledEncryption
 }
 
-func (p *Pipeline) DisableCompression() {
+func (p *Plugin) DisableCompression() {
 	p.flags &^= EnabledCompression
 }
 
-func (p *Pipeline) IsEncryptionEnabled() bool {
+func (p *Plugin) IsEncryptionEnabled() bool {
 	return p.flags&EnabledEncryption != 0
 }
 
-func (p *Pipeline) IsCompressionEnabled() bool {
+func (p *Plugin) IsCompressionEnabled() bool {
 	return p.flags&EnabledCompression != 0
 }
 
-func (p *Pipeline) DisableAll() {
+func (p *Plugin) DisableAll() {
 	p.flags = 0
 }
 
-func (p *Pipeline) SetEncryptor(encryptor Encryptor, secret []byte) error {
+func (p *Plugin) SetEncryptor(encryptor Encryptor, secret []byte) error {
 	if len(secret) < 16 {
 		return errors.New("secret key char length too short")
 	}
@@ -100,12 +100,12 @@ func (p *Pipeline) SetEncryptor(encryptor Encryptor, secret []byte) error {
 	return nil
 }
 
-func (p *Pipeline) SetCompressor(compressor Compressor) {
+func (p *Plugin) SetCompressor(compressor Compressor) {
 	p.Compressor = compressor
 	p.EnableCompression()
 }
 
-func (p *Pipeline) Encode(data []byte) ([]byte, error) {
+func (p *Plugin) Encode(data []byte) ([]byte, error) {
 	var err error
 	// 压缩数据
 	if p.IsCompressionEnabled() && p.Compressor != nil {
@@ -128,7 +128,7 @@ func (p *Pipeline) Encode(data []byte) ([]byte, error) {
 }
 
 // fd 必须实现 io.ReadWriteCloser 接口
-func (p *Pipeline) Decode(data []byte) ([]byte, error) {
+func (p *Plugin) Decode(data []byte) ([]byte, error) {
 	var err error
 	// 解密数据
 	if p.IsEncryptionEnabled() && p.Encryptor != nil {
