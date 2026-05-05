@@ -24,7 +24,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var ap *authPolicy
+var ap = new(authPolicy)
 
 type authPolicy struct {
 	AccessToken string
