@@ -92,10 +92,10 @@ func AcquirePoolSegment[T Serializable](key string, data T, ttl int64) (*Segment
 		return nil, err
 	}
 
-	encodedata, err := pipeline.Encode(bytes)
+	encodedata, err := plugin.Encode(bytes)
 	if err != nil {
 		seg.ReleaseToPool()
-		return nil, fmt.Errorf("pipeline encode: %w", err)
+		return nil, fmt.Errorf("plugin encode: %w", err)
 	}
 
 	// 只能这样初始化复用 segment 结构
@@ -149,9 +149,9 @@ func NewSegment[T Serializable](key string, data T, ttl int64) (*Segment, error)
 	}
 
 	// 这个是通过 transformer 编码之后的
-	encodedata, err := pipeline.Encode(bytes)
+	encodedata, err := plugin.Encode(bytes)
 	if err != nil {
-		return nil, fmt.Errorf("pipeline encode: %w", err)
+		return nil, fmt.Errorf("plugin encode: %w", err)
 	}
 
 	return &Segment{
@@ -204,7 +204,7 @@ func (s *Segment) ToVariant() (*types.Variant, error) {
 		return nil, fmt.Errorf("not support conversion to variant type")
 	}
 
-	decodedData, err := pipeline.Decode(s.Value)
+	decodedData, err := plugin.Decode(s.Value)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode segment value: %w", err)
 	}
@@ -224,8 +224,8 @@ func (s *Segment) ToRecord() (*types.Record, error) {
 		return nil, fmt.Errorf("not support conversion to record type")
 	}
 
-	// 先通过 pipeline 解码
-	decodedData, err := pipeline.Decode(s.Value)
+	// 先通过 plugin 解码
+	decodedData, err := plugin.Decode(s.Value)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode segment value: %w", err)
 	}
@@ -245,8 +245,8 @@ func (s *Segment) ToTable() (*types.Table, error) {
 		return nil, fmt.Errorf("not support conversion to table type")
 	}
 
-	// 先通过 pipeline 解码
-	decodedData, err := pipeline.Decode(s.Value)
+	// 先通过 plugin 解码
+	decodedData, err := plugin.Decode(s.Value)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode segment value: %w", err)
 	}
@@ -266,8 +266,8 @@ func (s *Segment) ToLeaseLock() (*types.LeaseLock, error) {
 		return nil, fmt.Errorf("not support conversion to lease lock type")
 	}
 
-	// 先通过 pipeline 解码
-	decodedData, err := pipeline.Decode(s.Value)
+	// 先通过 plugin 解码
+	decodedData, err := plugin.Decode(s.Value)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode segment value: %w", err)
 	}

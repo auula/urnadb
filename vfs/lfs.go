@@ -60,7 +60,7 @@ const (
 
 var (
 	shard            = 10
-	pipeline         = NewPipeline()
+	plugin           = NewPlugin()
 	txnDirName       = "txns"
 	txnExtension     = ".txn"
 	fileExtension    = ".db"
@@ -746,11 +746,11 @@ func (lfs *LogStructuredFS) scanAndRecoverIndexs() error {
 }
 
 func (*LogStructuredFS) SetCompressor(compressor Compressor) {
-	pipeline.SetCompressor(compressor)
+	plugin.SetCompressor(compressor)
 }
 
 func (*LogStructuredFS) SetEncryptor(encryptor Encryptor, secret []byte) error {
-	return pipeline.SetEncryptor(encryptor, secret)
+	return plugin.SetEncryptor(encryptor, secret)
 }
 
 func (lfs *LogStructuredFS) RunCheckpoint(second uint32) {
@@ -1412,7 +1412,7 @@ func readSegment(reader io.ReaderAt, offset, bufsize int64) (uint64, *Segment, e
 	}
 
 	// Update Segment data fields with the read valuebuf and process it through Transformer before use
-	decodedData, err := pipeline.Decode(valuebuf)
+	decodedData, err := plugin.Decode(valuebuf)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to pipeline decode value in segment: %w", err)
 	}

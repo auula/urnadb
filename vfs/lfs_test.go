@@ -434,7 +434,7 @@ func TestVFSOpertions(t *testing.T) {
 
 	fss.SetCompressor(SnappyCompressor)
 
-	pipeline = NewPipeline()
+	plugin = NewPlugin()
 
 	os.RemoveAll(conf.Settings.Path)
 }
