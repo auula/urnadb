@@ -23,7 +23,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var version = fmt.Sprintf("urnadb/%s", utils.VersionString())
+var version = fmt.Sprintf("urnadb/%s", utils.Version())
 
 func SetupRoutes() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
