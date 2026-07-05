@@ -16,6 +16,6 @@ package utils
 
 const version = "1.5.1"
 
-func VersionString() string {
+func Version() string {
 	return version
 }

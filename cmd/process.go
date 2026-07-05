@@ -38,7 +38,7 @@ const website = "https://urnadb.github.io"
 var (
 	//go:embed banner.txt
 	text   string
-	banner = fmt.Sprintf(text, utils.VersionString(), website)
+	banner = fmt.Sprintf(text, utils.Version(), website)
 	daemon = false
 )
 

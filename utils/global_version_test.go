@@ -16,8 +16,8 @@ package utils
 
 import "testing"
 
-func TestVersionString(t *testing.T) {
-	if VersionString() != version {
-		t.Errorf("Expected version string to be %s, but got %s", version, VersionString())
+func TestVersion(t *testing.T) {
+	if Version() != version {
+		t.Errorf("Expected version to be %s, but got %s", version, Version())
 	}
 }
