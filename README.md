@@ -16,6 +16,7 @@
 [![DeepSource](https://app.deepsource.com/gh/auula/urnadb.svg/?label=active+issues&show_trend=false&token=Bymkt0xcKcmlGI8WOo3JMxHc)](https://app.deepsource.com/gh/auula/urnadb/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![release](https://img.shields.io/github/release/auula/urnadb.svg)](https://github.com/auula/urnadb/releases)
+![Stars](https://img.shields.io/github/stars/auula/urnadb)
 
 
 
