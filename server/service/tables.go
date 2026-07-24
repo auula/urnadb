@@ -60,7 +60,7 @@ type TablesService interface {
 	// 根据表名和子查询条件搜索表
 	QueryRows(name string, wheres map[string]any) ([]map[string]any, error)
 	// 事务接口，暂时不支持
-	Transaction(mts []*TableMutation, serialization bool) error
+	Transaction(mts []*TableMutation, serializable bool) error
 }
 
 type TablesServiceImpl struct {
@@ -263,7 +263,7 @@ type TableMutation struct {
 	Data       map[string]any // 操作数据针对 INSERT 和 UPDATE 操作
 }
 
-func (ts *TablesServiceImpl) Transaction(mutations []*TableMutation, serialization bool) error {
+func (ts *TablesServiceImpl) Transaction(mutations []*TableMutation, serializable bool) error {
 	// 去重 key 不需要拿到重复的快照
 	keySet := make(map[string]struct{})
 	for _, mutation := range mutations {
@@ -275,8 +275,8 @@ func (ts *TablesServiceImpl) Transaction(mutations []*TableMutation, serializati
 		keys = append(keys, key)
 	}
 
-	// 2PL 类似于关系数据中事物中的 serialization 隔离级别
-	if serialization {
+	// 2PL 类似于关系数据中事物中的 serializable 隔离级别
+	if serializable {
 		for _, name := range keys {
 			// 排序保证锁顺序一致
 			ts.acquireTablesLock(name).Lock()

@@ -20,5 +20,5 @@
             }
         }
     ],
-    "serialization": false
+    "serializable": false
 }
