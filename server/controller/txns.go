@@ -43,7 +43,7 @@ type MutationsRequest struct {
 	Mutations []*Mutation `json:"mutations" binding:"required"`
 	// 开启这个就和 MySQL 中的事物隔离 Isolation 最高级别一样
 	// 如果值是 false 就是类似于 PGSQL 的 MVCC 提高并发效率
-	Serialization bool `json:"serialization"`
+	Serializable bool `json:"serializable"`
 }
 
 func (m *Mutation) Validated() error {
@@ -83,7 +83,7 @@ func TransactionController(ctx *gin.Context) {
 		}
 	}
 
-	err = ts.Transaction(req.buildTableMutation(), req.Serialization)
+	err = ts.Transaction(req.buildTableMutation(), req.Serializable)
 	if err != nil {
 		handlerTxnsError(ctx, err)
 		return
