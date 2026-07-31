@@ -61,7 +61,7 @@ func SetupRoutes() *gin.Engine {
 		tables.PUT("/:key", controller.CreateTableController)
 		tables.DELETE("/:key", controller.DeleteTableController)
 		tables.PATCH("/:key", controller.PatchRowsTableController)
-		tables.GET("/:key/rows", controller.QueryRowsTableController)
+		tables.POST("/:key/query", controller.QueryRowsTableController)
 		tables.POST("/:key/rows", controller.InsertRowsTableController)
 		tables.DELETE("/:key/rows", controller.RemoveRowsTabelController)
 	}
