@@ -114,6 +114,47 @@ func TestTable_UpdateRows(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestTable_UpdateRows_TidTypeSupport(t *testing.T) {
+	table := NewTable()
+	id := table.AddRows(map[string]any{"name": "test", "age": 25})
+
+	// 测试 t_id 为 uint32 类型
+	err := table.UpdateRows(map[string]any{"t_id": id}, map[string]any{"age": 26})
+	assert.NoError(t, err)
+	row := table.GetRows(id).(map[string]any)
+	assert.Equal(t, 26, row["age"])
+
+	// 测试 t_id 为 float64 类型 (json 默认解析数字为 float64)
+	err = table.UpdateRows(map[string]any{"t_id": float64(id)}, map[string]any{"age": 27})
+	assert.NoError(t, err)
+	row = table.GetRows(id).(map[string]any)
+	assert.Equal(t, 27, row["age"])
+
+	// 测试 t_id 为 int 类型
+	err = table.UpdateRows(map[string]any{"t_id": int(id)}, map[string]any{"age": 28})
+	assert.NoError(t, err)
+	row = table.GetRows(id).(map[string]any)
+	assert.Equal(t, 28, row["age"])
+
+	// 测试 t_id 为 string 类型
+	err = table.UpdateRows(map[string]any{"t_id": "1"}, map[string]any{"age": 29})
+	assert.NoError(t, err)
+	row = table.GetRows(id).(map[string]any)
+	assert.Equal(t, 29, row["age"])
+
+	// 测试 t_id 为无效字符串
+	err = table.UpdateRows(map[string]any{"t_id": "not_a_number"}, map[string]any{"age": 30})
+	assert.Error(t, err)
+
+	// 测试 t_id 为不支持的类型
+	err = table.UpdateRows(map[string]any{"t_id": []int{1, 2, 3}}, map[string]any{"age": 30})
+	assert.Error(t, err)
+
+	// 测试 t_id 为 bool 类型 (不支持的类型)
+	err = table.UpdateRows(map[string]any{"t_id": true}, map[string]any{"age": 30})
+	assert.Error(t, err)
+}
+
 func TestTable_Clear(t *testing.T) {
 	table := NewTable()
 	table.AddRows(map[string]any{"name": "test", "age": 25})
