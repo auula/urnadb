@@ -15,207 +15,291 @@
 package types
 
 import (
+	"encoding/json"
+	"reflect"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func TestNewTables(t *testing.T) {
-	tables := NewTable()
-	assert.NotNil(t, tables)
-	assert.Empty(t, tables.Table)
-	assert.Equal(t, uint32(0), tables.NextID)
+func TestNewTable(t *testing.T) {
+	tab := NewTable()
+
+	if tab == nil {
+		t.Fatal("NewTable returned nil")
+	}
+
+	if tab.Rows == nil {
+		t.Fatal("Rows should not be nil")
+	}
+
+	if len(tab.Rows) != 0 {
+		t.Fatalf("expected empty table, got %d rows", len(tab.Rows))
+	}
 }
 
-func TestTable_AddRows(t *testing.T) {
-	table := NewTable()
+func TestTableAddRows(t *testing.T) {
+	tab := NewTable()
 
-	row1 := map[string]any{"name": "test1", "age": 25}
-	id1 := table.AddRows(row1)
-	assert.Equal(t, uint32(1), id1)
-	assert.Equal(t, 1, table.Size())
-
-	row2 := map[string]any{"name": "test2", "age": 30}
-	id2 := table.AddRows(row2)
-	assert.Equal(t, uint32(2), id2)
-	assert.Equal(t, 2, table.Size())
-}
-
-func TestTable_GetRows(t *testing.T) {
-	table := NewTable()
-	row := map[string]any{"name": "test", "age": 25}
-	id := table.AddRows(row)
-
-	result := table.GetRows(id)
-	assert.Equal(t, row, result)
-
-	result = table.GetRows(999)
-	assert.Nil(t, result)
-}
-
-func TestTable_RemoveRows(t *testing.T) {
-	table := NewTable()
-	table.AddRows(map[string]any{"name": "test1", "age": 25})
-	table.AddRows(map[string]any{"name": "test2", "age": 30})
-
-	table.RemoveRows(map[string]any{"name": "test1"})
-	assert.Equal(t, 1, table.Size())
-
-	// 测试不匹配的条件
-	table.RemoveRows(map[string]any{"name": "nonexistent"})
-	assert.Equal(t, 1, table.Size())
-
-	// 测试部分匹配
-	table.RemoveRows(map[string]any{"name": "test2", "age": 25})
-	assert.Equal(t, 1, table.Size())
-}
-
-func TestTable_SelectRowsAll(t *testing.T) {
-	table := NewTable()
-	table.AddRows(map[string]any{"name": "test1", "age": 25})
-	table.AddRows(map[string]any{"name": "test2", "age": 25})
-	table.AddRows(map[string]any{"name": "test3", "age": 30})
-
-	results := table.SelectRowsAll(map[string]any{"age": 25})
-	assert.Equal(t, 2, len(results))
-
-	// 测试不存在的字段
-	results = table.SelectRowsAll(map[string]any{"nonexistent": "value"})
-	assert.Equal(t, 0, len(results))
-
-	// 测试复杂对象匹配
-	table.AddRows(map[string]any{"data": map[string]any{"nested": "value"}})
-	results = table.SelectRowsAll(map[string]any{"data": map[string]any{"nested": "value"}})
-	assert.Equal(t, 1, len(results))
-}
-
-func TestTable_UpdateRows(t *testing.T) {
-	table := NewTable()
-	id := table.AddRows(map[string]any{"name": "test", "age": 25})
-
-	// 测试通过 t_id 更新
-	err := table.UpdateRows(map[string]any{"t_id": id}, map[string]any{"age": 30})
-	assert.NoError(t, err)
-
-	row := table.GetRows(id).(map[string]any)
-	assert.Equal(t, 30, row["age"])
-
-	// 测试无效的 t_id
-	err = table.UpdateRows(map[string]any{"t_id": uint32(999)}, map[string]any{"age": 35})
-	assert.Error(t, err)
-
-	// 测试错误的 t_id 类型
-	err = table.UpdateRows(map[string]any{"t_id": "invalid"}, map[string]any{"age": 35})
-	assert.Error(t, err)
-
-	// 测试通过其他条件更新
-	table.AddRows(map[string]any{"name": "test2", "age": 20})
-	err = table.UpdateRows(map[string]any{"name": "test2"}, map[string]any{"age": 21})
-	assert.NoError(t, err)
-}
-
-func TestTable_UpdateRows_TidTypeSupport(t *testing.T) {
-	table := NewTable()
-	id := table.AddRows(map[string]any{"name": "test", "age": 25})
-
-	// 测试 t_id 为 uint32 类型
-	err := table.UpdateRows(map[string]any{"t_id": id}, map[string]any{"age": 26})
-	assert.NoError(t, err)
-	row := table.GetRows(id).(map[string]any)
-	assert.Equal(t, 26, row["age"])
-
-	// 测试 t_id 为 float64 类型 (json 默认解析数字为 float64)
-	err = table.UpdateRows(map[string]any{"t_id": float64(id)}, map[string]any{"age": 27})
-	assert.NoError(t, err)
-	row = table.GetRows(id).(map[string]any)
-	assert.Equal(t, 27, row["age"])
-
-	// 测试 t_id 为 int 类型
-	err = table.UpdateRows(map[string]any{"t_id": int(id)}, map[string]any{"age": 28})
-	assert.NoError(t, err)
-	row = table.GetRows(id).(map[string]any)
-	assert.Equal(t, 28, row["age"])
-
-	// 测试 t_id 为 string 类型
-	err = table.UpdateRows(map[string]any{"t_id": "1"}, map[string]any{"age": 29})
-	assert.NoError(t, err)
-	row = table.GetRows(id).(map[string]any)
-	assert.Equal(t, 29, row["age"])
-
-	// 测试 t_id 为无效字符串
-	err = table.UpdateRows(map[string]any{"t_id": "not_a_number"}, map[string]any{"age": 30})
-	assert.Error(t, err)
-
-	// 测试 t_id 为不支持的类型
-	err = table.UpdateRows(map[string]any{"t_id": []int{1, 2, 3}}, map[string]any{"age": 30})
-	assert.Error(t, err)
-
-	// 测试 t_id 为 bool 类型 (不支持的类型)
-	err = table.UpdateRows(map[string]any{"t_id": true}, map[string]any{"age": 30})
-	assert.Error(t, err)
-}
-
-func TestTable_Clear(t *testing.T) {
-	table := NewTable()
-	table.AddRows(map[string]any{"name": "test", "age": 25})
-
-	table.Clear()
-	assert.Equal(t, 0, table.Size())
-	assert.Equal(t, uint32(0), table.NextID)
-}
-
-func TestTable_ToBytes(t *testing.T) {
-	table := NewTable()
-	table.AddRows(map[string]any{"name": "test", "age": 25})
-
-	bytes, err := table.ToBytes()
-	assert.NoError(t, err)
-	assert.NotEmpty(t, bytes)
-}
-
-func TestTable_ToJSON(t *testing.T) {
-	table := NewTable()
-	table.AddRows(map[string]any{"name": "test", "age": 25})
-
-	json, err := table.ToJSON()
-	assert.NoError(t, err)
-	assert.NotEmpty(t, json)
-}
-
-func TestAcquireTable(t *testing.T) {
-	table := AcquireTable()
-	assert.NotNil(t, table)
-	assert.Equal(t, uint32(0), table.NextID)
-}
-
-func TestTable_ReleaseToPool(t *testing.T) {
-	table := AcquireTable()
-	table.AddRows(map[string]any{"name": "test", "age": 25})
-
-	table.ReleaseToPool()
-
-	newTable := AcquireTable()
-	assert.Equal(t, 0, newTable.Size())
-}
-
-func TestTable_DeepMerge(t *testing.T) {
-	table := NewTable()
-	id := table.AddRows(map[string]any{
-		"user": map[string]any{
-			"name": "test",
-			"age":  25,
-		},
+	id1 := tab.AddRows(map[string]any{
+		"name": "Leon",
+		"age":  26,
 	})
 
-	table.DeepMerge(id, map[string]any{
-		"user": map[string]any{
-			"email": "test@example.com",
-		},
+	id2 := tab.AddRows(map[string]any{
+		"name": "Alice",
+		"age":  30,
 	})
 
-	row := table.GetRows(id).(map[string]any)
-	user := row["user"].(map[string]any)
-	assert.Equal(t, "test", user["name"])
-	assert.Equal(t, 25, user["age"])
-	assert.Equal(t, "test@example.com", user["email"])
+	if id1 != 0 {
+		t.Fatalf("expected first row id 0, got %d", id1)
+	}
+
+	if id2 != 1 {
+		t.Fatalf("expected second row id 1, got %d", id2)
+	}
+
+	if tab.Size() != 2 {
+		t.Fatalf("expected size 2, got %d", tab.Size())
+	}
+}
+
+func TestTableGetRows(t *testing.T) {
+	tab := NewTable()
+
+	row := map[string]any{
+		"name": "Leon",
+		"age":  26,
+	}
+
+	tab.AddRows(row)
+
+	result := tab.GetRows(0)
+
+	got, ok := result.(map[string]any)
+
+	if !ok {
+		t.Fatal("expected map[string]any")
+	}
+
+	if !reflect.DeepEqual(got, row) {
+		t.Fatalf(
+			"expected %+v, got %+v",
+			row,
+			got,
+		)
+	}
+}
+
+func TestTableSelectRowsAll(t *testing.T) {
+	tab := NewTable()
+
+	tab.AddRows(map[string]any{
+		"name": "Leon",
+		"age":  26,
+	})
+
+	tab.AddRows(map[string]any{
+		"name": "Alice",
+		"age":  30,
+	})
+
+	results := tab.SelectRowsAll(
+		map[string]any{
+			"name": "Leon",
+		},
+	)
+
+	if len(results) != 1 {
+		t.Fatalf(
+			"expected 1 result, got %d",
+			len(results),
+		)
+	}
+
+	if results[0]["name"] != "Leon" {
+		t.Fatalf(
+			"unexpected result %+v",
+			results[0],
+		)
+	}
+}
+
+func TestTableUpdateRows(t *testing.T) {
+	tab := NewTable()
+
+	tab.AddRows(map[string]any{
+		"name": "Leon",
+		"age":  26,
+	})
+
+	err := tab.UpdateRows(
+		map[string]any{
+			"name": "Leon",
+		},
+		map[string]any{
+			"age": 27,
+		},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	row := tab.Rows[0]
+
+	if row["age"] != 27 {
+		t.Fatalf(
+			"expected age 27, got %v",
+			row["age"],
+		)
+	}
+}
+
+func TestTableRemoveRows(t *testing.T) {
+	tab := NewTable()
+
+	tab.AddRows(map[string]any{
+		"name": "Leon",
+	})
+
+	tab.AddRows(map[string]any{
+		"name": "Alice",
+	})
+
+	tab.RemoveRows(
+		map[string]any{
+			"name": "Leon",
+		},
+	)
+
+	if tab.Size() != 1 {
+		t.Fatalf(
+			"expected size 1, got %d",
+			tab.Size(),
+		)
+	}
+
+	if tab.Rows[0]["name"] != "Alice" {
+		t.Fatalf(
+			"expected Alice remain",
+		)
+	}
+}
+
+func TestTableClear(t *testing.T) {
+	tab := NewTable()
+
+	tab.AddRows(map[string]any{
+		"name": "Leon",
+	})
+
+	tab.Clear()
+
+	if tab.Size() != 0 {
+		t.Fatalf(
+			"expected empty table",
+		)
+	}
+}
+
+func TestTableSize(t *testing.T) {
+	tab := NewTable()
+
+	if tab.Size() != 0 {
+		t.Fatal("new table should size 0")
+	}
+
+	tab.AddRows(map[string]any{
+		"a": 1,
+	})
+
+	if tab.Size() != 1 {
+		t.Fatal("table size should be 1")
+	}
+}
+
+func TestTableToBytes(t *testing.T) {
+
+	tab := NewTable()
+
+	tab.AddRows(map[string]any{
+		"name": "Leon",
+		"age":  26,
+	})
+
+	data, err := tab.ToBytes()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(data) == 0 {
+		t.Fatal("msgpack bytes should not be empty")
+	}
+}
+
+func TestTableToJSON(t *testing.T) {
+
+	tab := NewTable()
+
+	tab.AddRows(map[string]any{
+		"name": "Leon",
+		"age":  26,
+	})
+
+	data, err := tab.ToJSON()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var rows []map[string]any
+
+	err = json.Unmarshal(
+		data,
+		&rows,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(rows) != 1 {
+		t.Fatalf(
+			"expected 1 row, got %d",
+			len(rows),
+		)
+	}
+
+	if rows[0]["name"] != "Leon" {
+		t.Fatalf(
+			"unexpected json result",
+		)
+	}
+}
+
+func TestTablePool(t *testing.T) {
+
+	tab := AcquireTable()
+
+	if tab == nil {
+		t.Fatal("AcquireTable returned nil")
+	}
+
+	tab.AddRows(
+		map[string]any{
+			"name": "Leon",
+		},
+	)
+
+	tab.ReleaseToPool()
+
+	tab2 := AcquireTable()
+
+	if tab2.Size() != 0 {
+		t.Fatalf(
+			"released table should be empty",
+		)
+	}
+
+	tab2.ReleaseToPool()
 }

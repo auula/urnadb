@@ -16,19 +16,14 @@ package types
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"reflect"
-	"strconv"
 	"sync"
 
-	"github.com/auula/urnadb/utils"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
 type Table struct {
-	Table  map[uint32]map[string]any `json:"table" msgpack:"table"`
-	NextID uint32                    `json:"t_id" msgpack:"next_id"`
+	Rows []map[string]any `json:"table" msgpack:"table"`
 }
 
 var tablePools = sync.Pool{
@@ -59,51 +54,54 @@ func (tab *Table) ReleaseToPool() {
 // 新建一个 Table
 func NewTable() *Table {
 	return &Table{
-		NextID: 0,
-		Table:  make(map[uint32]map[string]any),
+		Rows: make([]map[string]any, 0),
 	}
 }
 
 // Clear 清空 Table 和 TTL
 func (tab *Table) Clear() {
-	tab.NextID = 0
-	tab.Table = make(map[uint32]map[string]any)
+	tab.Rows = make([]map[string]any, 0)
 }
 
 // 向 Table 中添加一个项
 func (tab *Table) AddRows(rows map[string]any) uint32 {
-	tab.NextID += 1
-	tab.Table[tab.NextID] = rows
-	return tab.NextID
+	tab.Rows = append(tab.Rows, rows)
+	return uint32(len(tab.Rows))
 }
 
 // 从 Table 中删除一个项
 func (tab *Table) RemoveRows(wheres map[string]any) {
-	for row_id, row := range tab.Table {
+
+	for i := len(tab.Rows) - 1; i >= 0; i-- {
+
+		row := tab.Rows[i]
+
 		match := true
 		for key, value := range wheres {
-			// if v, ok := row[key]; !ok || v != value {
-			if v, ok := row[key]; !(ok && v == value) {
+			if v, ok := row[key]; !ok || !reflect.DeepEqual(v, value) {
 				match = false
 				break
 			}
 		}
 
 		if match {
-			delete(tab.Table, row_id)
+			tab.Rows = append(
+				tab.Rows[:i],
+				tab.Rows[i+1:]...,
+			)
 		}
 	}
 }
 
 // 从 Table 中获取一个项
-func (tab *Table) GetRows(key uint32) any {
-	return tab.Table[key]
+func (tab *Table) GetRows(index uint32) any {
+	return tab.Rows[index]
 }
 
 func (tab *Table) SelectRowsAll(wheres map[string]any) []map[string]any {
 	var results []map[string]any
 
-	for _, row := range tab.Table {
+	for _, row := range tab.Rows {
 		match := true
 		for key, value := range wheres {
 			v, ok := row[key]
@@ -126,52 +124,20 @@ func (tab *Table) SelectRowsAll(wheres map[string]any) []map[string]any {
 }
 
 func (tab *Table) UpdateRows(wheres, data map[string]any) error {
-	// 优先处理按 t_id 更新
-	if idVal, ok := wheres["t_id"]; ok {
-		var id uint32
-
-		// 兼容 JSON 解析：数字会被解析为 float64，字符串也需要支持
-		switch v := idVal.(type) {
-		case uint32:
-			id = v
-		case float64:
-			id = uint32(v)
-		case int:
-			id = uint32(v)
-		case string:
-			parsed, err := strconv.ParseUint(v, 10, 32)
-			if err != nil {
-				return fmt.Errorf("t_id must be a valid unsigned 32-bit integer: %w", err)
+	// 原来的遍历逻辑
+	for index, row := range tab.Rows {
+		match := true
+		for key, value := range wheres {
+			if val, ok := row[key]; !ok || !reflect.DeepEqual(val, value) {
+				match = false
+				break
 			}
-			id = uint32(parsed)
-		default:
-			return fmt.Errorf("t_id must be unsigned 32-bit integer, got %T", idVal)
 		}
-
-		if row, exists := tab.Table[id]; exists {
+		if match {
 			for k, v := range data {
 				row[k] = v
 			}
-			tab.Table[id] = row
-		} else {
-			return errors.New("t_id is invalid")
-		}
-	} else {
-		// 原来的遍历逻辑
-		for rowID, row := range tab.Table {
-			match := true
-			for key, value := range wheres {
-				if rowVal, ok := row[key]; !ok || rowVal != value {
-					match = false
-					break
-				}
-			}
-			if match {
-				for k, v := range data {
-					row[k] = v
-				}
-				tab.Table[rowID] = row
-			}
+			tab.Rows[index] = row
 		}
 	}
 
@@ -180,7 +146,7 @@ func (tab *Table) UpdateRows(wheres, data map[string]any) error {
 
 // 获取 Table 中的元素个数
 func (tab *Table) Size() int {
-	return len(tab.Table)
+	return len(tab.Rows)
 }
 
 func (tab *Table) ToBytes() ([]byte, error) {
@@ -188,9 +154,5 @@ func (tab *Table) ToBytes() ([]byte, error) {
 }
 
 func (tab *Table) ToJSON() ([]byte, error) {
-	return json.Marshal(&tab.Table)
-}
-
-func (tab *Table) DeepMerge(id uint32, news map[string]any) {
-	utils.DeepMergeMaps(tab.Table[id], news)
+	return json.Marshal(&tab.Rows)
 }

@@ -159,33 +159,31 @@ func TestVFSWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	data := `
-{
-  "table": {
-    "1": {
-      "active": true,
-      "age": 25,
-      "name": "Alice",
-      "score": 95.5,
-      "tags": [
-        "admin",
-        "user"
-      ]
-    },
-    "2": {
-      "active": false,
-      "age": 30,
-      "config": {
-        "font": 14,
-        "theme": "dark"
-      },
-      "name": "Bob"
-    },
-    "3": {}
-  },
-  "t_id": 4
-}
-`
+	data := []byte(`
+	{
+	  "table": [
+	    {
+	      "active": true,
+	      "age": 25,
+	      "name": "Alice",
+	      "score": 95.5,
+	      "tags": [
+	        "admin",
+	        "user"
+	      ]
+	    },
+	    {
+	      "active": false,
+	      "age": 30,
+	      "config": {
+	        "font": 14,
+	        "theme": "dark"
+	      },
+	      "name": "Bob"
+	    }
+	  ]
+	}
+	`)
 
 	var tables types.Table
 	err = json.Unmarshal([]byte(data), &tables)
@@ -221,33 +219,32 @@ func BenchmarkVFSWrite(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	data := `
-{
-  "table": {
-    "1": {
-      "active": true,
-      "age": 25,
-      "name": "Alice",
-      "score": 95.5,
-      "tags": [
-        "admin",
-        "user"
-      ]
-    },
-    "2": {
-      "active": false,
-      "age": 30,
-      "config": {
-        "font": 14,
-        "theme": "dark"
-      },
-      "name": "Bob"
-    },
-    "3": {}
-  },
-  "t_id": 4
-}
-`
+	data := []byte(`
+	{
+	  "table": [
+	    {
+	      "active": true,
+	      "age": 25,
+	      "name": "Alice",
+	      "score": 95.5,
+	      "tags": [
+	        "admin",
+	        "user"
+	      ]
+	    },
+	    {
+	      "active": false,
+	      "age": 30,
+	      "config": {
+	        "font": 14,
+	        "theme": "dark"
+	      },
+	      "name": "Bob"
+	    }
+	  ]
+	}
+	`)
+
 	tables := types.AcquireTable()
 	err = json.Unmarshal([]byte(data), &tables)
 	if err != nil {
@@ -378,33 +375,31 @@ func TestVFSOpertions(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	data := `
-{
-  "table": {
-    "1": {
-      "active": true,
-      "age": 25,
-      "name": "Alice",
-      "score": 95.5,
-      "tags": [
-        "admin",
-        "user"
-      ]
-    },
-    "2": {
-      "active": false,
-      "age": 30,
-      "config": {
-        "font": 14,
-        "theme": "dark"
-      },
-      "name": "Bob"
-    },
-    "3": {}
-  },
-  "t_id": 4
-}
-`
+	data := []byte(`
+	{
+	  "table": [
+	    {
+	      "active": true,
+	      "age": 25,
+	      "name": "Alice",
+	      "score": 95.5,
+	      "tags": [
+	        "admin",
+	        "user"
+	      ]
+	    },
+	    {
+	      "active": false,
+	      "age": 30,
+	      "config": {
+	        "font": 14,
+	        "theme": "dark"
+	      },
+	      "name": "Bob"
+	    }
+	  ]
+	}
+	`)
 
 	var tables types.Table
 	err = json.Unmarshal([]byte(data), &tables)
