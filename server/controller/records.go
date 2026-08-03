@@ -37,6 +37,7 @@ func GetRecordController(ctx *gin.Context) {
 		ctx.IndentedJSON(http.StatusInternalServerError, response.FailJSON(
 			err.Error(),
 		))
+		return
 	}
 
 	defer rd.ReleaseToPool()
