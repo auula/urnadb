@@ -17,7 +17,9 @@ package types
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
+	"strconv"
 	"sync"
 
 	"github.com/auula/urnadb/utils"
@@ -126,10 +128,26 @@ func (tab *Table) SelectRowsAll(wheres map[string]any) []map[string]any {
 func (tab *Table) UpdateRows(wheres, data map[string]any) error {
 	// 优先处理按 t_id 更新
 	if idVal, ok := wheres["t_id"]; ok {
-		id, ok := idVal.(uint32)
-		if !ok {
-			return errors.New("t_id must be unsigned 32-bit integer")
+		var id uint32
+
+		// 兼容 JSON 解析：数字会被解析为 float64，字符串也需要支持
+		switch v := idVal.(type) {
+		case uint32:
+			id = v
+		case float64:
+			id = uint32(v)
+		case int:
+			id = uint32(v)
+		case string:
+			parsed, err := strconv.ParseUint(v, 10, 32)
+			if err != nil {
+				return fmt.Errorf("t_id must be a valid unsigned 32-bit integer: %w", err)
+			}
+			id = uint32(parsed)
+		default:
+			return fmt.Errorf("t_id must be unsigned 32-bit integer, got %T", idVal)
 		}
+
 		if row, exists := tab.Table[id]; exists {
 			for k, v := range data {
 				row[k] = v
