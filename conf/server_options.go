@@ -17,6 +17,7 @@ package conf
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -186,7 +187,7 @@ func (opt *ServerOptions) SavedAs(path string) error {
 }
 
 func (opt *ServerOptions) Saved() error {
-	return saved(filepath.Join(opt.Path, fileName+"."+extension), opt)
+	return saved(filepath.Join(opt.Path, fmt.Sprintf("%s.%s", fileName, extension)), opt)
 }
 
 func (opt *ServerOptions) Unmarshal(data []byte) error {
