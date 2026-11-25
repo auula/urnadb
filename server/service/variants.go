@@ -16,7 +16,6 @@ package service
 
 import (
 	"errors"
-	"sync"
 
 	"github.com/auula/urnadb/clog"
 	"github.com/auula/urnadb/types"
@@ -39,14 +38,9 @@ type VariantsService interface {
 	DeleteVariant(name string) error
 }
 
-func (vs *VariantsServiceImpl) acquireVariantLock(key string) *sync.RWMutex {
-	actual, _ := vs.vlock.LoadOrStore(key, new(sync.RWMutex))
-	return actual.(*sync.RWMutex)
-}
-
 type VariantsServiceImpl struct {
 	storage *vfs.LogStructuredFS
-	vlock   sync.Map
+	vlock   keyLocks
 }
 
 // 构造函数 - 需要指定类型参数
@@ -58,8 +52,7 @@ func NewVariantsServiceImpl(storage *vfs.LogStructuredFS) VariantsService {
 
 // GetVariant 获取变量值
 func (vs *VariantsServiceImpl) GetVariant(name string) (*types.Variant, error) {
-	vs.acquireVariantLock(name).RLock()
-	defer vs.acquireVariantLock(name).RUnlock()
+	defer vs.vlock.RLock(name)()
 
 	_, seg, err := vs.storage.FetchSegment(name)
 	if err != nil {
@@ -74,12 +67,11 @@ func (vs *VariantsServiceImpl) GetVariant(name string) (*types.Variant, error) {
 
 // SetVariant 设置变量值
 func (vs *VariantsServiceImpl) SetVariant(name string, value *types.Variant, ttl int64) error {
+	defer vs.vlock.Lock(name)()
+
 	if vs.storage.IsActive(name) {
 		return ErrVariantAlreadyExists
 	}
-
-	vs.acquireVariantLock(name).Lock()
-	defer vs.acquireVariantLock(name).Unlock()
 
 	seg, err := vfs.AcquirePoolSegment(name, value, ttl)
 	if err != nil {
@@ -98,8 +90,7 @@ func (vs *VariantsServiceImpl) Increment(name string, delta float64) (float64, e
 		return 0, ErrVariantNotFound
 	}
 
-	vs.acquireVariantLock(name).Lock()
-	defer vs.acquireVariantLock(name).Unlock()
+	defer vs.vlock.Lock(name)()
 
 	_, seg, err := vs.storage.FetchSegment(name)
 	if err != nil {
@@ -147,17 +138,13 @@ func (vs *VariantsServiceImpl) DeleteVariant(name string) error {
 		return ErrVariantNotFound
 	}
 
-	vs.acquireVariantLock(name).Lock()
+	defer vs.vlock.Lock(name)()
 
 	err := vs.storage.DeleteSegment(name)
 	if err != nil {
-		vs.acquireVariantLock(name).Unlock()
 		clog.Errorf("[VariantsService.DeleteVariant] %v", err)
 		return err
 	}
-
-	vs.acquireVariantLock(name).Unlock()
-	vs.vlock.Delete(name)
 
 	return nil
 }
