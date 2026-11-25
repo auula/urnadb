@@ -16,7 +16,6 @@ package service
 
 import (
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/auula/urnadb/clog"
@@ -40,7 +39,7 @@ type LocksService interface {
 
 type LeaseLockService struct {
 	// 锁是对象的一部分，而不是指向对象的资源
-	atomicLeaseLocks sync.Map
+	atomicLeaseLocks keyLocks
 	storage          *vfs.LogStructuredFS
 }
 
@@ -50,21 +49,15 @@ func NewLocksServiceImpl(storage *vfs.LogStructuredFS) LocksService {
 	}
 }
 
-func (s *LeaseLockService) acquireLeaseLock(key string) *sync.Mutex {
-	actual, _ := s.atomicLeaseLocks.LoadOrStore(key, new(sync.Mutex))
-	return actual.(*sync.Mutex)
-}
-
 func (s *LeaseLockService) ReleaseLock(name string, token string) error {
 	if !s.storage.IsActive(name) {
 		return ErrLockNotFound
 	}
 
-	s.acquireLeaseLock(name).Lock()
+	defer s.atomicLeaseLocks.Lock(name)()
 
 	_, seg, err := s.storage.FetchSegment(name)
 	if err != nil {
-		s.acquireLeaseLock(name).Unlock()
 		clog.Errorf("[LocksService.ReleaseLock] %v", err)
 		return err
 	}
@@ -72,7 +65,6 @@ func (s *LeaseLockService) ReleaseLock(name string, token string) error {
 	slock, err := seg.ToLeaseLock()
 	if err != nil {
 		seg.ReleaseToPool()
-		s.acquireLeaseLock(name).Unlock()
 		clog.Errorf("[LocksService.ReleaseLock] %v", err)
 		return err
 	}
@@ -80,30 +72,25 @@ func (s *LeaseLockService) ReleaseLock(name string, token string) error {
 	defer utils.ReleaseToPool(seg, slock)
 
 	if slock.Token != token {
-		s.acquireLeaseLock(name).Unlock()
 		return ErrInvalidToken
 	}
 
 	err = s.storage.DeleteSegment(name)
 	if err != nil {
-		s.acquireLeaseLock(name).Unlock()
 		clog.Errorf("[LocksService.ReleaseLock] %v", err)
 		return err
 	}
 
-	s.acquireLeaseLock(name).Unlock()
-	s.atomicLeaseLocks.Delete(name)
 	return nil
 }
 
 func (s *LeaseLockService) AcquireLock(name string, ttl int64) (*types.LeaseLock, error) {
+	defer s.atomicLeaseLocks.Lock(name)()
+
 	// 存在则表示锁已经存在，意味着同一把锁还没有过期，同一资源还未过期。
 	if s.storage.IsActive(name) {
 		return nil, ErrAlreadyLocked
 	}
-
-	s.acquireLeaseLock(name).Lock()
-	defer s.acquireLeaseLock(name).Unlock()
 
 	if ttl < 0 {
 		return nil, ErrInvalidLeaseTTL
@@ -141,8 +128,7 @@ func (s *LeaseLockService) DoLeaseLock(name string, token string) (*types.LeaseL
 		return nil, ErrLockNotFound
 	}
 
-	s.acquireLeaseLock(name).Lock()
-	defer s.acquireLeaseLock(name).Unlock()
+	defer s.atomicLeaseLocks.Lock(name)()
 
 	_, seg, err := s.storage.FetchSegment(name)
 	if err != nil {

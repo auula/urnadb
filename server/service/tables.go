@@ -17,7 +17,7 @@ package service
 import (
 	"errors"
 	"fmt"
-	"sync"
+	"sort"
 
 	"github.com/auula/urnadb/clog"
 	"github.com/auula/urnadb/types"
@@ -64,7 +64,7 @@ type TablesService interface {
 }
 
 type TablesServiceImpl struct {
-	tlock   sync.Map
+	tlock   keyLocks
 	storage *vfs.LogStructuredFS
 }
 
@@ -73,8 +73,7 @@ func (*TablesServiceImpl) AllTables() []*types.Table {
 }
 
 func (t *TablesServiceImpl) GetTable(name string) (*types.Table, error) {
-	t.acquireTablesLock(name).RLock()
-	defer t.acquireTablesLock(name).RUnlock()
+	defer t.tlock.RLock(name)()
 
 	_, seg, err := t.storage.FetchSegment(name)
 	if err != nil {
@@ -88,24 +87,19 @@ func (t *TablesServiceImpl) GetTable(name string) (*types.Table, error) {
 }
 
 func (t *TablesServiceImpl) DeleteTable(name string) error {
-	t.acquireTablesLock(name).Lock()
+	defer t.tlock.Lock(name)()
 
 	err := t.storage.DeleteSegment(name)
 	if err != nil {
-		t.acquireTablesLock(name).Unlock()
 		clog.Errorf("[TablesService.DeleteTable] %v", err)
 		return err
 	}
-
-	t.acquireTablesLock(name).Unlock()
-	t.tlock.Delete(name)
 
 	return nil
 }
 
 func (s *TablesServiceImpl) RemoveRows(name string, condtitons map[string]any) error {
-	s.acquireTablesLock(name).Lock()
-	defer s.acquireTablesLock(name).Unlock()
+	defer s.tlock.Lock(name)()
 
 	_, seg, err := s.storage.FetchSegment(name)
 	if err != nil {
@@ -138,12 +132,11 @@ func (s *TablesServiceImpl) RemoveRows(name string, condtitons map[string]any) e
 }
 
 func (s *TablesServiceImpl) CreateTable(name string, table *types.Table, ttl int64) error {
+	defer s.tlock.Lock(name)()
+
 	if s.storage.IsActive(name) {
 		return ErrTableAlreadyExists
 	}
-
-	s.acquireTablesLock(name).Lock()
-	defer s.acquireTablesLock(name).Unlock()
 
 	seg, err := vfs.AcquirePoolSegment(name, table, ttl)
 	if err != nil {
@@ -157,8 +150,7 @@ func (s *TablesServiceImpl) CreateTable(name string, table *types.Table, ttl int
 }
 
 func (s *TablesServiceImpl) InsertRows(name string, rows map[string]any) (uint32, error) {
-	s.acquireTablesLock(name).Lock()
-	defer s.acquireTablesLock(name).Unlock()
+	defer s.tlock.Lock(name)()
 
 	_, seg, err := s.storage.FetchSegment(name)
 	if err != nil {
@@ -197,8 +189,7 @@ func (s *TablesServiceImpl) InsertRows(name string, rows map[string]any) (uint32
 }
 
 func (s *TablesServiceImpl) PatchRows(name string, conditions, data map[string]any) error {
-	s.acquireTablesLock(name).Lock()
-	defer s.acquireTablesLock(name).Unlock()
+	defer s.tlock.Lock(name)()
 
 	_, seg, err := s.storage.FetchSegment(name)
 	if err != nil {
@@ -235,8 +226,7 @@ func (s *TablesServiceImpl) PatchRows(name string, conditions, data map[string]a
 }
 
 func (s *TablesServiceImpl) QueryRows(name string, wheres map[string]any) ([]map[string]any, error) {
-	s.acquireTablesLock(name).RLock()
-	defer s.acquireTablesLock(name).RUnlock()
+	defer s.tlock.RLock(name)()
 
 	_, seg, err := s.storage.FetchSegment(name)
 	if err != nil {
@@ -277,10 +267,10 @@ func (ts *TablesServiceImpl) Transaction(mutations []*TableMutation, serializabl
 
 	// 2PL 类似于关系数据中事物中的 serializable 隔离级别
 	if serializable {
+		// 排序保证锁顺序一致
+		sort.Strings(keys)
 		for _, name := range keys {
-			// 排序保证锁顺序一致
-			ts.acquireTablesLock(name).Lock()
-			defer ts.acquireTablesLock(name).Unlock()
+			defer ts.tlock.Lock(name)()
 		}
 	}
 
@@ -364,11 +354,6 @@ func NewTablesServiceImpl(storage *vfs.LogStructuredFS) TablesService {
 	return &TablesServiceImpl{
 		storage: storage,
 	}
-}
-
-func (s *TablesServiceImpl) acquireTablesLock(key string) *sync.RWMutex {
-	actual, _ := s.tlock.LoadOrStore(key, new(sync.RWMutex))
-	return actual.(*sync.RWMutex)
 }
 
 func buildSnapshot(snap *vfs.Snapshot, tab *types.Table) (*vfs.Snapshot, error) {

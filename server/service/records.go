@@ -16,7 +16,6 @@ package service
 
 import (
 	"errors"
-	"sync"
 
 	"github.com/auula/urnadb/clog"
 	"github.com/auula/urnadb/types"
@@ -55,19 +54,12 @@ type RecordsService interface {
 
 type RecordsServiceImpl struct {
 	storage *vfs.LogStructuredFS
-	rlock   sync.Map
-}
-
-// 获取或创建一个锁
-func (rs *RecordsServiceImpl) acquireRecordLock(name string) *sync.RWMutex {
-	val, _ := rs.rlock.LoadOrStore(name, new(sync.RWMutex))
-	return val.(*sync.RWMutex)
+	rlock   keyLocks
 }
 
 // 创建记录
 func (rs *RecordsServiceImpl) CreateRecord(name string, record *types.Record, ttl int64) error {
-	rs.acquireRecordLock(name).Lock()
-	defer rs.acquireRecordLock(name).Unlock()
+	defer rs.rlock.Lock(name)()
 
 	seg, err := vfs.AcquirePoolSegment(name, record, ttl)
 	if err != nil {
@@ -86,8 +78,7 @@ func (rs *RecordsServiceImpl) GetRecord(name string) (*types.Record, error) {
 		return nil, ErrRecordNotFound
 	}
 
-	rs.acquireRecordLock(name).Lock()
-	defer rs.acquireRecordLock(name).Unlock()
+	defer rs.rlock.Lock(name)()
 
 	_, seg, err := rs.storage.FetchSegment(name)
 	if err != nil {
@@ -106,17 +97,13 @@ func (rs *RecordsServiceImpl) DeleteRecord(name string) error {
 		return ErrRecordNotFound
 	}
 
-	rs.acquireRecordLock(name).Lock()
+	defer rs.rlock.Lock(name)()
 
 	err := rs.storage.DeleteSegment(name)
 	if err != nil {
-		rs.acquireRecordLock(name).Unlock()
 		clog.Errorf("[RecordsService.DeleteRecord] %v", err)
 		return err
 	}
-
-	rs.acquireRecordLock(name).Unlock()
-	rs.rlock.Delete(name)
 
 	return nil
 }
@@ -127,8 +114,7 @@ func (rs *RecordsServiceImpl) SearchRows(name string, column string) (any, error
 		return nil, ErrRecordNotFound
 	}
 
-	rs.acquireRecordLock(name).RLock()
-	defer rs.acquireRecordLock(name).RUnlock()
+	defer rs.rlock.RLock(name)()
 
 	_, seg, err := rs.storage.FetchSegment(name)
 	if err != nil {
