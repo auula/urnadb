@@ -18,6 +18,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/auula/urnadb/conf"
 	"github.com/auula/urnadb/types"
@@ -94,4 +95,41 @@ func TestDeleteVariant_Concurrent(t *testing.T) {
 	wg.Wait()
 
 	assert.Empty(t, variants.(*VariantsServiceImpl).vlock.locks)
+}
+
+// 事务按相同的顺序获取锁，否则会互相等待
+func TestTransaction_SerializableLockOrder(t *testing.T) {
+	tables := NewTablesServiceImpl(openTestFS(t))
+
+	var mutations []*TableMutation
+	for _, name := range []string{"a", "b", "c", "d"} {
+		assert.NoError(t, tables.CreateTable(name, types.NewTable(), 60))
+		mutations = append(mutations, &TableMutation{
+			Name:      name,
+			Operation: _INSERT,
+			Data:      map[string]any{"n": 1},
+		})
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		var wg sync.WaitGroup
+		for g := 0; g < 8; g++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := 0; i < 20; i++ {
+					_ = tables.Transaction(mutations, true)
+				}
+			}()
+		}
+		wg.Wait()
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		t.Fatal("transactions wait for each other")
+	}
 }

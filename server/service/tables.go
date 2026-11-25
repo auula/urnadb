@@ -17,6 +17,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/auula/urnadb/clog"
 	"github.com/auula/urnadb/types"
@@ -266,8 +267,9 @@ func (ts *TablesServiceImpl) Transaction(mutations []*TableMutation, serializabl
 
 	// 2PL 类似于关系数据中事物中的 serializable 隔离级别
 	if serializable {
+		// 排序保证锁顺序一致
+		sort.Strings(keys)
 		for _, name := range keys {
-			// 排序保证锁顺序一致
 			defer ts.tlock.Lock(name)()
 		}
 	}
